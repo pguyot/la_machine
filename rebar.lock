@@ -1,0 +1,4 @@
+[{<<"atomvm_esp_adf">>,
+  {git,"https://github.com/pguyot/atomvm_esp_adf.git",
+       {ref,"f64791d603206aa72617f39b7396a228a832ccb8"}},
+  0}].
