@@ -53,6 +53,10 @@
     set_poke_index/2
 ]).
 
+-export_type([
+    state/0
+]).
+
 % Constructor for tests
 -ifdef(TEST).
 -export([

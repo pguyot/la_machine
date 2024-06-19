@@ -171,7 +171,8 @@ start() ->
     la_machine_state:save_state(State1),
     go_to_sleep(SleepTimer).
 
--spec action(esp:esp_wakeup_cause(), on | off, la_machine_state:state()) -> action().
+% Until https://github.com/atomvm/AtomVM/pull/1197 is merged
+-spec action(atom(), on | off, la_machine_state:state()) -> action().
 action(_WakeupCause, on, State) ->
     LastPlayTime = la_machine_state:get_last_play_time(State),
     LastPlaySeq = la_machine_state:get_last_play_seq(State),
