@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Build
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  erlfmt:
+    runs-on: ubuntu-latest
+    container: erlang:27
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Checkout erlfmt
+        run: |
+            cd ..
+            git clone --depth 1 -b v1.3.0 https://github.com/WhatsApp/erlfmt.git
+            cd erlfmt
+            rebar3 as release escriptize
+      - name: Check format with erlfmt
+        run: |
+            find . -name *.erl | xargs ../erlfmt/_build/release/bin/erlfmt -c
+
+  eunit:
+    runs-on: ubuntu-latest
+    container: erlang:27
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Run eunit
+      run: |
+        rebar3 eunit
+
+  dialyzer:
+    runs-on: ubuntu-latest
+    container: erlang:27
+    steps:
+    - name: Checkout AtomVM
+      uses: actions/checkout@v4
+      with:
+        repository: atomvm/AtomVM
+        path: AtomVM
+
+    - name: Checkout atomvm_esp_adf
+      uses: actions/checkout@v4
+      with:
+        path: la_machine
+
+    - name: Install dependencies to build AtomVM libraries
+      run: |
+        set -eu
+        apt update
+        DEBIAN_FRONTEND=noninteractive apt install -y -q \
+            doxygen gcc g++ zlib1g-dev libmbedtls-dev make cmake gperf
+
+    - name: Build AtomVM libraries
+      shell: bash
+      working-directory: AtomVM/
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        cd libs
+        make
+
+    - name: Build La Machine's dependencies
+      run: |
+        cd la_machine
+        rebar3 compile -d
+
+    - name: Build PLT
+      run: |
+        cd la_machine
+        dialyzer --build_plt --output_plt la_machine_deps.plt ../AtomVM/build/libs/estdlib/src/beams ../AtomVM/build/libs/eavmlib/src/beams _build/default/lib/atomvm_esp_adf/ebin/
+
+    - name: Run dialyzer using source code
+      run: |
+        cd la_machine
+        dialyzer --plt la_machine_deps.plt --src src/
