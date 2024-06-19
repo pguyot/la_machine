@@ -1,3 +1,4 @@
+% SPDX-License-Identifier: Apache-2.0
 {application, la_machine, [
     {description, "La Machine application"},
     {vsn, "0.1.0"},
@@ -9,6 +10,6 @@
     {env, []},
     {modules, []},
 
-    {licenses, ["MIT"]},
+    {licenses, ["Apache-2.0"]},
     {links, []}
 ]}.
