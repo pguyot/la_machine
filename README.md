@@ -3,6 +3,8 @@ Source code for La Machine
 
 https://la-machine.fr/
 
+https://github.com/pguyot/la_machine/assets/168407/3031f52c-ed63-48e6-9180-fe7e649e0025
+
 Requirements
 -----
 
