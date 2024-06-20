@@ -11,17 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     container: erlang:27
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Checkout erlfmt
-        run: |
-            cd ..
-            git clone --depth 1 -b v1.3.0 https://github.com/WhatsApp/erlfmt.git
-            cd erlfmt
-            rebar3 as release escriptize
-      - name: Check format with erlfmt
-        run: |
-            find . -name *.erl | xargs ../erlfmt/_build/release/bin/erlfmt -c
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Run erlfmt
+      run: |
+        rebar3 as check fmt --check
 
   eunit:
     runs-on: ubuntu-latest
@@ -42,6 +36,7 @@ jobs:
       with:
         repository: atomvm/AtomVM
         path: AtomVM
+        ref: release-0.6
 
     - name: Checkout atomvm_esp_adf
       uses: actions/checkout@v4
