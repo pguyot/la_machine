@@ -169,8 +169,7 @@ jobs:
         echo CONFIG_AVM_ENABLE_OTP_NET_NIFS=n >> sdkconfig
         echo CONFIG_AVM_ENABLE_OTP_SSL_NIFS=n >> sdkconfig
         echo CONFIG_AVM_ESP_ADF_PWM_OUTPUT_ENABLE=n >> sdkconfig
-        # https://github.com/atomvm/AtomVM/pull/1198
-        # echo CONFIG_AVM_ENABLE_GPIO_PORT_DRIVER=n >> sdkconfig
+        echo CONFIG_AVM_ENABLE_GPIO_PORT_DRIVER=n >> sdkconfig
         echo CONFIG_AVM_ENABLE_UART_PORT_DRIVER=n >> sdkconfig
         idf.py build
 
