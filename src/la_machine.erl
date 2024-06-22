@@ -31,6 +31,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
+% We use eunit:start/0 entry point for tests.
 -ifndef(TEST).
 -export([start/0]).
 -endif.
@@ -137,8 +138,35 @@ play_aac(AACFilename) ->
         end,
     ok.
 
--ifndef(TEST).
-start() ->
+%% @doc Configure watchdog to panic after `WATCHDOG_TIMEOUT_MS' ms (1 minute).
+%% La machine should be finished within 1 minute and unconfigure watchdog before
+%% the timeout elapses, so this watchdog should never be triggered.
+%% However, if Erlang code crashes and shutdown doesn't happen, the watchdog
+%% will eventually be triggered.
+%%
+%% WatchdogUser is currrently not a resource, but the code is designed as if it
+%% was a resource that would automatically delete itself when being garbage
+%% collected: WatchdogUser handle is kept and used to unconfigure watchdog just
+%% before sleeping.
+%% @end
+-spec configure_watchdog() -> esp:task_wdt_user_handle().
+configure_watchdog() ->
+    esp:task_wdt_reconfigure({?WATCHDOG_TIMEOUT_MS, 0, true}),
+    {ok, WatchdogUser} = esp:task_wdt_add_user(<<"la_machine">>),
+    WatchdogUser.
+
+%% @doc Unconfigure watchdog.
+%% This function is called just before calling `esp:deep_sleep/1'
+%% @end
+-spec unconfigure_watchdog(esp:task_wdt_user_handle()) -> ok.
+unconfigure_watchdog(WatchdogUser) ->
+    % Do not prevent deep sleep if ever esp:task_wdt_delete_user/1 returns an error.
+    _ = esp:task_wdt_delete_user(WatchdogUser),
+    ok.
+
+-spec run() -> no_return().
+run() ->
+    WatchdogUser = configure_watchdog(),
     % Configure button GPIO
     ok = gpio:set_pin_mode(?BUTTON_GPIO, input),
     ok = gpio:set_pin_pull(?BUTTON_GPIO, up),
@@ -172,7 +200,16 @@ start() ->
         end,
     SleepTimer = compute_sleep_timer(State1),
     la_machine_state:save_state(State1),
-    go_to_sleep(SleepTimer).
+    SleepMS = setup_sleep(SleepTimer),
+    unconfigure_watchdog(WatchdogUser),
+    esp:deep_sleep(SleepMS).
+
+-ifndef(TEST).
+%% @doc Entry point
+%% @end
+-spec start() -> no_return().
+start() ->
+    run().
 -endif.
 
 -spec action(esp:esp_wakeup_cause(), on | off, la_machine_state:state()) -> action().
@@ -232,7 +269,7 @@ play(_LastPlayTime, _LastPlayIndex, _PlayIndex) ->
     timer:sleep(300),
     ledc:stop(?LEDC_MODE, ?LEDC_CHANNEL, 0).
 
-go_to_sleep(SleepSecs) ->
+setup_sleep(SleepSecs) ->
     % Turn down MAX98357A
     %   gpio:set_pin_mode(?MAX_SD_MODE_PIN, output),
     %   gpio:digital_write(?MAX_SD_MODE_PIN, 0),
@@ -243,7 +280,7 @@ go_to_sleep(SleepSecs) ->
 
     gpio:deep_sleep_hold_en(),
     SleepMs = SleepSecs * 1000,
-    esp:deep_sleep(SleepMs).
+    SleepMs.
 
 write_angle(Angle, ChannelConfig) ->
     Duty = angle_to_duty(Angle),
