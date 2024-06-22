@@ -92,7 +92,10 @@ save_state(State) ->
 -spec get_state() -> binary() | undefined.
 get_state() ->
     try
-        esp:rtc_slow_get_binary()
+        case esp:reset_reason() of
+            esp_rst_deepsleep -> esp:rtc_slow_get_binary();
+            _ -> undefined
+        end
     catch
         error:badarg ->
             undefined
