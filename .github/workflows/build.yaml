@@ -17,110 +17,82 @@ jobs:
       run: |
         rebar3 as check fmt --check
 
-  eunit:
-    runs-on: ubuntu-latest
-    container: erlang:27
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-    - name: Run eunit
-      run: |
-        rebar3 eunit
-
-  dialyzer:
+  build_and_test:
     runs-on: ubuntu-latest
     container: erlang:27
     steps:
     - name: Checkout AtomVM
       uses: actions/checkout@v4
       with:
-        repository: atomvm/AtomVM
+        # repository: atomvm/AtomVM
+        # ref: release-0.6
+        repository: pguyot/AtomVM
+        ref: w25/la_machine
         path: AtomVM
-        ref: release-0.6
 
     - name: Checkout atomvm_esp_adf
       uses: actions/checkout@v4
       with:
         path: la_machine
 
-    - name: Install dependencies to build AtomVM libraries
+    - name: Compile la_machine
+      working-directory: la_machine/
+      run: |
+        rebar3 compile
+
+    - name: Run eunit tests with BEAM
+      working-directory: la_machine/
+      run: |
+        rebar3 eunit
+
+    - name: Install dependencies to build AtomVM and its libraries
       run: |
         set -eu
         apt update
         DEBIAN_FRONTEND=noninteractive apt install -y -q \
-            doxygen gcc g++ zlib1g-dev libmbedtls-dev make cmake gperf
+            doxygen gcc g++ zlib1g-dev libmbedtls-dev make cmake gperf ninja-build
 
-    - name: Build AtomVM libraries
+    - name: Build AtomVM and its libraries
       shell: bash
       working-directory: AtomVM/
       run: |
         mkdir build
         cd build
-        cmake ..
-        cd libs
-        make
-
-    - name: Build La Machine's dependencies
-      run: |
-        cd la_machine
-        rebar3 compile -d
+        cmake .. -G Ninja
+        cmake --build .
 
     - name: Build PLT
+      working-directory: la_machine/
       run: |
-        cd la_machine
         dialyzer --build_plt --output_plt la_machine_deps.plt ../AtomVM/build/libs/estdlib/src/beams ../AtomVM/build/libs/eavmlib/src/beams _build/default/lib/atomvm_esp_adf/ebin/
 
     - name: Run dialyzer using source code
+      working-directory: la_machine/
       run: |
-        cd la_machine
         dialyzer --plt la_machine_deps.plt --src src/
 
-    # We don't need Elixir and Alisp and could save few bytes by not including them
-    - name: Upload AtomVM eavmlib.avm
-      uses: actions/upload-artifact@v4
-      with:
-        name: eavmlib.avm
-        path:  AtomVM/build/libs/eavmlib/src/eavmlib.avm
-        if-no-files-found: error
-        retention-days: 1
-
-    - name: Upload AtomVM estdlib.avm
-      uses: actions/upload-artifact@v4
-      with:
-        name: estdlib.avm
-        path:  AtomVM/build/libs/estdlib/src/estdlib.avm
-        if-no-files-found: error
-        retention-days: 1
-
-  packbeam:
-    needs: dialyzer
-    runs-on: ubuntu-latest
-    container: erlang:27
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Download AtomVM eavmlib.avm
-      uses: actions/download-artifact@v4
-      with:
-        name: eavmlib.avm
-        path: eavmlib
-
-    - name: Download AtomVM estdlib.avm
-      uses: actions/download-artifact@v4
-      with:
-        name: estdlib.avm
-        path: estdlib
+    - name: Run eunit tests with AtomVM
+      working-directory: la_machine/
+      run: |
+        rebar3 as test atomvm packbeam
+        ../AtomVM/build/src/AtomVM \
+            ../AtomVM/build/libs/etest/src/beams/eunit.beam \
+            ../AtomVM/build/libs/atomvmlib.avm \
+            _build/test/lib/la_machine.avm | tee test.log
+        grep -xqE -e '- [[:digit:]]+ Tests 0 Failures 0 Ignored OK' test.log
 
     - name: Run packbeam
+      working-directory: la_machine/
       run: |
-        rebar3 atomvm packbeam -p -e `pwd`/eavmlib/eavmlib.avm -e `pwd`/estdlib/estdlib.avm
+        rebar3 atomvm packbeam -p \
+            -e `pwd`/../AtomVM/build/libs/eavmlib/src/eavmlib.avm \
+            -e `pwd`/../AtomVM/build/libs/estdlib/src/estdlib.avm
 
     - name: Upload la_machine.avm
       uses: actions/upload-artifact@v4
       with:
         name: la_machine.avm
-        path: _build/default/lib/la_machine.avm
+        path: la_machine/_build/default/lib/la_machine.avm
         if-no-files-found: error
         retention-days: 1
 
@@ -136,9 +108,11 @@ jobs:
     - name: Checkout AtomVM
       uses: actions/checkout@v4
       with:
-        repository: atomvm/AtomVM
+        # repository: atomvm/AtomVM
+        # ref: release-0.6
+        repository: pguyot/AtomVM
+        ref: w25/la_machine
         path: AtomVM
-        ref: release-0.6
 
     - name: Checkout atomvm_esp_adf
       uses: actions/checkout@v4
@@ -212,7 +186,7 @@ jobs:
         retention-days: 1
 
   make_image:
-    needs: [packbeam, build_vm]
+    needs: [build_and_test, build_vm]
     runs-on: ubuntu-latest
     container: erlang:27
     steps:
@@ -237,7 +211,7 @@ jobs:
         name: la_machine-atomvm.bin
         path: image/
 
-    - name: Download Packbeam
+    - name: Download la_machine
       uses: actions/download-artifact@v4
       with:
         name: la_machine.avm

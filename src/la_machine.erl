@@ -31,7 +31,9 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
+-ifndef(TEST).
 -export([start/0]).
+-endif.
 
 -type action() ::
     setup
@@ -135,6 +137,7 @@ play_aac(AACFilename) ->
         end,
     ok.
 
+-ifndef(TEST).
 start() ->
     % Configure button GPIO
     ok = gpio:set_pin_mode(?BUTTON_GPIO, input),
@@ -170,6 +173,7 @@ start() ->
     SleepTimer = compute_sleep_timer(State1),
     la_machine_state:save_state(State1),
     go_to_sleep(SleepTimer).
+-endif.
 
 -spec action(esp:esp_wakeup_cause(), on | off, la_machine_state:state()) -> action().
 action(_WakeupCause, on, State) ->
@@ -256,8 +260,9 @@ angle_to_duty(Angle) ->
     floor(Duty).
 
 compute_sleep_timer(State) ->
-    <<RandHour:64>> = crypto:strong_rand_bytes(8),
-    <<RandSec:64>> = crypto:strong_rand_bytes(8),
+    % AtomVM integers are up to signed 64 bits
+    <<RandHour:56>> = crypto:strong_rand_bytes(7),
+    <<RandSec:56>> = crypto:strong_rand_bytes(7),
     compute_sleep_timer(RandHour, RandSec, State).
 
 compute_sleep_timer(RandHour, RandSec, State) ->
