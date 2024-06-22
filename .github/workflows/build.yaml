@@ -74,11 +74,12 @@ jobs:
     - name: Run eunit tests with AtomVM
       working-directory: la_machine/
       run: |
-        rebar3 as test atomvm packbeam
-        ../AtomVM/build/src/AtomVM \
-            ../AtomVM/build/libs/etest/src/beams/eunit.beam \
-            ../AtomVM/build/libs/atomvmlib.avm \
-            _build/test/lib/la_machine.avm | tee test.log
+        rebar3 as test atomvm packbeam \
+            -s eunit \
+            -e $PWD/../AtomVM/build/libs/etest/src/beams/eunit.beam \
+            -e $PWD/../AtomVM/build/libs/atomvmlib.avm
+        cp _build/test/lib/la_machine.avm la_machine_tests.avm
+        ../AtomVM/build/src/AtomVM la_machine_tests.avm | tee test.log
         grep -xqE -e '- [[:digit:]]+ Tests 0 Failures 0 Ignored OK' test.log
 
     - name: Run packbeam
@@ -93,6 +94,14 @@ jobs:
       with:
         name: la_machine.avm
         path: la_machine/_build/default/lib/la_machine.avm
+        if-no-files-found: error
+        retention-days: 1
+
+    - name: Upload la_machine_tests.avm
+      uses: actions/upload-artifact@v4
+      with:
+        name: la_machine_tests.avm
+        path: la_machine/la_machine_tests.avm
         if-no-files-found: error
         retention-days: 1
 
@@ -153,27 +162,15 @@ jobs:
       run: |
         python $IDF_PATH/components/partition_table/gen_esp32part.py partitions.csv partitions.bin
 
-    - name: Upload bootloader
+    - name: Upload AtomVM built files
       uses: actions/upload-artifact@v4
       with:
-        name: bootloader.bin
-        path: AtomVM/src/platforms/esp32/build/bootloader/bootloader.bin
-        if-no-files-found: error
-        retention-days: 1
-
-    - name: Upload mkimage script
-      uses: actions/upload-artifact@v4
-      with:
-        name: mkimage.erl
-        path: AtomVM/src/platforms/esp32/build/mkimage.erl
-        if-no-files-found: error
-        retention-days: 1
-
-    - name: Upload VM
-      uses: actions/upload-artifact@v4
-      with:
-        name: la_machine-atomvm.bin
-        path: AtomVM/src/platforms/esp32/build/atomvm-esp32.bin
+        name: la_machine-atomvm
+        path: |
+            AtomVM/src/platforms/esp32/build/bootloader/bootloader.bin
+            AtomVM/src/platforms/esp32/build/mkimage.erl
+            AtomVM/src/platforms/esp32/build/atomvm-esp32.bin
+            AtomVM/src/platforms/esp32/test/qemu_esp32c3_efuse.bin
         if-no-files-found: error
         retention-days: 1
 
@@ -185,6 +182,39 @@ jobs:
         if-no-files-found: error
         retention-days: 1
 
+  test_with_qemu:
+    needs: [build_and_test, build_vm]
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.2.2
+    steps:
+    - name: Checkout La Machine
+      uses: actions/checkout@v4
+
+    - name: Download VM
+      uses: actions/download-artifact@v4
+      with:
+        name: la_machine-atomvm
+        path: image/
+
+    - name: Download partition map
+      uses: actions/download-artifact@v4
+      with:
+        name: partitions.bin
+        path: image/
+
+    - name: Download la_machine_tests.avm
+      uses: actions/download-artifact@v4
+      with:
+        name: la_machine_tests.avm
+        path: image/
+
+    - name: Run tests with qemu
+      shell: bash
+      run: |
+        . $IDF_PATH/export.sh
+        pip install -U pytest-embedded pytest-embedded-qemu
+        pytest test_qemu.py
+
   make_image:
     needs: [build_and_test, build_vm]
     runs-on: ubuntu-latest
@@ -192,12 +222,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-
-    - name: Download bootloader
-      uses: actions/download-artifact@v4
-      with:
-        name: bootloader.bin
-        path: image/
 
     - name: Download partition map
       uses: actions/download-artifact@v4
@@ -208,7 +232,7 @@ jobs:
     - name: Download VM
       uses: actions/download-artifact@v4
       with:
-        name: la_machine-atomvm.bin
+        name: la_machine-atomvm
         path: image/
 
     - name: Download la_machine
@@ -217,18 +241,11 @@ jobs:
         name: la_machine.avm
         path: image/
 
-    - name: Download mkimage script
-      uses: actions/download-artifact@v4
-      with:
-        name: mkimage.erl
-        path: image/
-
     - name: Build image
       shell: bash
       working-directory: image
       run: |
-        find .
-        escript mkimage.erl --root_dir . --config mkimage.config --out la_machine.img
+        escript build/mkimage.erl --root_dir . --config mkimage.config --out la_machine.img
 
     - name: Upload image
       uses: actions/upload-artifact@v4
