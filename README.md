@@ -41,7 +41,7 @@ codecs). You can build AtomVM from source or use the latest esp32c3 build of
 
 This build can be flashed with the following command on macOS:
 
-    esptool.py --chip esp32c3 --port /dev/cu.usbmodem* write_flash 0 ~/Downloads/atomvm-esp-adf-esp32c3-v5.2.1.img
+    esptool.py --chip esp32c3 --port /dev/cu.usbmodem* write_flash 0 ~/Downloads/atomvm-esp-adf-esp32c3-v5.2.2.img
 
 To compile source code of La Machine, you need Erlang/OTP (a recent version
 will do) and rebar3. With a single line, you can compile, pack and flash
