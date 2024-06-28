@@ -49,6 +49,63 @@
         PokeIndex :: non_neg_integer()
     }.
 
+play_scenarios() ->
+    [
+        [
+            {aac, <<"gears/17243.aac">>},
+            {servo, 20},
+            {aac, <<"hits/party-blower-fail-soundroll-1-1-00-01.aac">>},
+            {servo, 100},
+            {servo, 0}
+        ],
+        [
+            {aac, <<"gears/8665.aac">>},
+            {servo, 1},
+            {wait, 433},
+            {servo, 2},
+            {wait, 433},
+            {servo, 3},
+            {wait, 433},
+            {servo, 4},
+            {wait, 433},
+            {servo, 5},
+            {wait, 433},
+            {servo, 6},
+            {wait, 433},
+            {servo, 7},
+            {wait, 433},
+            {servo, 8},
+            {wait, 433},
+            {servo, 9},
+            {wait, 433},
+            {servo, 10},
+            {wait, 433},
+            {servo, 11},
+            {wait, 433},
+            {servo, 12},
+            {wait, 433},
+            {servo, 13},
+            {wait, 433},
+            {servo, 14},
+            {wait, 433},
+            {servo, 15},
+            {wait, 433},
+            {servo, 16},
+            {wait, 433},
+            {servo, 17},
+            {wait, 433},
+            {servo, 18},
+            {wait, 433},
+            {servo, 19},
+            {wait, 433},
+            {servo, 20},
+            {wait, sound},
+            {servo, 100},
+            {aac, <<"hits/glass.aac">>},
+            {servo, 0}
+        ]
+    ].
+
 %% @doc Configure watchdog to panic after `WATCHDOG_TIMEOUT_MS' ms (1 minute).
 %% La machine should be finished within 1 minute and unconfigure watchdog before
 %% the timeout elapses, so this watchdog should never be triggered.
@@ -140,13 +197,10 @@ poke() ->
 
 play(_LastPlayTime, _LastPlayIndex, _PlayIndex) ->
     {ok, Pid} = la_machine_player:start_link(),
-    ok = la_machine_player:play(Pid, [
-        {aac, <<"gears/17243.aac">>},
-        {servo, 20},
-        {aac, <<"hits/party-blower-fail-soundroll-1-1-00-01.aac">>},
-        {servo, 100},
-        {servo, 0}
-    ]),
+    <<RandScenario:56>> = crypto:strong_rand_bytes(7),
+    Scenarios = play_scenarios(),
+    Scenario = lists:nth(1 + (RandScenario rem length(Scenarios)), Scenarios),
+    ok = la_machine_player:play(Pid, Scenario),
     ok = la_machine_player:stop(Pid),
     ok.
 
