@@ -180,7 +180,13 @@ play_next(#state{wait_end = WaitEnd} = State0) when WaitEnd =/= undefined ->
             WaitMS = WaitEnd - Now,
             {noreply, State0, WaitMS}
     end;
-play_next(#state{sequence = [{wait, WaitMS} | Tail]} = State0) ->
+play_next(#state{sequence = [{wait, sound} | Tail], audio_monitor = undefined} = State0) ->
+    play_next(State0#state{sequence = Tail});
+play_next(#state{sequence = [{wait, sound} | _]} = State0) ->
+    {noreply, State0};
+play_next(#state{sequence = [{wait, servo} | Tail], servo_end = undefined} = State0) ->
+    play_next(State0#state{sequence = Tail});
+play_next(#state{sequence = [{wait, WaitMS} | Tail]} = State0) when is_integer(WaitMS) ->
     Now = erlang:system_time(millisecond),
     WaitEnd = Now + WaitMS,
     {noreply, State0#state{sequence = Tail, wait_end = WaitEnd}, WaitMS};
@@ -351,6 +357,134 @@ play_two_sounds_test_() ->
                 ?assert(Timeout3Timestamp - SetTarget3Timestamp >= 100),
                 ?assert(SetTarget4Timestamp - SetTarget3Timestamp >= 100),
                 ?assert(Timeout4Timestamp - SetTarget4Timestamp >= 100)
+            end)
+        end
+    }.
+
+play_wait_sound_test_() ->
+    {
+        setup,
+        fun() ->
+            AudioMock = la_machine_audio_mock:new(),
+            ServoMock = la_machine_servo_mock:new(),
+            la_machine_servo_mock:expect(AudioMock, power_on, ok),
+            la_machine_servo_mock:expect(ServoMock, power_on, ok),
+            {ok, Pid} = gen_server:start_link(
+                ?MODULE, {la_machine_audio_mock, la_machine_servo_mock}, []
+            ),
+            la_machine_audio_mock:assert_called(AudioMock, power_on),
+            la_machine_servo_mock:assert_called(ServoMock, power_on),
+            {ServoMock, AudioMock, Pid}
+        end,
+        fun({ServoMock, AudioMock, Pid}) ->
+            la_machine_audio_mock:expect(AudioMock, power_off, ok),
+            la_machine_servo_mock:expect(ServoMock, power_off, ok),
+            ok = gen_server:stop(Pid),
+            la_machine_audio_mock:assert_called(AudioMock, power_off),
+            la_machine_servo_mock:assert_called(ServoMock, power_off),
+            la_machine_audio_mock:delete(AudioMock),
+            la_machine_servo_mock:delete(ServoMock)
+        end,
+        fun({ServoMock, AudioMock, Pid}) ->
+            ?_test(begin
+                Self = self(),
+                Ref = make_ref(),
+                la_machine_audio_mock:expect(AudioMock, play, fun(Filename) ->
+                    Self ! {Ref, {play, Filename, erlang:system_time(millisecond)}},
+                    timer:sleep(500)
+                end),
+                la_machine_servo_mock:expect(ServoMock, set_target, fun(Target, State) ->
+                    Self ! {Ref, {set_target, Target, erlang:system_time(millisecond)}},
+                    {100, State}
+                end),
+                la_machine_servo_mock:expect(ServoMock, timeout, fun(State) ->
+                    Self ! {Ref, {timeout, erlang:system_time(millisecond)}},
+                    State
+                end),
+                Before = erlang:system_time(millisecond),
+                play(Pid, [
+                    {aac, <<"filename_1.aac">>},
+                    {wait, sound},
+                    {servo, 30}
+                ]),
+                After = erlang:system_time(millisecond),
+                la_machine_audio_mock:assert_called(AudioMock, play),
+                ?assert(After - Before >= 600),
+                Messages = collect_messages(Ref, []),
+                [
+                    {play, <<"filename_1.aac">>, Filename1Timestamp},
+                    {set_target, 30, SetTarget1Timestamp},
+                    {timeout, Timeout1Timestamp}
+                ] = Messages,
+                % Ensure sounds are played one after the other
+                ?assert(SetTarget1Timestamp - Filename1Timestamp >= 500),
+                ?assert(After - SetTarget1Timestamp >= 100),
+                % Ensure proper time between servo messages
+                ?assert(Timeout1Timestamp - SetTarget1Timestamp >= 100)
+            end)
+        end
+    }.
+
+play_wait_servo_test_() ->
+    {
+        setup,
+        fun() ->
+            AudioMock = la_machine_audio_mock:new(),
+            ServoMock = la_machine_servo_mock:new(),
+            la_machine_servo_mock:expect(AudioMock, power_on, ok),
+            la_machine_servo_mock:expect(ServoMock, power_on, ok),
+            {ok, Pid} = gen_server:start_link(
+                ?MODULE, {la_machine_audio_mock, la_machine_servo_mock}, []
+            ),
+            la_machine_audio_mock:assert_called(AudioMock, power_on),
+            la_machine_servo_mock:assert_called(ServoMock, power_on),
+            {ServoMock, AudioMock, Pid}
+        end,
+        fun({ServoMock, AudioMock, Pid}) ->
+            la_machine_audio_mock:expect(AudioMock, power_off, ok),
+            la_machine_servo_mock:expect(ServoMock, power_off, ok),
+            ok = gen_server:stop(Pid),
+            la_machine_audio_mock:assert_called(AudioMock, power_off),
+            la_machine_servo_mock:assert_called(ServoMock, power_off),
+            la_machine_audio_mock:delete(AudioMock),
+            la_machine_servo_mock:delete(ServoMock)
+        end,
+        fun({ServoMock, AudioMock, Pid}) ->
+            ?_test(begin
+                Self = self(),
+                Ref = make_ref(),
+                la_machine_audio_mock:expect(AudioMock, play, fun(Filename) ->
+                    Self ! {Ref, {play, Filename, erlang:system_time(millisecond)}},
+                    timer:sleep(500)
+                end),
+                la_machine_servo_mock:expect(ServoMock, set_target, fun(Target, State) ->
+                    Self ! {Ref, {set_target, Target, erlang:system_time(millisecond)}},
+                    {100, State}
+                end),
+                la_machine_servo_mock:expect(ServoMock, timeout, fun(State) ->
+                    Self ! {Ref, {timeout, erlang:system_time(millisecond)}},
+                    State
+                end),
+                Before = erlang:system_time(millisecond),
+                play(Pid, [
+                    {servo, 30},
+                    {wait, servo},
+                    {aac, <<"filename_1.aac">>}
+                ]),
+                After = erlang:system_time(millisecond),
+                la_machine_audio_mock:assert_called(AudioMock, play),
+                ?assert(After - Before >= 600),
+                Messages = collect_messages(Ref, []),
+                [
+                    {set_target, 30, SetTarget1Timestamp},
+                    {timeout, Timeout1Timestamp},
+                    {play, <<"filename_1.aac">>, Filename1Timestamp}
+                ] = Messages,
+                % Ensure sounds are played one after the other
+                ?assert(Filename1Timestamp - SetTarget1Timestamp >= 100),
+                ?assert(After - Filename1Timestamp >= 500),
+                % Ensure proper time between servo messages
+                ?assert(Timeout1Timestamp - SetTarget1Timestamp >= 100)
             end)
         end
     }.
