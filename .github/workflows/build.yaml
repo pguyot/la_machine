@@ -76,6 +76,9 @@ jobs:
       run: |
         rebar3 as test atomvm packbeam \
             -s eunit \
+            -e $PWD/_build/test/lib/la_machine/test/la_machine_audio_mock.beam \
+            -e $PWD/_build/test/lib/la_machine/test/la_machine_servo_mock.beam \
+            -e $PWD/_build/test/lib/la_machine/test/mock.beam \
             -e $PWD/../AtomVM/build/libs/etest/src/beams/eunit.beam \
             -e $PWD/../AtomVM/build/libs/atomvmlib.avm
         cp _build/test/lib/la_machine.avm la_machine_tests.avm

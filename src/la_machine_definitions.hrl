@@ -56,6 +56,8 @@
 -define(SERVO_FREQ_HZ, 50).
 -define(SERVO_FREQ_PERIOD_US, (1000000 / ?SERVO_FREQ_HZ)).
 -define(SERVO_MAX_DUTY, ((1 bsl ?LEDC_DUTY_RESOLUTION) - 1)).
+% Time required to move for MAX_ANGLE in ms. Servo is 0.3s/60°
+-define(SERVO_MAX_ANGLE_TIME_MS, 900).
 
 % Maximum run time. If La machine runs in more than this, watchdog is triggered,
 % La machine panics and state stored in RTC Slow memory is ignored on next boot.

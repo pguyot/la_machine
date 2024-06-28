@@ -37,7 +37,7 @@
 -endif.
 
 -type action() ::
-    setup
+    reset
     | {
         play,
         LastPlayTime :: non_neg_integer(),
@@ -48,95 +48,6 @@
         poke,
         PokeIndex :: non_neg_integer()
     }.
-
-init_servo() ->
-    LEDCTimer = [
-        {duty_resolution, ?LEDC_DUTY_RESOLUTION},
-        {freq_hz, ?SERVO_FREQ_HZ},
-        {speed_mode, ?LEDC_MODE},
-        {timer_num, ?LEDC_TIMER}
-    ],
-    ok = ledc:timer_config(LEDCTimer),
-    LEDCChannel = [
-        {channel, ?LEDC_CHANNEL},
-        {duty, 0},
-        {gpio_num, ?LEDC_CH_GPIO},
-        {speed_mode, ?LEDC_MODE},
-        {hpoint, 0},
-        {timer_sel, ?LEDC_TIMER}
-    ],
-    ok = ledc:channel_config(LEDCChannel),
-
-    %   gpio:set_pin_mode(?MOSFET_GPIO, output),
-    %   gpio:digital_write(?MOSFET_GPIO, 1),
-
-    LEDCChannel.
-
-play_aac(AACFilename) ->
-    {Pid, MonitorRef} = spawn_opt(
-        fun() ->
-            AudioPipeline = esp_adf_audio_pipeline:init([]),
-
-            AACFile = atomvm:read_priv(?MODULE, AACFilename),
-            AACDecoder = esp_adf_aac_decoder:init([]),
-            ok = esp_adf_audio_element:set_read_binary(AACDecoder, AACFile),
-            ok = esp_adf_audio_pipeline:register(AudioPipeline, AACDecoder, <<"aac">>),
-
-            Filter = esp_adf_rsp_filter:init([
-                {src_rate, 22050}, {src_ch, 1}, {dest_rate, 44100}, {dest_ch, 2}
-            ]),
-            ok = esp_adf_audio_pipeline:register(AudioPipeline, Filter, <<"filter">>),
-
-            I2SOutput = esp_adf_i2s_output:init([
-                {rate, 44100},
-                {bits, 16},
-                {gpio_bclk, ?MAX_BCLK_GPIO},
-                {gpio_lrclk, ?MAX_LRC_GPIO},
-                {gpio_dout, ?MAX_DIN_GPIO}
-            ]),
-            ok = esp_adf_audio_pipeline:register(AudioPipeline, I2SOutput, <<"i2s">>),
-
-            ok = esp_adf_audio_pipeline:link(AudioPipeline, [<<"aac">>, <<"filter">>, <<"i2s">>]),
-
-            ok = esp_adf_audio_pipeline:run(AudioPipeline),
-
-            ok =
-                receive
-                    {audio_element, I2SOutput, {status, state_finished}} -> ok
-                end,
-
-            ok = esp_adf_audio_pipeline:stop(AudioPipeline),
-
-            ok =
-                receive
-                    {audio_element, AACDecoder, {status, state_stopped}} -> ok
-                after 500 -> timeout
-                end,
-            ok =
-                receive
-                    {audio_element, Filter, {status, state_stopped}} -> ok
-                after 500 -> timeout
-                end,
-            ok =
-                receive
-                    {audio_element, I2SOutput, {status, state_stopped}} -> ok
-                after 500 -> timeout
-                end,
-
-            ok = esp_adf_audio_pipeline:wait_for_stop(AudioPipeline),
-            ok = esp_adf_audio_pipeline:terminate(AudioPipeline),
-            ok = esp_adf_audio_pipeline:unregister(AudioPipeline, AACDecoder),
-            ok = esp_adf_audio_pipeline:unregister(AudioPipeline, Filter),
-            ok = esp_adf_audio_pipeline:unregister(AudioPipeline, I2SOutput),
-            ok
-        end,
-        [monitor]
-    ),
-    normal =
-        receive
-            {'DOWN', MonitorRef, process, Pid, Reason} -> Reason
-        end,
-    ok.
 
 %% @doc Configure watchdog to panic after `WATCHDOG_TIMEOUT_MS' ms (1 minute).
 %% La machine should be finished within 1 minute and unconfigure watchdog before
@@ -189,13 +100,9 @@ run() ->
             {poke, PokeIndex} ->
                 poke(),
                 la_machine_state:set_poke_index(PokeIndex + 1, State0);
-            setup ->
-                LEDCChannel = init_servo(),
-
-                % Ensure servo is at closed angle
-                write_angle(?SERVO_CLOSED_ANGLE, LEDCChannel),
-                timer:sleep(300),
-                ledc:stop(?LEDC_MODE, ?LEDC_CHANNEL, 0),
+            reset ->
+                la_machine_audio:reset(),
+                la_machine_servo:reset(),
                 State0
         end,
     SleepTimer = compute_sleep_timer(State1),
@@ -219,82 +126,34 @@ action(_WakeupCause, on, State) ->
     PlayIndex = la_machine_state:get_play_index(State),
     {play, LastPlayTime, LastPlaySeq, PlayIndex};
 action(sleep_wakeup_gpio, off, _State) ->
-    setup;
+    reset;
 action(sleep_wakeup_timer, _ButtonState, State) ->
     {poke, la_machine_state:get_poke_index(State)};
 action(undefined, _ButtonState, _State) ->
-    setup.
+    reset.
 
 poke() ->
-    LEDCChannel = init_servo(),
-
-    % Ensure servo is at slightly open angle
-    write_angle(?SERVO_SLIGHTLY_OPEN_ANGLE, LEDCChannel),
-    timer:sleep(150),
-    ledc:stop(?LEDC_MODE, ?LEDC_CHANNEL, 0),
-
-    % Ensure servo is at closed angle
-    write_angle(?SERVO_CLOSED_ANGLE, LEDCChannel),
-    timer:sleep(150),
-    ledc:stop(?LEDC_MODE, ?LEDC_CHANNEL, 0),
-
+    {ok, Pid} = la_machine_player:start_link(),
+    ok = la_machine_player:play(Pid, [{servo, 20}, {servo, 0}]),
+    ok = la_machine_player:stop(Pid),
     ok.
 
 play(_LastPlayTime, _LastPlayIndex, _PlayIndex) ->
-    % Reset pin (turn on MAX98357A)
-    %   gpio:hold_dis(?MAX_SD_MODE_PIN),
-    %   gpio:set_pin_mode(?MAX_SD_MODE_PIN, input),
-    %   gpio:set_pin_pull(?MAX_SD_MODE_PIN, floating),
-
-    LEDCChannel = init_servo(),
-
-    % Ensure servo is at closed angle
-    %   write_angle(?SERVO_CLOSED_ANGLE, LEDCChannel),
-    %   timer:sleep(300),
-    %   ledc:stop(?LEDC_MODE, ?LEDC_CHANNEL, 0),
-
-    % Ensure servo is at slightly open angle
-    write_angle(?SERVO_SLIGHTLY_OPEN_ANGLE, LEDCChannel),
-    timer:sleep(150),
-    ledc:stop(?LEDC_MODE, ?LEDC_CHANNEL, 0),
-
-    play_aac("gears/17243.aac"),
-
-    play_aac("hits/party-blower-fail-soundroll-1-1-00-01.aac"),
-    write_angle(?SERVO_INTERRUPT_ANGLE, LEDCChannel),
-    timer:sleep(300),
-    ledc:stop(?LEDC_MODE, ?LEDC_CHANNEL, 0),
-
-    write_angle(?SERVO_CLOSED_ANGLE, LEDCChannel),
-    timer:sleep(300),
-    ledc:stop(?LEDC_MODE, ?LEDC_CHANNEL, 0).
+    {ok, Pid} = la_machine_player:start_link(),
+    ok = la_machine_player:play(Pid, [
+        {aac, <<"gears/17243.aac">>},
+        {servo, 20},
+        {aac, <<"hits/party-blower-fail-soundroll-1-1-00-01.aac">>},
+        {servo, 100},
+        {servo, 0}
+    ]),
+    ok = la_machine_player:stop(Pid),
+    ok.
 
 setup_sleep(SleepSecs) ->
-    % Turn down MAX98357A
-    %   gpio:set_pin_mode(?MAX_SD_MODE_PIN, output),
-    %   gpio:digital_write(?MAX_SD_MODE_PIN, 0),
-    %   gpio:hold_en(?MAX_SD_MODE_PIN),
-
-    % Turn down servo
-    %   gpio:digital_write(?MOSFET_GPIO, 0),
-
     gpio:deep_sleep_hold_en(),
     SleepMs = SleepSecs * 1000,
     SleepMs.
-
-write_angle(Angle, ChannelConfig) ->
-    Duty = angle_to_duty(Angle),
-    SpeedMode = proplists:get_value(speed_mode, ChannelConfig),
-    Channel = proplists:get_value(channel, ChannelConfig),
-    ok = ledc:set_duty(SpeedMode, Channel, Duty),
-    ok = ledc:update_duty(SpeedMode, Channel).
-
-angle_to_duty(Angle) ->
-    AngleUS =
-        (Angle / ?SERVO_MAX_ANGLE) * (?SERVO_MAX_WIDTH_US - ?SERVO_MIN_WIDTH_US) +
-            ?SERVO_MIN_WIDTH_US,
-    Duty = AngleUS * ?SERVO_MAX_DUTY / ?SERVO_FREQ_PERIOD_US,
-    floor(Duty).
 
 compute_sleep_timer(State) ->
     % AtomVM integers are up to signed 64 bits
@@ -326,7 +185,7 @@ fib(I, A, B) -> fib(I - 1, B, A + B).
 action_test_() ->
     [
         ?_assertEqual({poke, 0}, action(sleep_wakeup_timer, off, la_machine_state:new())),
-        ?_assertEqual(setup, action(undefined, off, la_machine_state:new())),
+        ?_assertEqual(reset, action(undefined, off, la_machine_state:new())),
         ?_assertEqual(
             {play, 0, undefined, 0}, action(sleep_wakeup_timer, on, la_machine_state:new())
         ),

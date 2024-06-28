@@ -1,0 +1,157 @@
+%
+% This file is part of La Machine
+%
+% Copyright 2024 Paul Guyot <pguyot@kallisys.net>
+%
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+%
+%    http://www.apache.org/licenses/LICENSE-2.0
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% SPDX-License-Identifier: Apache-2.0
+%
+
+%%-----------------------------------------------------------------------------
+%% @doc La Machine servo interface
+%% @end
+%%-----------------------------------------------------------------------------
+
+-module(la_machine_servo).
+
+-include("la_machine_definitions.hrl").
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
+-export([
+    power_on/0,
+    power_off/0,
+    reset/0,
+    set_target/2,
+    timeout/1
+]).
+
+-export_type([
+    state/0
+]).
+
+-record(state, {
+    pre_min :: number(),
+    pre_max :: number(),
+    target = undefined :: undefined | number(),
+    target_ms = undefined :: undefined | pos_integer()
+}).
+
+-opaque state() :: #state{}.
+
+-spec power_on() -> state().
+power_on() ->
+    LEDCTimer = [
+        {duty_resolution, ?LEDC_DUTY_RESOLUTION},
+        {freq_hz, ?SERVO_FREQ_HZ},
+        {speed_mode, ?LEDC_MODE},
+        {timer_num, ?LEDC_TIMER}
+    ],
+    ok = ledc:timer_config(LEDCTimer),
+    LEDCChannel = [
+        {channel, ?LEDC_CHANNEL},
+        {duty, 0},
+        {gpio_num, ?LEDC_CH_GPIO},
+        {speed_mode, ?LEDC_MODE},
+        {hpoint, 0},
+        {timer_sel, ?LEDC_TIMER}
+    ],
+    ok = ledc:channel_config(LEDCChannel),
+
+    %   gpio:set_pin_mode(?MOSFET_GPIO, output),
+    %   gpio:digital_write(?MOSFET_GPIO, 1),
+
+    #state{pre_min = target_to_duty(0), pre_max = target_to_duty(100)}.
+
+-spec power_off() -> ok.
+power_off() ->
+    % Turn down servo
+    %   gpio:digital_write(?MOSFET_GPIO, 0),
+    ok.
+
+-spec reset() -> ok.
+reset() ->
+    State0 = power_on(),
+    {Sleep, _State1} = set_target(0, State0),
+    timer:sleep(Sleep),
+    power_off().
+
+-spec set_target(Target :: number(), State :: state()) -> {non_neg_integer(), state()}.
+set_target(Target, State) ->
+    Duty = target_to_duty(Target),
+    ok = ledc:set_duty(?LEDC_MODE, ?LEDC_CHANNEL, Duty),
+    ok = ledc:update_duty(?LEDC_MODE, ?LEDC_CHANNEL),
+    target_duty_timeout(Duty, State).
+
+target_duty_timeout(Duty, #state{pre_min = PreMin, pre_max = PreMax} = State) ->
+    MaxTime = ceil(
+        max(abs(Duty - PreMin), abs(Duty - PreMax)) * ?SERVO_MAX_ANGLE_TIME_MS / ?SERVO_MAX_DUTY *
+            ?SERVO_FREQ_PERIOD_US / ?SERVO_MAX_WIDTH_US
+    ),
+    {MaxTime, State#state{pre_min = min(Duty, PreMin), pre_max = max(Duty, PreMax), target = Duty}}.
+
+target_to_duty(Target) ->
+    Angle = Target * (?SERVO_INTERRUPT_ANGLE - ?SERVO_CLOSED_ANGLE) / 100 + ?SERVO_CLOSED_ANGLE,
+    AngleUS =
+        (Angle / ?SERVO_MAX_ANGLE) * (?SERVO_MAX_WIDTH_US - ?SERVO_MIN_WIDTH_US) +
+            ?SERVO_MIN_WIDTH_US,
+    Duty = AngleUS * ?SERVO_MAX_DUTY / ?SERVO_FREQ_PERIOD_US,
+    floor(Duty).
+
+-spec timeout(State :: state()) -> state().
+timeout(State) ->
+    ledc:stop(?LEDC_MODE, ?LEDC_CHANNEL, 0),
+    reset_target(State).
+
+reset_target(#state{target = Target} = State) ->
+    State#state{pre_min = Target, pre_max = Target, target = undefined}.
+
+-ifdef(TEST).
+% Values depend on ?SERVO_INTERRUPT_ANGLE and ?SERVO_CLOSED_ANGLE
+target_to_duty_test_() ->
+    [
+        ?_assertEqual(318, target_to_duty(0)),
+        ?_assertEqual(887, target_to_duty(100))
+    ].
+
+target_duty_timeout_test_() ->
+    [
+        ?_assertMatch(
+            {0, #state{pre_min = 318, pre_max = 318, target = 318}},
+            target_duty_timeout(318, #state{pre_min = 318, pre_max = 318})
+        ),
+        ?_assertMatch(
+            {501, #state{pre_min = 318, pre_max = 887, target = 887}},
+            target_duty_timeout(887, #state{pre_min = 318, pre_max = 318})
+        ),
+        ?_assertMatch(
+            {501, #state{pre_min = 318, pre_max = 887, target = 318}},
+            target_duty_timeout(318, #state{pre_min = 887, pre_max = 887})
+        )
+    ].
+
+reset_target_test_() ->
+    [
+        ?_assertMatch(
+            #state{pre_min = 887, pre_max = 887, target = undefined},
+            reset_target(#state{pre_min = 318, pre_max = 318, target = 887})
+        ),
+        ?_assertMatch(
+            #state{pre_min = 500, pre_max = 500, target = undefined},
+            reset_target(#state{pre_min = 400, pre_max = 600, target = 500})
+        )
+    ].
+-endif.
