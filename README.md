@@ -5,7 +5,7 @@ Source code for La Machine
 
 https://la-machine.fr/
 
-https://github.com/pguyot/la_machine/assets/168407/3031f52c-ed63-48e6-9180-fe7e649e0025
+https://github.com/pguyot/la_machine/assets/168407/cbffb7e5-78fa-400f-a39c-c9f04a7b1360
 
 La Machine software is written in Erlang and runs on [AtomVM](https://atomvm.net/)
 virtual machine.
