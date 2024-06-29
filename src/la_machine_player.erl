@@ -216,6 +216,18 @@ play_next(
     State1 = State0#state{sequence = Tail, servo_state = ServoState1, servo_end = Now + TargetMS},
     play_next(State1);
 play_next(
+    #state{
+        servo_module = ServoModule,
+        servo_state = ServoState0,
+        sequence = [{servo, Target, TimeMS} | Tail],
+        servo_end = undefined
+    } = State0
+) ->
+    {TargetMS, ServoState1} = ServoModule:set_target(Target, TimeMS, ServoState0),
+    Now = erlang:system_time(millisecond),
+    State1 = State0#state{sequence = Tail, servo_state = ServoState1, servo_end = Now + TargetMS},
+    play_next(State1);
+play_next(
     #state{sequence = [], from = From, audio_monitor = undefined, servo_end = undefined} = State0
 ) ->
     gen_server:reply(From, ok),
@@ -457,9 +469,9 @@ play_wait_servo_test_() ->
                     Self ! {Ref, {play, Filename, erlang:system_time(millisecond)}},
                     timer:sleep(500)
                 end),
-                la_machine_servo_mock:expect(ServoMock, set_target, fun(Target, State) ->
+                la_machine_servo_mock:expect(ServoMock, set_target, fun(Target, TimeMS, State) ->
                     Self ! {Ref, {set_target, Target, erlang:system_time(millisecond)}},
-                    {100, State}
+                    {TimeMS, State}
                 end),
                 la_machine_servo_mock:expect(ServoMock, timeout, fun(State) ->
                     Self ! {Ref, {timeout, erlang:system_time(millisecond)}},
@@ -467,13 +479,13 @@ play_wait_servo_test_() ->
                 end),
                 Before = erlang:system_time(millisecond),
                 play(Pid, [
-                    {servo, 30},
+                    {servo, 30, 150},
                     {wait, servo},
                     {aac, <<"filename_1.aac">>}
                 ]),
                 After = erlang:system_time(millisecond),
                 la_machine_audio_mock:assert_called(AudioMock, play),
-                ?assert(After - Before >= 600),
+                ?assert(After - Before >= 650),
                 Messages = collect_messages(Ref, []),
                 [
                     {set_target, 30, SetTarget1Timestamp},
@@ -481,10 +493,10 @@ play_wait_servo_test_() ->
                     {play, <<"filename_1.aac">>, Filename1Timestamp}
                 ] = Messages,
                 % Ensure sounds are played one after the other
-                ?assert(Filename1Timestamp - SetTarget1Timestamp >= 100),
+                ?assert(Filename1Timestamp - SetTarget1Timestamp >= 150),
                 ?assert(After - Filename1Timestamp >= 500),
                 % Ensure proper time between servo messages
-                ?assert(Timeout1Timestamp - SetTarget1Timestamp >= 100)
+                ?assert(Timeout1Timestamp - SetTarget1Timestamp >= 150)
             end)
         end
     }.

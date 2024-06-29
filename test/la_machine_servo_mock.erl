@@ -38,6 +38,7 @@
 -export([
     power_on/0,
     set_target/2,
+    set_target/3,
     timeout/1,
     power_off/0
 ]).
@@ -49,6 +50,9 @@ power_on() ->
 
 set_target(Target, State) ->
     mock:call(?MOCK_SERVER_NAME, set_target, [Target, State]).
+
+set_target(Target, TimeMS, State) ->
+    mock:call(?MOCK_SERVER_NAME, set_target, [Target, TimeMS, State]).
 
 timeout(State) ->
     mock:call(?MOCK_SERVER_NAME, timeout, [State]).
