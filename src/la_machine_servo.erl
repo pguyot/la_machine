@@ -36,6 +36,7 @@
     power_off/0,
     reset/0,
     set_target/2,
+    set_target/3,
     timeout/1
 ]).
 
@@ -74,10 +75,14 @@ power_on() ->
     %   gpio:set_pin_mode(?MOSFET_GPIO, output),
     %   gpio:digital_write(?MOSFET_GPIO, 1),
 
+    ok = ledc:fade_func_install(0),
+
     #state{pre_min = target_to_duty(0), pre_max = target_to_duty(100)}.
 
 -spec power_off() -> ok.
 power_off() ->
+    ok = ledc:fade_func_uninstall(),
+
     % Turn down servo
     %   gpio:digital_write(?MOSFET_GPIO, 0),
     ok.
@@ -89,19 +94,45 @@ reset() ->
     timer:sleep(Sleep),
     power_off().
 
+%% -----------------------------------------------------------------------------
+%% @param Target target for the servo (from 0 to 100)
+%% @param State current state
+%% @return a tuple with the time until the end of the move and the new state
+%% @doc Set the target and move the servo as fast as possible
+%% @end
+%% -----------------------------------------------------------------------------
 -spec set_target(Target :: number(), State :: state()) -> {non_neg_integer(), state()}.
 set_target(Target, State) ->
     Duty = target_to_duty(Target),
     ok = ledc:set_duty(?LEDC_MODE, ?LEDC_CHANNEL, Duty),
     ok = ledc:update_duty(?LEDC_MODE, ?LEDC_CHANNEL),
-    target_duty_timeout(Duty, State).
+    target_duty_timeout(Duty, 0, State).
 
-target_duty_timeout(Duty, #state{pre_min = PreMin, pre_max = PreMax} = State) ->
+%% -----------------------------------------------------------------------------
+%% @param Target target for the servo (from 0 to 100)
+%% @param TimeMS time to reach the target, must be greater than the time
+%% actually required to move the servo
+%% @param State current state
+%% @return a tuple with the time until the end of the move and the new state
+%% @doc Set the target but slowly fade towards duty
+%% @end
+%% -----------------------------------------------------------------------------
+-spec set_target(Target :: number(), TimeMS :: pos_integer(), State :: state()) ->
+    {non_neg_integer(), state()}.
+set_target(Target, TimeMS, State) ->
+    Duty = target_to_duty(Target),
+    ok = ledc:set_fade_with_time(?LEDC_MODE, ?LEDC_CHANNEL, Duty, TimeMS),
+    ok = ledc:fade_start(?LEDC_MODE, ?LEDC_CHANNEL, ?LEDC_FADE_NO_WAIT),
+    target_duty_timeout(Duty, TimeMS, State).
+
+target_duty_timeout(Duty, MinTimeMS, #state{pre_min = PreMin, pre_max = PreMax} = State) ->
     MaxTime = ceil(
         max(abs(Duty - PreMin), abs(Duty - PreMax)) * ?SERVO_MAX_ANGLE_TIME_MS / ?SERVO_MAX_DUTY *
             ?SERVO_FREQ_PERIOD_US / ?SERVO_MAX_WIDTH_US
     ),
-    {MaxTime, State#state{pre_min = min(Duty, PreMin), pre_max = max(Duty, PreMax), target = Duty}}.
+    {max(MaxTime, MinTimeMS), State#state{
+        pre_min = min(Duty, PreMin), pre_max = max(Duty, PreMax), target = Duty
+    }}.
 
 target_to_duty(Target) ->
     Angle = Target * (?SERVO_INTERRUPT_ANGLE - ?SERVO_CLOSED_ANGLE) / 100 + ?SERVO_CLOSED_ANGLE,
@@ -131,15 +162,19 @@ target_duty_timeout_test_() ->
     [
         ?_assertMatch(
             {0, #state{pre_min = 318, pre_max = 318, target = 318}},
-            target_duty_timeout(318, #state{pre_min = 318, pre_max = 318})
+            target_duty_timeout(318, 0, #state{pre_min = 318, pre_max = 318})
         ),
         ?_assertMatch(
             {501, #state{pre_min = 318, pre_max = 887, target = 887}},
-            target_duty_timeout(887, #state{pre_min = 318, pre_max = 318})
+            target_duty_timeout(887, 0, #state{pre_min = 318, pre_max = 318})
+        ),
+        ?_assertMatch(
+            {600, #state{pre_min = 318, pre_max = 887, target = 887}},
+            target_duty_timeout(887, 600, #state{pre_min = 318, pre_max = 318})
         ),
         ?_assertMatch(
             {501, #state{pre_min = 318, pre_max = 887, target = 318}},
-            target_duty_timeout(318, #state{pre_min = 887, pre_max = 887})
+            target_duty_timeout(318, 0, #state{pre_min = 887, pre_max = 887})
         )
     ].
 
