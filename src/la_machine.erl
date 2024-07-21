@@ -96,20 +96,42 @@ unconfigure_watchdog(WatchdogUser) ->
     _ = esp:task_wdt_delete_user(WatchdogUser),
     ok.
 
+-ifdef(MODEL_PROTO_PAPER_TOY).
+configure_button() ->
+    ok = gpio:init(?BUTTON_GPIO),
+    ok = gpio:set_pin_mode(?BUTTON_GPIO, input),
+    ok = gpio:set_pin_pull(?BUTTON_GPIO, up),
+    ok = esp:deep_sleep_enable_gpio_wakeup(1 bsl ?BUTTON_GPIO, 0).
+
+read_button() ->
+    case gpio:digital_read(?BUTTON_GPIO) of
+        high -> off;
+        low -> on
+    end.
+-endif.
+
+-ifdef(MODEL_PROTO_20240718).
+configure_button() ->
+    ok = gpio:init(?BUTTON_GPIO),
+    ok = gpio:set_pin_mode(?BUTTON_GPIO, input),
+    ok = gpio:set_pin_pull(?BUTTON_GPIO, down),
+    ok = esp:deep_sleep_enable_gpio_wakeup(1 bsl ?BUTTON_GPIO, 1).
+
+read_button() ->
+    case gpio:digital_read(?BUTTON_GPIO) of
+        high -> on;
+        low -> off
+    end.
+-endif.
+
 -spec run() -> no_return().
 run() ->
     WatchdogUser = configure_watchdog(),
     % Configure button GPIO
-    ok = gpio:set_pin_mode(?BUTTON_GPIO, input),
-    ok = gpio:set_pin_pull(?BUTTON_GPIO, up),
-    ok = esp:deep_sleep_enable_gpio_wakeup(1 bsl ?BUTTON_GPIO, 0),
+    configure_button(),
 
     WakeupCause = esp:sleep_get_wakeup_cause(),
-    ButtonState =
-        case gpio:digital_read(?BUTTON_GPIO) of
-            high -> off;
-            low -> on
-        end,
+    ButtonState = read_button(),
 
     State0 = la_machine_state:load_state(),
 

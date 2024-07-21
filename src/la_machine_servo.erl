@@ -72,8 +72,7 @@ power_on() ->
     ],
     ok = ledc:channel_config(LEDCChannel),
 
-    %   gpio:set_pin_mode(?MOSFET_GPIO, output),
-    %   gpio:digital_write(?MOSFET_GPIO, 1),
+    power_on_boost(),
 
     ok = ledc:fade_func_install(0),
 
@@ -82,10 +81,22 @@ power_on() ->
 -spec power_off() -> ok.
 power_off() ->
     ok = ledc:fade_func_uninstall(),
-
     % Turn down servo
-    %   gpio:digital_write(?MOSFET_GPIO, 0),
+    power_off_boost(),
     ok.
+
+-ifdef(SERVO_EN_BOOST_GPIO).
+power_on_boost() ->
+    ok = gpio:init(?SERVO_EN_BOOST_GPIO),
+    ok = gpio:set_pin_mode(?SERVO_EN_BOOST_GPIO, output),
+    ok = gpio:digital_write(?SERVO_EN_BOOST_GPIO, 1).
+
+power_off_boost() ->
+    ok = gpio:digital_write(?SERVO_EN_BOOST_GPIO, 0).
+-else.
+power_on_boost() -> ok.
+power_off_boost() -> ok.
+-endif.
 
 -spec reset() -> ok.
 reset() ->

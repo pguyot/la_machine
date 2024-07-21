@@ -33,19 +33,25 @@
     play/1
 ]).
 
+-ifdef(MAX_SD_MODE_GPIO).
 power_on() ->
     % Reset pin (turn on MAX98357A)
-    %   gpio:hold_dis(?MAX_SD_MODE_PIN),
-    %   gpio:set_pin_mode(?MAX_SD_MODE_PIN, input),
-    %   gpio:set_pin_pull(?MAX_SD_MODE_PIN, floating),
+    ok = gpio:init(?MAX_SD_MODE_GPIO),
+    ok = gpio:hold_dis(?MAX_SD_MODE_GPIO),
+    ok = gpio:set_pin_mode(?MAX_SD_MODE_GPIO, input),
+    ok = gpio:set_pin_pull(?MAX_SD_MODE_GPIO, floating),
     ok.
 
 power_off() ->
     % Turn down MAX98357A
-    %   gpio:set_pin_mode(?MAX_SD_MODE_PIN, output),
-    %   gpio:digital_write(?MAX_SD_MODE_PIN, 0),
-    %   gpio:hold_en(?MAX_SD_MODE_PIN),
+    ok = gpio:set_pin_mode(?MAX_SD_MODE_GPIO, output),
+    ok = gpio:digital_write(?MAX_SD_MODE_GPIO, 0),
+    ok = gpio:hold_en(?MAX_SD_MODE_GPIO),
     ok.
+-else.
+power_on() -> ok.
+power_off() -> ok.
+-endif.
 
 reset() ->
     power_off().
