@@ -22,16 +22,39 @@
 
 %% GPIOs
 
+-ifndef(MODEL_PROTO_PAPER_TOY).
+-define(MODEL_PROTO_20240718, 1).
+-endif.
+
+-ifdef(MODEL_PROTO_PAPER_TOY).
 -define(SERVO_PWM_GPIO, 21).
 
 -define(MAX_LRC_GPIO, 7).
 -define(MAX_BCLK_GPIO, 8).
 -define(MAX_DIN_GPIO, 6).
-% -define(MAX_SD_MODE_PIN, 1).
 
 -define(BUTTON_GPIO, 5).
+-endif.
 
-% -define(MOSFET_GPIO, 9).
+-ifdef(MODEL_PROTO_20240718).
+-define(SERVO_PWM_GPIO, 10).
+% MTMS
+-define(SERVO_EN_BOOST_GPIO, 4).
+
+% MTDO
+-define(MAX_LRC_GPIO, 7).
+-define(MAX_BCLK_GPIO, 8).
+% MTCK
+-define(MAX_DIN_GPIO, 6).
+% XTAL_32K_N
+-define(MAX_SD_MODE_GPIO, 1).
+
+-define(BUTTON_GPIO, 3).
+
+-define(BATTERY_LEVEL_GPIO, 0).
+-define(BATTERY_STAT1_GPIO, 20).
+-define(BATTERY_STAT2_GPIO, 21).
+-endif.
 
 %% SERVO
 
