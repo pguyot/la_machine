@@ -1,4 +1,8 @@
-[{<<"atomvm_esp_adf">>,
+[{<<"atomvm_adc">>,
+  {git,"https://github.com/atomvm/atomvm_adc.git",
+       {ref,"b875bb8a7d5cf45918e55df7b4fbd877088af680"}},
+  0},
+ {<<"atomvm_esp_adf">>,
   {git,"https://github.com/pguyot/atomvm_esp_adf.git",
        {ref,"f64791d603206aa72617f39b7396a228a832ccb8"}},
   0}].
