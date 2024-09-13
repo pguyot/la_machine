@@ -127,6 +127,11 @@ read_button() ->
 -spec run() -> no_return().
 run() ->
     WatchdogUser = configure_watchdog(),
+
+    la_machine_battery:init(),
+    io:format("battery level = ~p\n", [la_machine_battery:get_level()]),
+    io:format("battery is charging = ~p\n", [la_machine_battery:is_charging()]),
+
     % Configure button GPIO
     configure_button(),
 
