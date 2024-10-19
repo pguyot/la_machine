@@ -22,11 +22,13 @@
 
 %% GPIOs
 
--ifndef(MODEL_PROTO_PAPER_TOY).
+-define(MODEL_PROTO_LEGO, 1).
+
+-if(not defined(MODEL_PROTO_PAPER_TOY) andalso not(defined(MODEL_PROTO_LEGO))).
 -define(MODEL_PROTO_20240718, 1).
 -endif.
 
--ifdef(MODEL_PROTO_PAPER_TOY).
+-if(defined(MODEL_PROTO_PAPER_TOY) orelse defined(MODEL_PROTO_LEGO)).
 -define(SERVO_PWM_GPIO, 21).
 
 -define(MAX_LRC_GPIO, 7).
@@ -69,9 +71,15 @@
 -define(LEDC_CH_GPIO, ?SERVO_PWM_GPIO).
 -define(LEDC_CHANNEL, 0).
 
+-ifdef(MODEL_PROTO_LEGO).
+-define(SERVO_CLOSED_ANGLE, 55.0).
+-define(SERVO_SLIGHTLY_OPEN_ANGLE, 80.0).
+-define(SERVO_INTERRUPT_ANGLE, 180.0).
+-else.
 -define(SERVO_CLOSED_ANGLE, 25.0).
 -define(SERVO_SLIGHTLY_OPEN_ANGLE, 50.0).
 -define(SERVO_INTERRUPT_ANGLE, 150.0).
+-endif.
 
 -define(SERVO_MAX_ANGLE, 180.0).
 -define(SERVO_MAX_WIDTH_US, 2500).

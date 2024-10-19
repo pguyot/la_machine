@@ -49,6 +49,35 @@
         PokeIndex :: non_neg_integer()
     }.
 
+-ifdef(MODEL_PROTO_LEGO).
+play_scenarios() ->
+    [
+        [
+            {aac, <<"gears/lego_gears_1.aac">>},
+            {servo, 20, 5000},
+            {servo, 30},
+            {wait, sound},
+            {servo, 100},
+            {aac, <<"hits/lego_hit_1.aac">>},
+            {wait, sound},
+            {servo, 0}
+        ],
+        [
+            {aac, <<"gears/lego_gears_2.aac">>},
+            {servo, 30, 2000},
+            {servo, 35},
+            {servo, 30},
+            {servo, 35},
+            {servo, 30},
+            {servo, 35},
+            {wait, sound},
+            {servo, 100},
+            {aac, <<"hits/lego_hit_2.aac">>},
+            {wait, sound},
+            {servo, 0}
+        ]
+    ].
+-else.
 play_scenarios() ->
     [
         [
@@ -69,6 +98,7 @@ play_scenarios() ->
             {servo, 0}
         ]
     ].
+-endif.
 
 %% @doc Configure watchdog to panic after `WATCHDOG_TIMEOUT_MS' ms (1 minute).
 %% La machine should be finished within 1 minute and unconfigure watchdog before
@@ -108,6 +138,29 @@ read_button() ->
         high -> off;
         low -> on
     end.
+
+button_sleep() -> ok.
+-endif.
+
+-ifdef(MODEL_PROTO_LEGO).
+% bouton fermé lorsqu'il est éteint, ouvert sinon
+
+configure_button() ->
+    ok = gpio:init(?BUTTON_GPIO),
+    ok = gpio:set_pin_mode(?BUTTON_GPIO, input),
+    ok = gpio:set_pin_pull(?BUTTON_GPIO, up),
+    ok = gpio:hold_dis(?BUTTON_GPIO),
+    ok = esp:deep_sleep_enable_gpio_wakeup(1 bsl ?BUTTON_GPIO, 1).
+
+read_button() ->
+    case gpio:digital_read(?BUTTON_GPIO) of
+        high -> on;
+        low -> off
+    end.
+
+button_sleep() ->
+    ok = gpio:hold_en(?BUTTON_GPIO).
+
 -endif.
 
 -ifdef(MODEL_PROTO_20240718).
@@ -122,15 +175,25 @@ read_button() ->
         high -> on;
         low -> off
     end.
+
+button_sleep() -> ok.
+-endif.
+
+-ifdef(MODEL_PROTO_20240718).
+battery_report() ->
+    la_machine_battery:init(),
+    io:format("battery level = ~p\n", [la_machine_battery:get_level()]),
+    io:format("battery is charging = ~p\n", [la_machine_battery:is_charging()]).
+-else.
+battery_report() ->
+    ok.
 -endif.
 
 -spec run() -> no_return().
 run() ->
     WatchdogUser = configure_watchdog(),
 
-    la_machine_battery:init(),
-    io:format("battery level = ~p\n", [la_machine_battery:get_level()]),
-    io:format("battery is charging = ~p\n", [la_machine_battery:is_charging()]),
+    battery_report(),
 
     % Configure button GPIO
     configure_button(),
@@ -197,6 +260,7 @@ play(_LastPlayTime, _LastPlayIndex, _PlayIndex) ->
 
 setup_sleep(SleepSecs) ->
     gpio:deep_sleep_hold_en(),
+    button_sleep(),
     SleepMs = SleepSecs * 1000,
     SleepMs.
 
