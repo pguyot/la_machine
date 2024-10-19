@@ -26,6 +26,8 @@
 
 -include("la_machine_definitions.hrl").
 
+-ifdef(MODEL_PROTO_20240718).
+
 -export([
     init/0,
     is_charging/0,
@@ -56,3 +58,5 @@ get_level() ->
     ok = adc:release_channel(Chan),
     ok = adc:deinit(Unit),
     50.
+
+-endif.
