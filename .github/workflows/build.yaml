@@ -30,7 +30,7 @@ jobs:
         ref: w25/la_machine
         path: AtomVM
 
-    - name: Checkout atomvm_esp_adf
+    - name: Checkout la_machine
       uses: actions/checkout@v4
       with:
         path: la_machine
@@ -108,6 +108,64 @@ jobs:
         if-no-files-found: error
         retention-days: 1
 
+  build_prototypes:
+    runs-on: ubuntu-latest
+    container: erlang:27
+    strategy:
+      matrix:
+        prototype: ["proto_paper_toy", "proto_lego", "proto_20240718", "proto_20241023"]
+
+    steps:
+    - name: Checkout AtomVM
+      uses: actions/checkout@v4
+      with:
+        # repository: atomvm/AtomVM
+        # ref: release-0.6
+        repository: pguyot/AtomVM
+        ref: w25/la_machine
+        path: AtomVM
+
+    - name: Checkout la_machine
+      uses: actions/checkout@v4
+      with:
+        path: la_machine
+
+    - name: Compile la_machine
+      working-directory: la_machine/
+      run: |
+        rebar3 as ${{ matrix.prototype }} compile
+
+    - name: Install dependencies to build AtomVM libraries
+      run: |
+        set -eu
+        apt update
+        DEBIAN_FRONTEND=noninteractive apt install -y -q \
+            zlib1g-dev cmake gperf ninja-build
+
+    - name: Build AtomVM libraries
+      shell: bash
+      working-directory: AtomVM/
+      run: |
+        mkdir build
+        cd build
+        cmake .. -G Ninja -DAVM_WARNINGS_ARE_ERRORS=ON
+        ninja eavmlib estdlib
+
+    - name: Run packbeam
+      working-directory: la_machine/
+      run: |
+        rebar3 as ${{ matrix.prototype }} atomvm packbeam -p \
+            -e `pwd`/../AtomVM/build/libs/eavmlib/src/eavmlib.avm \
+            -e `pwd`/../AtomVM/build/libs/estdlib/src/estdlib.avm
+
+    - name: Upload la_machine.avm
+      uses: actions/upload-artifact@v4
+      with:
+        name: la_machine-${{ matrix.prototype }}.avm
+        path: la_machine/_build/${{ matrix.prototype }}/lib/la_machine.avm
+        if-no-files-found: error
+        retention-days: 1
+
   build_vm:
     runs-on: ubuntu-latest
     container: espressif/idf:v5.2.2
@@ -155,8 +213,10 @@ jobs:
         echo CONFIG_AVM_ENABLE_OTP_NET_NIFS=n >> sdkconfig
         echo CONFIG_AVM_ENABLE_OTP_SSL_NIFS=n >> sdkconfig
         echo CONFIG_AVM_ESP_ADF_PWM_OUTPUT_ENABLE=n >> sdkconfig
-        echo CONFIG_AVM_ENABLE_GPIO_PORT_DRIVER=n >> sdkconfig
         echo CONFIG_AVM_ENABLE_UART_PORT_DRIVER=n >> sdkconfig
+        echo CONFIG_AVM_ENABLE_STORAGE_NIFS=n >> sdkconfig
+        echo CONFIG_AVM_ENABLE_STORAGE_NIFS=n >> sdkconfig
+        echo CONFIG_AVM_ENABLE_SPI_PORT_DRIVER=n >> sdkconfig
         idf.py build
 
     - name: Build la machine partitions map
@@ -219,9 +279,13 @@ jobs:
         pytest test_qemu.py
 
   make_image:
-    needs: [build_and_test, build_vm]
+    needs: [build_and_test, build_vm, build_prototypes]
     runs-on: ubuntu-latest
     container: erlang:27
+    strategy:
+      matrix:
+        suffix: ["", "-proto_paper_toy", "-proto_lego", "-proto_20240718", "-proto_20241023"]
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -241,7 +305,7 @@ jobs:
     - name: Download la_machine
       uses: actions/download-artifact@v4
       with:
-        name: la_machine.avm
+        name: la_machine${{ matrix.suffix }}.avm
         path: image/
 
     - name: Build image
@@ -253,6 +317,6 @@ jobs:
     - name: Upload image
       uses: actions/upload-artifact@v4
       with:
-        name: la_machine.img
+        name: la_machine${{ matrix.suffix }}.img
         path: image/la_machine.img
         if-no-files-found: error

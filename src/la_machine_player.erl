@@ -45,6 +45,7 @@
     handle_call/3,
     handle_cast/2,
     handle_info/2,
+    handle_continue/2,
     terminate/2,
     code_change/3
 ]).
@@ -122,6 +123,16 @@ handle_call({play, Sequence}, From, #state{sequence = []} = State0) ->
 %%-----------------------------------------------------------------------------
 -spec handle_cast(Message :: term(), #state{}) -> {noreply, #state{}}.
 handle_cast(_Message, State) ->
+    {noreply, State}.
+
+%%-----------------------------------------------------------------------------
+%% @param Info continue data
+%% @param State server state
+%% @doc gen_server `handle_continue' callback.
+%% @end
+%%-----------------------------------------------------------------------------
+-spec handle_continue(Info :: term(), #state{}) -> {noreply, #state{}}.
+handle_continue(_Info, State) ->
     {noreply, State}.
 
 %%-----------------------------------------------------------------------------

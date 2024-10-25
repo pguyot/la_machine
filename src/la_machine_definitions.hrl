@@ -22,13 +22,26 @@
 
 %% GPIOs
 
--define(MODEL_PROTO_LEGO, 1).
-
--if(not defined(MODEL_PROTO_PAPER_TOY) andalso not(defined(MODEL_PROTO_LEGO))).
--define(MODEL_PROTO_20240718, 1).
+-if(
+    not defined(MODEL_PROTO_PAPER_TOY) andalso not (defined(MODEL_PROTO_LEGO)) andalso
+        not (defined(MODEL_PROTO_20240718)) andalso not (defined(MODEL_PROTO_20241023))
+).
+-define(MODEL_PROTO_20241023, 1).
 -endif.
 
--if(defined(MODEL_PROTO_PAPER_TOY) orelse defined(MODEL_PROTO_LEGO)).
+% La machine uses several GPIO pins that are labelled differently in schema as
+% GPIO is not their first function. We define them here.
+-define(XTAL_32K_P_GPIO, 0).
+-define(XTAL_32K_N_GPIO, 1).
+-define(MTMS_GPIO, 4).
+-define(MTDO_GPIO, 7).
+-define(MTCK_GPIO, 6).
+-define(MTDI_GPIO, 5).
+-define(U0RXD_GPIO, 20).
+-define(U0TXD_GPIO, 21).
+
+% Paper toy prototype : ESP32-C3 Dev board
+-ifdef(MODEL_PROTO_PAPER_TOY).
 -define(SERVO_PWM_GPIO, 21).
 
 -define(MAX_LRC_GPIO, 7).
@@ -36,26 +49,74 @@
 -define(MAX_DIN_GPIO, 6).
 
 -define(BUTTON_GPIO, 5).
+-define(BUTTON_GPIO_PULL, up).
+-define(BUTTON_GPIO_HOLD(_), ok).
+-define(BUTTON_GPIO_WAKEUP_LEVEL, 0).
+-define(BUTTON_GPIO_OFF, high).
+-define(BUTTON_GPIO_ON, low).
 -endif.
 
--ifdef(MODEL_PROTO_20240718).
--define(SERVO_PWM_GPIO, 10).
-% MTMS
--define(SERVO_EN_BOOST_GPIO, 4).
+% Lego prototype : ESP32-C3 Dev board, button is reverted.
+-ifdef(MODEL_PROTO_LEGO).
+-define(SERVO_PWM_GPIO, 21).
 
-% MTDO
 -define(MAX_LRC_GPIO, 7).
 -define(MAX_BCLK_GPIO, 8).
-% MTCK
 -define(MAX_DIN_GPIO, 6).
-% XTAL_32K_N
--define(MAX_SD_MODE_GPIO, 1).
+
+-define(BUTTON_GPIO, 5).
+-define(BUTTON_GPIO_PULL, up).
+-define(BUTTON_GPIO_HOLD(F), ok = gpio:F(?BUTTON_GPIO)).
+-define(BUTTON_GPIO_WAKEUP_LEVEL, 1).
+-define(BUTTON_GPIO_OFF, low).
+-define(BUTTON_GPIO_ON, high).
+-endif.
+
+% Prototype 20240718 : boîte inutile 1.1
+-ifdef(MODEL_PROTO_20240718).
+-define(SERVO_PWM_GPIO, 10).
+-define(SERVO_EN_BOOST_GPIO, ?MTMS_GPIO).
+
+-define(MAX_LRC_GPIO, ?MTDO_GPIO).
+-define(MAX_BCLK_GPIO, 8).
+-define(MAX_DIN_GPIO, ?MTCK_GPIO).
+-define(MAX_SD_MODE_GPIO, ?XTAL_32K_N_GPIO).
 
 -define(BUTTON_GPIO, 3).
+-define(BUTTON_GPIO_PULL, down).
+-define(BUTTON_GPIO_HOLD(_), ok).
+-define(BUTTON_GPIO_WAKEUP_LEVEL, 1).
+-define(BUTTON_GPIO_OFF, low).
+-define(BUTTON_GPIO_ON, high).
 
--define(BATTERY_LEVEL_GPIO, 0).
--define(BATTERY_STAT1_GPIO, 20).
--define(BATTERY_STAT2_GPIO, 21).
+-define(BATTERY_LEVEL_GPIO, ?XTAL_32K_P_GPIO).
+-define(BATTERY_STAT1_GPIO, ?U0RXD_GPIO).
+-define(BATTERY_STAT2_GPIO, ?U0TXD_GPIO).
+-endif.
+
+% Prototype 20241023 : boîte inutile 1.2
+-ifdef(MODEL_PROTO_20241023).
+-define(SERVO_PWM_GPIO, 10).
+-define(SERVO_EN_BOOST_GPIO, ?MTMS_GPIO).
+
+-define(MAX_LRC_GPIO, ?MTDO_GPIO).
+-define(MAX_BCLK_GPIO, 8).
+-define(MAX_DIN_GPIO, ?MTCK_GPIO).
+-define(MAX_SD_MODE_GPIO, ?XTAL_32K_N_GPIO).
+
+-define(BUTTON_GPIO, 3).
+-define(BUTTON_GPIO_PULL, down).
+-define(BUTTON_GPIO_HOLD(_), ok).
+-define(BUTTON_GPIO_WAKEUP_LEVEL, 1).
+-define(BUTTON_GPIO_OFF, low).
+-define(BUTTON_GPIO_ON, high).
+
+-define(BATTERY_LEVEL_GPIO, ?XTAL_32K_P_GPIO).
+-define(BATTERY_STAT2_GPIO, ?U0TXD_GPIO).
+
+-define(ACC_IRQ_GPIO, ?MTDI_GPIO).
+-define(I2C_SDA_GPIO, 2).
+-define(I2C_SCL_GPIO, ?U0RXD_GPIO).
 -endif.
 
 %% SERVO
@@ -93,3 +154,7 @@
 % Maximum run time. If La machine runs in more than this, watchdog is triggered,
 % La machine panics and state stored in RTC Slow memory is ignored on next boot.
 -define(WATCHDOG_TIMEOUT_MS, 60000).
+
+%% Accelerometer
+%% SDA0 is connected to GND
+-define(LIS3DH_ADDR, 2#0011000).
