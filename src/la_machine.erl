@@ -126,60 +126,23 @@ unconfigure_watchdog(WatchdogUser) ->
     _ = esp:task_wdt_delete_user(WatchdogUser),
     ok.
 
--ifdef(MODEL_PROTO_PAPER_TOY).
 configure_button() ->
     ok = gpio:init(?BUTTON_GPIO),
     ok = gpio:set_pin_mode(?BUTTON_GPIO, input),
-    ok = gpio:set_pin_pull(?BUTTON_GPIO, up),
-    ok = esp:deep_sleep_enable_gpio_wakeup(1 bsl ?BUTTON_GPIO, 0).
+    ok = gpio:set_pin_pull(?BUTTON_GPIO, ?BUTTON_GPIO_PULL),
+    ok = ?BUTTON_GPIO_HOLD(hold_dis),
+    ok = esp:deep_sleep_enable_gpio_wakeup(1 bsl ?BUTTON_GPIO, ?BUTTON_GPIO_WAKEUP_LEVEL).
 
 read_button() ->
     case gpio:digital_read(?BUTTON_GPIO) of
-        high -> off;
-        low -> on
-    end.
-
-button_sleep() -> ok.
--endif.
-
--ifdef(MODEL_PROTO_LEGO).
-% bouton fermé lorsqu'il est éteint, ouvert sinon
-
-configure_button() ->
-    ok = gpio:init(?BUTTON_GPIO),
-    ok = gpio:set_pin_mode(?BUTTON_GPIO, input),
-    ok = gpio:set_pin_pull(?BUTTON_GPIO, up),
-    ok = gpio:hold_dis(?BUTTON_GPIO),
-    ok = esp:deep_sleep_enable_gpio_wakeup(1 bsl ?BUTTON_GPIO, 1).
-
-read_button() ->
-    case gpio:digital_read(?BUTTON_GPIO) of
-        high -> on;
-        low -> off
+        ?BUTTON_GPIO_OFF -> off;
+        ?BUTTON_GPIO_ON -> on
     end.
 
 button_sleep() ->
-    ok = gpio:hold_en(?BUTTON_GPIO).
+    ok = ?BUTTON_GPIO_HOLD(hold_en).
 
--endif.
-
--ifdef(MODEL_PROTO_20240718).
-configure_button() ->
-    ok = gpio:init(?BUTTON_GPIO),
-    ok = gpio:set_pin_mode(?BUTTON_GPIO, input),
-    ok = gpio:set_pin_pull(?BUTTON_GPIO, down),
-    ok = esp:deep_sleep_enable_gpio_wakeup(1 bsl ?BUTTON_GPIO, 1).
-
-read_button() ->
-    case gpio:digital_read(?BUTTON_GPIO) of
-        high -> on;
-        low -> off
-    end.
-
-button_sleep() -> ok.
--endif.
-
--ifdef(MODEL_PROTO_20240718).
+-ifdef(BATTERY_LEVEL_GPIO).
 battery_report() ->
     la_machine_battery:init(),
     io:format("battery level = ~p\n", [la_machine_battery:get_level()]),

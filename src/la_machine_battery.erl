@@ -26,7 +26,7 @@
 
 -include("la_machine_definitions.hrl").
 
--ifdef(MODEL_PROTO_20240718).
+-ifdef(BATTERY_LEVEL_GPIO).
 
 -export([
     init/0,
@@ -35,28 +35,25 @@
 ]).
 
 init() ->
-    ok = gpio:init(?BATTERY_STAT1_GPIO),
-    ok = gpio:set_pin_mode(?BATTERY_STAT1_GPIO, input),
     ok = gpio:init(?BATTERY_STAT2_GPIO),
     ok = gpio:set_pin_mode(?BATTERY_STAT2_GPIO, input),
     ok.
 
 is_charging() ->
-    gpio:digital_read(?BATTERY_STAT1_GPIO) =:= high andalso
-        gpio:digital_read(?BATTERY_STAT2_GPIO) =:= low.
+    gpio:digital_read(?BATTERY_STAT2_GPIO) =:= low.
 
 get_level() ->
-    {ok, Unit} = adc:init(),
-    {ok, Chan} = adc:acquire(?BATTERY_LEVEL_GPIO, bit_max, db_11, Unit),
-    case adc:sample(Chan, Unit, [raw, voltage, {samples, 64}]) of
+    {ok, Unit} = esp_adc:init(),
+    {ok, Chan} = esp_adc:acquire(?BATTERY_LEVEL_GPIO, Unit),
+    case esp_adc:sample(Chan, Unit) of
         {ok, {Raw, MilliVolts}} ->
             % Raw: 2970 Voltage: 2093mV -- 100% 4.11V
             io:format("Raw: ~p Voltage: ~pmV~n", [Raw, MilliVolts]);
         Error ->
             io:format("Error taking reading: ~p~n", [Error])
     end,
-    ok = adc:release_channel(Chan),
-    ok = adc:deinit(Unit),
+    ok = esp_adc:release_channel(Chan),
+    ok = esp_adc:deinit(Unit),
     50.
 
 -endif.

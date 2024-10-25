@@ -59,4 +59,4 @@ full package [`atomvmlib.avm`](https://github.com/atomvm/AtomVM/releases/downloa
 only `estdlib.avm` and `eavmlib.avm`.
 
     rebar3 atomvm packbeam -p -e ~/Downloads/atomvmlib-v0.6.2.avm
-    rebar3 atomvm esp32_flash -p /dev/cu.usbmodem* -o 0x130000
+    rebar3 atomvm esp32_flash -p /dev/cu.usbmodem* -o 0x140000
