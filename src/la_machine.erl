@@ -49,57 +49,6 @@
         PokeIndex :: non_neg_integer()
     }.
 
--ifdef(MODEL_PROTO_LEGO).
-play_scenarios() ->
-    [
-        [
-            {aac, <<"gears/lego_gears_1.aac">>},
-            {servo, 20, 5000},
-            {servo, 30},
-            {wait, sound},
-            {servo, 100},
-            {aac, <<"hits/lego_hit_1.aac">>},
-            {wait, sound},
-            {servo, 0}
-        ],
-        [
-            {aac, <<"gears/lego_gears_2.aac">>},
-            {servo, 30, 2000},
-            {servo, 35},
-            {servo, 30},
-            {servo, 35},
-            {servo, 30},
-            {servo, 35},
-            {wait, sound},
-            {servo, 100},
-            {aac, <<"hits/lego_hit_2.aac">>},
-            {wait, sound},
-            {servo, 0}
-        ]
-    ].
--else.
-play_scenarios() ->
-    [
-        [
-            {aac, <<"gears/17243.aac">>},
-            {servo, 20},
-            {aac, <<"hits/party-blower-fail-soundroll-1-1-00-01.aac">>},
-            {servo, 100},
-            {servo, 0}
-        ],
-        [
-            {servo, 5},
-            {aac, <<"gears/8665.aac">>},
-            {servo, 25, 8000},
-            {wait, sound},
-            {servo, 100},
-            {aac, <<"hits/glass.aac">>},
-            {wait, sound},
-            {servo, 0}
-        ]
-    ].
--endif.
-
 %% @doc Configure watchdog to panic after `WATCHDOG_TIMEOUT_MS' ms (1 minute).
 %% La machine should be finished within 1 minute and unconfigure watchdog before
 %% the timeout elapses, so this watchdog should never be triggered.
@@ -168,11 +117,11 @@ run() ->
 
     State1 =
         case action(WakeupCause, ButtonState, State0) of
-            {play, LastPlayTime, LastPlayIndex, PlayIndex} ->
-                play(LastPlayTime, LastPlayIndex, PlayIndex),
-                la_machine_state:append_play(1, 0, State0);
+            {play, SecondsElapsed, LastPlaySeq, PlayIndex} ->
+                {PlayedSeq, NextPlayIndex} = play(SecondsElapsed, LastPlaySeq, PlayIndex),
+                la_machine_state:append_play(PlayedSeq, NextPlayIndex, State0);
             {poke, PokeIndex} ->
-                poke(),
+                poke(PokeIndex),
                 la_machine_state:set_poke_index(PokeIndex + 1, State0);
             reset ->
                 la_machine_audio:reset(),
@@ -198,7 +147,8 @@ action(_WakeupCause, on, State) ->
     LastPlayTime = la_machine_state:get_last_play_time(State),
     LastPlaySeq = la_machine_state:get_last_play_seq(State),
     PlayIndex = la_machine_state:get_play_index(State),
-    {play, LastPlayTime, LastPlaySeq, PlayIndex};
+    SecondsElapsed = erlang:system_time(second) - LastPlayTime,
+    {play, SecondsElapsed, LastPlaySeq, PlayIndex};
 action(sleep_wakeup_gpio, off, _State) ->
     reset;
 action(sleep_wakeup_timer, _ButtonState, State) ->
@@ -206,20 +156,98 @@ action(sleep_wakeup_timer, _ButtonState, State) ->
 action(undefined, _ButtonState, _State) ->
     reset.
 
-poke() ->
+poke(_PokeIndex) ->
+    PokeScenario = la_machine_scenarios:get(poke, 1),
+    PokeScenarioPart = hd(PokeScenario),
     {ok, Pid} = la_machine_player:start_link(),
-    ok = la_machine_player:play(Pid, [{servo, 20}, {servo, 0}]),
+    ok = la_machine_player:play(Pid, PokeScenarioPart),
     ok = la_machine_player:stop(Pid),
     ok.
 
-play(_LastPlayTime, _LastPlayIndex, _PlayIndex) ->
+-ifdef(DEMO_SEQ_SCENARIO).
+play(ElapsedSeconds, LastPlaySeq, PlayIndex) when
+    PlayIndex > 0 andalso ElapsedSeconds < ?PARTS_MAX_ELAPSE_INTERVAL
+->
+    % play next part of scenario
+    ScenarioParts = la_machine_scenarios:get(play, LastPlaySeq),
+    ScenarioPart = lists:nth(PlayIndex, ScenarioParts),
     {ok, Pid} = la_machine_player:start_link(),
-    <<RandScenario:56>> = crypto:strong_rand_bytes(7),
-    Scenarios = play_scenarios(),
-    Scenario = lists:nth(1 + (RandScenario rem length(Scenarios)), Scenarios),
-    ok = la_machine_player:play(Pid, Scenario),
+    ok = la_machine_player:play(Pid, ScenarioPart),
     ok = la_machine_player:stop(Pid),
-    ok.
+    if
+        length(ScenarioParts) > PlayIndex ->
+            {LastPlaySeq, PlayIndex + 1};
+        true ->
+            {LastPlaySeq, 0}
+    end;
+play(_ElapsedSeconds, LastPlaySeq, _PlayIndex) ->
+    % play next scenario
+    ScenarioIx =
+        case LastPlaySeq of
+            undefined ->
+                1;
+            _ ->
+                ScenarioCount = la_machine_scenarios:count(play),
+                1 + (LastPlaySeq rem ScenarioCount)
+        end,
+    ScenarioParts = la_machine_scenarios:get(play, ScenarioIx),
+    ScenarioPart = hd(ScenarioParts),
+    {ok, Pid} = la_machine_player:start_link(),
+    ok = la_machine_player:play(Pid, ScenarioPart),
+    ok = la_machine_player:stop(Pid),
+    if
+        length(ScenarioParts) > 1 ->
+            {ScenarioIx, 2};
+        true ->
+            {ScenarioIx, 0}
+    end.
+-else.
+play(ElapsedSeconds, LastPlaySeq, PlayIndex) when
+    PlayIndex > 0 andalso ElapsedSeconds < ?PARTS_MAX_ELAPSE_INTERVAL
+->
+    % play next part of scenario
+    ScenarioParts = la_machine_scenarios:get(play, LastPlaySeq),
+    ScenarioPart = lists:nth(PlayIndex, ScenarioParts),
+    {ok, Pid} = la_machine_player:start_link(),
+    ok = la_machine_player:play(Pid, ScenarioPart),
+    ok = la_machine_player:stop(Pid),
+    if
+        length(ScenarioParts) > PlayIndex ->
+            {LastPlaySeq, PlayIndex + 1};
+        true ->
+            {LastPlaySeq, 0}
+    end;
+play(_ElapsedSeconds, LastPlaySeq, _PlayIndex) ->
+    % play random scenario, but different from LastPlaySeq
+    <<RandScenario:56>> = crypto:strong_rand_bytes(7),
+    ScenarioCount = la_machine_scenarios:count(play),
+    ScenarioChoiceCount =
+        case LastPlaySeq of
+            undefined -> ScenarioCount;
+            _ -> ScenarioCount - 1
+        end,
+    ScenarioIx0 = 1 + (RandScenario rem ScenarioChoiceCount),
+    ScenarioIx =
+        if
+            LastPlaySeq =:= undefined ->
+                ScenarioIx0;
+            ScenarioIx0 >= LastPlaySeq ->
+                ScenarioIx0 + 1;
+            true ->
+                ScenarioIx0
+        end,
+    ScenarioParts = la_machine_scenarios:get(play, ScenarioIx),
+    ScenarioPart = hd(ScenarioParts),
+    {ok, Pid} = la_machine_player:start_link(),
+    ok = la_machine_player:play(Pid, ScenarioPart),
+    ok = la_machine_player:stop(Pid),
+    if
+        length(ScenarioParts) > 1 ->
+            {ScenarioIx, 2};
+        true ->
+            {ScenarioIx, 0}
+    end.
+-endif.
 
 setup_sleep(SleepSecs) ->
     gpio:deep_sleep_hold_en(),
@@ -258,13 +286,17 @@ action_test_() ->
     [
         ?_assertEqual({poke, 0}, action(sleep_wakeup_timer, off, la_machine_state:new())),
         ?_assertEqual(reset, action(undefined, off, la_machine_state:new())),
-        ?_assertEqual(
-            {play, 0, undefined, 0}, action(sleep_wakeup_timer, on, la_machine_state:new())
+        ?_assertMatch(
+            {play, _ElapsedSecs, undefined, 0},
+            action(sleep_wakeup_timer, on, la_machine_state:new())
         ),
-        ?_assertEqual(
-            {play, 0, undefined, 0}, action(sleep_wakeup_gpio, on, la_machine_state:new())
+        ?_assertMatch(
+            {play, _ElapsedSecs, undefined, 0},
+            action(sleep_wakeup_gpio, on, la_machine_state:new())
         ),
-        ?_assertEqual({play, 0, undefined, 0}, action(undefined, on, la_machine_state:new()))
+        ?_assertMatch(
+            {play, _ElapsedSecs, undefined, 0}, action(undefined, on, la_machine_state:new())
+        )
     ].
 
 fib_test_() ->

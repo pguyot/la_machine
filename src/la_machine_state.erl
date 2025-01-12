@@ -69,7 +69,10 @@
     boot_time = 0 :: non_neg_integer(),
     % idem, used for sequence plays
     last_play_time = 0 :: non_neg_integer(),
-    % index of last played sequence (32 bits)
+    % index of last played scenario (32 bits), used to:
+    % - play next part if we have several parts
+    % - avoid playing one twice in a row
+    % - or play scenarios sequentially (demo mode)
     last_play_seq = 0 :: non_neg_integer(),
     % index in play or poke sequence (16 bits)
     play_poke_index = 0 :: non_neg_integer(),

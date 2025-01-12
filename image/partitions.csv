@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# La Machine is running an ESP32C3 with 4MB of internal flash
+# La Machine is running an ESP32C3 with 16MB of external flash
+# However, mmap only supports up to 8MB, so we're limited to 8MB
+# until we move sounds to another partition
 nvs,      data, nvs,      0x009000,  0x006000,
 phy_init, data, phy,      0x00f000,  0x001000,
 factory,  app,  factory,  0x010000,  0x120000,
-boot.avm, data, phy,      0x130000,  0x2D0000
+boot.avm, data, phy,      0x130000,  0x6D0000

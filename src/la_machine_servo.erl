@@ -165,8 +165,8 @@ reset_target(#state{target = Target} = State) ->
 % Values depend on ?SERVO_INTERRUPT_ANGLE and ?SERVO_CLOSED_ANGLE
 target_to_duty_test_() ->
     [
-        ?_assertEqual(318, target_to_duty(0)),
-        ?_assertEqual(887, target_to_duty(100))
+        ?_assertEqual(432, target_to_duty(0)),
+        ?_assertEqual(955, target_to_duty(100))
     ].
 
 target_duty_timeout_test_() ->

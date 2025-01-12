@@ -42,9 +42,9 @@ def create_flash_image():
             ],
             "format": "raw",
             "output": path,
-            "fill_flash_size": "4MB",
+            "fill_flash_size": "16MB",
             "flash_mode": "dio",
-            "flash_size": "4MB",
+            "flash_size": "16MB",
             "flash_freq": "keep",
             "target_offset": 0,
         }
