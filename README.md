@@ -55,8 +55,8 @@ Building and flashing La Machine with optimized AtomVM build
 Alternatively, you can use the optimized build of AtomVM above and flash
 La Machine. The partition map differ from standard AtomVM deployments and
 you need to pack La Machine code with AtomVM libraries. You can use either the
-full package [`atomvmlib.avm`](https://github.com/atomvm/AtomVM/releases/download/v0.6.2/atomvmlib-v0.6.2.avm) or
+full package [`atomvmlib.avm`](https://github.com/atomvm/AtomVM/releases/download/v0.6.5/atomvmlib-v0.6.5.avm) or
 only `estdlib.avm` and `eavmlib.avm`.
 
-    rebar3 atomvm packbeam -p -e ~/Downloads/atomvmlib-v0.6.2.avm
-    rebar3 atomvm esp32_flash -p /dev/cu.usbmodem* -o 0x140000
+    rebar3 atomvm packbeam -p -e ~/Downloads/atomvmlib-v0.6.5.avm
+    rebar3 atomvm esp32_flash -p /dev/cu.usbmodem* -o 0x130000

@@ -108,12 +108,12 @@ jobs:
         if-no-files-found: error
         retention-days: 1
 
-  build_prototypes:
+  build_variants:
     runs-on: ubuntu-latest
     container: erlang:27
     strategy:
       matrix:
-        prototype: ["proto_paper_toy", "proto_lego", "proto_20240718", "proto_20241023"]
+        variant: ["demo"]
 
     steps:
     - name: Checkout AtomVM
@@ -133,7 +133,7 @@ jobs:
     - name: Compile la_machine
       working-directory: la_machine/
       run: |
-        rebar3 as ${{ matrix.prototype }} compile
+        rebar3 as ${{ matrix.variant }} compile
 
     - name: Install dependencies to build AtomVM libraries
       run: |
@@ -154,21 +154,21 @@ jobs:
     - name: Run packbeam
       working-directory: la_machine/
       run: |
-        rebar3 as ${{ matrix.prototype }} atomvm packbeam -p \
+        rebar3 as ${{ matrix.variant }} atomvm packbeam -p \
             -e `pwd`/../AtomVM/build/libs/eavmlib/src/eavmlib.avm \
             -e `pwd`/../AtomVM/build/libs/estdlib/src/estdlib.avm
 
     - name: Upload la_machine.avm
       uses: actions/upload-artifact@v4
       with:
-        name: la_machine-${{ matrix.prototype }}.avm
-        path: la_machine/_build/${{ matrix.prototype }}/lib/la_machine.avm
+        name: la_machine-${{ matrix.variant }}.avm
+        path: la_machine/_build/${{ matrix.variant }}/lib/la_machine.avm
         if-no-files-found: error
         retention-days: 1
 
   build_vm:
     runs-on: ubuntu-latest
-    container: espressif/idf:v5.2.2
+    container: espressif/idf:v5.4
     steps:
     - name: Checkout La Machine
       uses: actions/checkout@v4
@@ -217,6 +217,8 @@ jobs:
         echo CONFIG_AVM_ENABLE_STORAGE_NIFS=n >> sdkconfig
         echo CONFIG_AVM_ENABLE_STORAGE_NIFS=n >> sdkconfig
         echo CONFIG_AVM_ENABLE_SPI_PORT_DRIVER=n >> sdkconfig
+        echo CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y >> sdkconfig
+        echo CONFIG_ESPTOOLPY_FLASHSIZE="16MB" >> sdkconfig
         idf.py build
 
     - name: Build la machine partitions map
@@ -248,7 +250,7 @@ jobs:
   test_with_qemu:
     needs: [build_and_test, build_vm]
     runs-on: ubuntu-latest
-    container: espressif/idf:v5.2.2
+    container: espressif/idf:v5.4
     steps:
     - name: Checkout La Machine
       uses: actions/checkout@v4
@@ -279,12 +281,12 @@ jobs:
         pytest test_qemu.py
 
   make_image:
-    needs: [build_and_test, build_vm, build_prototypes]
+    needs: [build_and_test, build_vm, build_variants]
     runs-on: ubuntu-latest
     container: erlang:27
     strategy:
       matrix:
-        suffix: ["", "-proto_paper_toy", "-proto_lego", "-proto_20240718", "-proto_20241023"]
+        suffix: ["", "-demo"]
 
     steps:
     - name: Checkout
