@@ -39,7 +39,10 @@
 
     scenario_play_0_count/0,
 
-    scenario_poke/0
+    scenario_poke/0,
+
+    scenario_meuh_5/0,
+    scenario_meuh_6/0
 ]).
 
 -export_type([
@@ -1110,6 +1113,22 @@ scenario_poke() ->
             {aac, <<"poke/tt_coucou_poke.aac">>},
             {wait, 500},
             {servo, 0}
+        ]
+    ].
+
+scenario_meuh_5() ->
+    [
+        [
+            {aac, <<"meuh/meuh-5.aac">>},
+            {wait, sound}
+        ]
+    ].
+
+scenario_meuh_6() ->
+    [
+        [
+            {aac, <<"meuh/meuh-6.aac">>},
+            {wait, sound}
         ]
     ].
 

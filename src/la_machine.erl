@@ -47,6 +47,10 @@
     | {
         poke,
         PokeIndex :: non_neg_integer()
+    }
+    | {
+        play,
+        meuh
     }.
 
 %% @doc Configure watchdog to panic after `WATCHDOG_TIMEOUT_MS' ms (1 minute).
@@ -75,12 +79,30 @@ unconfigure_watchdog(WatchdogUser) ->
     _ = esp:task_wdt_delete_user(WatchdogUser),
     ok.
 
-configure_button() ->
+-ifdef(ACC_IRQ_GPIO).
+
+configure_gpios() ->
+    ok = gpio:init(?BUTTON_GPIO),
+    ok = gpio:set_pin_mode(?BUTTON_GPIO, input),
+    ok = gpio:set_pin_pull(?BUTTON_GPIO, ?BUTTON_GPIO_PULL),
+    ok = ?BUTTON_GPIO_HOLD(hold_dis),
+    ok = gpio:init(?ACC_IRQ_GPIO),
+    ok = gpio:set_pin_mode(?ACC_IRQ_GPIO, input),
+    ok = gpio:set_pin_pull(?ACC_IRQ_GPIO, down),
+    ok = esp:deep_sleep_enable_gpio_wakeup(
+        (1 bsl ?BUTTON_GPIO) bor (1 bsl ?ACC_IRQ_GPIO), ?BUTTON_GPIO_WAKEUP_LEVEL
+    ).
+
+-else.
+
+configure_gpios() ->
     ok = gpio:init(?BUTTON_GPIO),
     ok = gpio:set_pin_mode(?BUTTON_GPIO, input),
     ok = gpio:set_pin_pull(?BUTTON_GPIO, ?BUTTON_GPIO_PULL),
     ok = ?BUTTON_GPIO_HOLD(hold_dis),
     ok = esp:deep_sleep_enable_gpio_wakeup(1 bsl ?BUTTON_GPIO, ?BUTTON_GPIO_WAKEUP_LEVEL).
+
+-endif.
 
 read_button() ->
     case gpio:digital_read(?BUTTON_GPIO) of
@@ -107,8 +129,10 @@ run() ->
 
     battery_report(),
 
-    % Configure button GPIO
-    configure_button(),
+    AccelerometerState = la_machine_lis3dh:setup(),
+
+    % Configure accelerometer and button GPIOs
+    configure_gpios(),
 
     WakeupCause = esp:sleep_get_wakeup_cause(),
     ButtonState = read_button(),
@@ -116,7 +140,10 @@ run() ->
     State0 = la_machine_state:load_state(),
 
     State1 =
-        case action(WakeupCause, ButtonState, State0) of
+        case action(WakeupCause, ButtonState, AccelerometerState, State0) of
+            {play, meuh} ->
+                play_meuh(),
+                State0;
             {play, SecondsElapsed, LastPlaySeq, PlayIndex} ->
                 {PlayedSeq, NextPlayIndex} = play(SecondsElapsed, LastPlaySeq, PlayIndex),
                 la_machine_state:append_play(PlayedSeq, NextPlayIndex, State0);
@@ -142,18 +169,24 @@ start() ->
     run().
 -endif.
 
--spec action(esp:esp_wakeup_cause(), on | off, la_machine_state:state()) -> action().
-action(_WakeupCause, on, State) ->
+-spec action(
+    esp:esp_wakeup_cause(), on | off, ok | {play, meuh} | not_resting, la_machine_state:state()
+) -> action().
+action(_WakeupCause, _ButtonState, {play, meuh}, _State) ->
+    {play, meuh};
+action(_WakeupCause, _ButtonState, not_resting, _State) ->
+    reset;
+action(_WakeupCause, on, ok, State) ->
     LastPlayTime = la_machine_state:get_last_play_time(State),
     LastPlaySeq = la_machine_state:get_last_play_seq(State),
     PlayIndex = la_machine_state:get_play_index(State),
     SecondsElapsed = erlang:system_time(second) - LastPlayTime,
     {play, SecondsElapsed, LastPlaySeq, PlayIndex};
-action(sleep_wakeup_gpio, off, _State) ->
+action(sleep_wakeup_gpio, off, ok, _State) ->
     reset;
-action(sleep_wakeup_timer, _ButtonState, State) ->
+action(sleep_wakeup_timer, _ButtonState, ok, State) ->
     {poke, la_machine_state:get_poke_index(State)};
-action(undefined, _ButtonState, _State) ->
+action(undefined, _ButtonState, _AccelerometerState, _State) ->
     reset.
 
 poke(_PokeIndex) ->
@@ -161,6 +194,17 @@ poke(_PokeIndex) ->
     PokeScenarioPart = hd(PokeScenario),
     {ok, Pid} = la_machine_player:start_link(),
     ok = la_machine_player:play(Pid, PokeScenarioPart),
+    ok = la_machine_player:stop(Pid),
+    ok.
+
+play_meuh() ->
+    <<RandScenario>> = crypto:strong_rand_bytes(1),
+    Count = la_machine_scenarios:count(meuh),
+    ScenarioIx = 1 + (RandScenario rem Count),
+    MeuhScenario = la_machine_scenarios:get(meuh, ScenarioIx),
+    MeuhScenarioPart = hd(MeuhScenario),
+    {ok, Pid} = la_machine_player:start_link(),
+    ok = la_machine_player:play(Pid, MeuhScenarioPart),
     ok = la_machine_player:stop(Pid),
     ok.
 
@@ -284,18 +328,18 @@ fib(I, A, B) -> fib(I - 1, B, A + B).
 -ifdef(TEST).
 action_test_() ->
     [
-        ?_assertEqual({poke, 0}, action(sleep_wakeup_timer, off, la_machine_state:new())),
-        ?_assertEqual(reset, action(undefined, off, la_machine_state:new())),
+        ?_assertEqual({poke, 0}, action(sleep_wakeup_timer, off, ok, la_machine_state:new())),
+        ?_assertEqual(reset, action(undefined, off, ok, la_machine_state:new())),
         ?_assertMatch(
             {play, _ElapsedSecs, undefined, 0},
-            action(sleep_wakeup_timer, on, la_machine_state:new())
+            action(sleep_wakeup_timer, on, ok, la_machine_state:new())
         ),
         ?_assertMatch(
             {play, _ElapsedSecs, undefined, 0},
-            action(sleep_wakeup_gpio, on, la_machine_state:new())
+            action(sleep_wakeup_gpio, on, ok, la_machine_state:new())
         ),
         ?_assertMatch(
-            {play, _ElapsedSecs, undefined, 0}, action(undefined, on, la_machine_state:new())
+            {play, _ElapsedSecs, undefined, 0}, action(undefined, on, ok, la_machine_state:new())
         )
     ].
 
