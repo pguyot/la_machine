@@ -1,0 +1,893 @@
+
+/// ************ Bitonio
+Bitonio bitonio;
+
+class Bitonio {
+  float x, y, w, h;
+  float posRat;
+  
+  Bitonio(float ax, float ay, float aw, float ah) {
+    x = ax; y = ay; w = aw; h = ah;
+    posRat = 0;
+  }
+  
+  void Display() {
+    float h100 = w/2;
+    float y0 = y + h100*gSERVO_DOOR_VALUE/100.0;
+    float buttony = y0 - h100*gSERVO_BUTTON_CONTACT_VALUE/100.0;
+    float buttonw = w/5;
+    float bitoWidth = w/6;
+
+    // box
+    fill(255, 255, 0, 150); noStroke();
+    rect(x, y, w, w);
+
+    // button
+    fill(255, 0, 0);
+    ellipse(x + w/2, buttony - buttonw/2, buttonw, buttonw);
+
+    // bitonio
+    fill(100, 100, 100); noStroke();
+    rect(x + w/2 - bitoWidth/2, y0 - h100*posRat, bitoWidth, h100);
+    
+    // text
+    fill(255);
+    text(""+floor(posRat*100), x + 10, y + h - 10);
+  }
+  
+  void set(float position) {
+    posRat = position/100.0;
+  }
+  
+}
+
+
+///// ************ ScenarEditors
+
+class ScenarElemEditor {
+  ScenarEditor editor;
+  int anchort;
+  String type;
+  float x, y, w, h;
+  
+  ScenarElemEditor(ScenarEditor aeditor, int aanchort, float ax, float ay, float aw, float ah) {
+    editor = aeditor;
+    type = "super";
+    anchort = aanchort;
+    x = ax; y = ay; w = aw; h = ah;
+    //println("created editor for:"+elem.command+","+elem.arg+" at:"+x+","+y+","+w+","+","+h);
+  }
+  void Display() {}
+  void Play() {}
+  void Stop() {}
+  boolean IsPlaying() {return false;}
+  boolean IsMD(float mx, float my) { return false; }
+}
+
+// *********** AudioEditor
+
+class AudioEditor extends ScenarElemEditor {
+  MyAudioPlayer audioPlayer;
+  String audioPath;
+  int dur_ms;
+  
+  AudioEditor(ScenarEditor aeditor, int aanchort, String aaudioPath, int adur_ms, float ax, float ay, float aw, float ah) {
+    super(aeditor, aanchort, ax, ay, aw, ah);
+    type = "audio";
+    audioPath = aaudioPath;
+    dur_ms = adur_ms;
+    audioPlayer = new MyAudioPlayer(MP3_FOLDER+mp3FileNameForAac(audioPath));
+    println("AudioEditor audioPath="+audioPath+" dur_ms="+dur_ms);
+  }
+  
+  void Display() {
+    if (audioPlayer != null) {
+      float posX = x + ms2pixels(anchort);
+      float ww = ms2pixels(dur_ms);
+      audioPlayer.AudioDraw(posX, y, ww, h);
+      fill(255, 255, 0); noStroke();
+      text(audioPath, posX, y+12);
+    }
+  }
+  
+  void Play() {
+    audioPlayer.Play(0);
+  }
+  
+  void Stop() {
+    audioPlayer.Stop();
+  }
+  
+  boolean IsPlaying() {
+    return audioPlayer.IsPlaying();
+  }
+  
+  boolean IsMD(float mx, float my) {
+    float posX = x + ms2pixels(anchort);
+    float ww = ms2pixels(dur_ms);
+    return (mx > posX && mx < posX + ww && my > y && my < y + h);
+  }
+}
+
+// *********** ServoEditor
+
+class ServoEditor extends ScenarElemEditor {
+  float percent;
+  float dur_ms;
+  boolean edited;
+  boolean end_edited;
+  
+  ServoEditor(ScenarEditor aeditor, int aanchort, float apercent, float adur_ms, float ax, float ay, float aw, float ah) {
+    super(aeditor, aanchort, ax, ay, aw, ah);
+    percent = apercent;
+    dur_ms = adur_ms;
+    edited = false;
+    end_edited = false;
+    type = "servo";
+  }
+    
+  float real_dur_ms_from(float apercent) {
+    float min_dur_ms = gSERVO_FULL_DUR_MS*abs(percent - apercent)/100.0;
+    if (dur_ms < min_dur_ms) return min_dur_ms;
+    return dur_ms;
+  }
+  
+  float real_dur_ms() {
+    float apercent = editor.getServoPercentBefore(anchort);
+    return real_dur_ms_from(apercent);
+  }
+
+  float percentAtFrom(float tt, float aPercent) {
+    float real_dur_ms = real_dur_ms_from(aPercent);
+    if (tt > anchort + real_dur_ms) {
+      return percent;
+    }
+    return map(tt - anchort, 0, real_dur_ms, aPercent, percent);
+  }
+
+  boolean IsMD(float mx, float my) {
+    float posX = x + ms2pixels(anchort);
+    float posXEnd = x + ms2pixels(anchort+real_dur_ms());
+    float posY = y + h - h*percent/100;
+    float clickDist2 = 16;
+    if (abs(mx - posXEnd) + abs(my - posY) < clickDist2) {
+      end_edited = true;
+      return true;
+    }
+    if (abs(mx - posX) + abs(my - posY) < clickDist2) {
+      edited = true;
+      return true;
+    }
+    return false;
+  }
+  
+  void followMouse(float mx, float my) {
+    if (!edited && !end_edited) return;
+    
+    percent = map(my - y, 0.0, h, 100.0, 0.0);
+    if (percent < 0) percent = 0;
+    if (percent > 100) percent = 100;
+    percent = floor(percent);
+    
+    if (edited) {
+      anchort = floor(pixels2ms(mx - x));
+    }
+    if (end_edited) {
+      float post = floor(pixels2ms(mx - x));
+      if (post < 0) post = 0;
+      dur_ms = post - anchort;
+    }
+  }
+  
+  void edited(boolean isEdited) {
+    edited = isEdited;
+    end_edited = isEdited;
+  }
+  
+  void Display() {
+    
+    float posX = x + ms2pixels(anchort);
+    float posXEnd = x + ms2pixels(anchort+real_dur_ms());
+    float posY = y + h - h*percent/100;
+    float selectSiz = 10;
+    
+    stroke(255, 0, 0); noFill();
+    line(posX, posY, posXEnd, posY);
+    fill(255, 0, 0); noStroke();
+    ellipse(posX, posY, 3, 3);    
+    if (edited) {
+      fill(255, 255, 0);
+      ellipse(posX, posY, selectSiz, selectSiz);
+    }
+    
+    ellipse(posXEnd, posY, 3, 3);
+    if (end_edited) {
+      fill(255, 255, 0);
+      ellipse(posXEnd, posY, selectSiz, selectSiz);
+    }
+
+    text(""+percent, posX+5, (percent < 95) ? posY : posY + fontHeight);
+  }
+  
+  void Play() {
+    //bitonio.set(percent);
+  }
+  
+  void Stop() {
+    //bitonio.set(0);
+  }
+  
+  boolean IsPlaying() {
+    return false;
+  }
+}
+
+// *********** ScenarEditor
+
+class ScenarEditor {
+  Scenario scen;
+  String name;
+  ArrayList <ScenarElemEditor> editors;
+  boolean playing = false;
+  float playPreviousPercent, playCurrentPercent;
+  float playt0, playlastt;
+  int playNextIndex;
+  AudioEditor runningAudioEditor = null;
+  ServoEditor runningServoEditor = null;
+  float x0 = 0, y0 = 0, w0 = width, h0 = height/2;
+  float audioEditorAnchor0;
+  AsTextField nameField;
+
+  ScenarEditor(Scenario ascen) {
+    scen = ascen;
+    name = scen.name;
+    loadScenario(scen);
+    runningAudioEditor = null;
+    float hbito = 100;
+    bitonio = new Bitonio(width - hbito - 20, y0 + h0 + (height - (y0 + h0))/2 - hbito/2, hbito, hbito);
+    nameField = new AsTextField(name, x0 + w0/2, y0 + h0 + 2, 0, fontHeight+6);
+  }
+  
+  void loadScenario(Scenario scen) {
+    // create display elements
+    editors = new ArrayList();
+    ArrayList <ScenarElem> elements = scen.getElements();
+    
+    int cursor_ms = 0;
+    int lastAudioDuration = -1;
+    int lastAudioStart = -1;
+    for (int i = 0; i < elements.size(); i++) {
+      ScenarElem elem = elements.get(i);
+      
+      if (elem.command.equals("servo")) {
+        float dur_ms = elem.intArg2 < 0 ? 0 : elem.intArg2;
+        ServoEditor editor = new ServoEditor(this, cursor_ms, elem.intArg, dur_ms, x0, y0 + h0/2, w0, h0/2);
+        editors.add(editor);
+        
+      } else if (elem.command.equals("wait")) {
+        if (elem.arg.equals("sound")) {
+          // add the file end
+          if (lastAudioStart >= 0 && lastAudioDuration >= 0) {
+            // test finished 
+            if (cursor_ms < lastAudioStart + lastAudioDuration) {
+              int durLeft = lastAudioStart + lastAudioDuration - cursor_ms;
+              cursor_ms += durLeft;
+            } else { // else no wait
+              lastAudioStart = 0;
+              lastAudioDuration = 0;
+            }
+          } // else no wait
+        } else {
+          // add the wait arg
+          cursor_ms += elem.intArg;
+        }
+        
+      } else if (elem.command.equals("aac")) {
+        lastAudioStart = cursor_ms;
+        lastAudioDuration = elem.intArg;
+        AudioEditor editor = new AudioEditor(this, cursor_ms, elem.arg, elem.intArg, x0, y0, w0, h0/2);
+        editors.add(editor);
+        
+      } else {
+        // unknown command
+        println("ERROR unknown command:"+elem.command);
+      }
+    }
+  }
+  
+  String computeScenarioDef() {
+    // "{wait, 800}, {aac, <<\"gears/simple2.aac\">>}, {servo, 35}, ... ,{servo,0}",
+
+    String res = "";
+    int cursor_ms = 0;
+    
+    for (int i = 0; i < editors.size(); i++) {
+      ScenarElemEditor editor = editors.get(i);
+      
+      if (editor.anchort > cursor_ms) {
+        res = res + "{wait, "+(editor.anchort - cursor_ms)+"}, ";
+        cursor_ms = editor.anchort;
+      }
+      
+      if (editor.type.equals("audio")) {
+        AudioEditor aEditor = (AudioEditor)editor;
+        res = res + "{aac, <<\\\""+aEditor.audioPath+"\\\">>}";
+        
+      } else if (editor.type.equals("servo")) {
+        ServoEditor sEditor = (ServoEditor)editor;
+        float dur_ms = sEditor.dur_ms;
+        res = res + "{servo, "+floor(sEditor.percent)+(dur_ms == 0 ? "" : ", "+floor(dur_ms))+"}";
+      }
+      
+      if (i < editors.size()-1) {
+        res = res + ", ";
+      }
+    }
+    
+    return res;
+  }
+  
+  void ResortEditors() {
+    if (editors == null) return;
+    editors.sort( (a, b) -> { return a.anchort - b.anchort; } );
+  }
+  
+  float getServoPercentBefore(float anchort) {
+    ResortEditors();
+    
+    float servoPos = 0;
+    if (editors == null) return servoPos;
+    
+    int editorIndex = 0;
+    ServoEditor sEditor1 = null;
+    ServoEditor sEditor2 = null;
+    do {
+      sEditor1 = sEditor2;
+            
+      // find next seditor starting at editorIndex
+      sEditor2 = null;
+      if (editorIndex < editors.size()) {
+        do {
+          ScenarElemEditor editor = editors.get(editorIndex);
+          if (editor.type == "servo") {
+            sEditor2 = (ServoEditor)editor;
+            break;
+          }
+          editorIndex++;          
+        } while(editorIndex < editors.size());
+      }
+      
+      if (sEditor2 == null) {
+        // finish
+        if (sEditor1 == null) {
+          // no servo
+          return servoPos;
+        } else {
+          return sEditor1.percentAtFrom(anchort, servoPos);
+        }
+      }
+      
+      if (sEditor1 != null) {
+        servoPos = sEditor1.percentAtFrom(sEditor2.anchort, servoPos);
+      }
+      
+      if (sEditor2.anchort >= anchort) return servoPos;
+      editorIndex++;  
+    } while(true);
+  }
+  
+  float servoPercentToY(float percent) {
+    return y0+h0-percent*0.01*h0/2;
+  }
+  
+  void Display() {
+    // box
+    noFill(); stroke(255);
+    rect(x0, y0, w0, h0);
+    // séparation audio/servo
+    line(x0, y0 + h0/2, x0 + w0, y0 + h0/2);
+    
+    // time scale
+    noFill(); stroke(255, 255, 255, 100);
+    for (int ms = 0; ms < pixels2ms(width); ms+= 100) {
+      float i = ms2pixels(ms);
+      if (ms % 1000 == 0) {
+        stroke(255, 255, 255, 150);
+      } else {
+        stroke(255, 255, 255, 75);
+      }
+      line(x0 + i, y0+h0, x0 + i, y0+h0/2);
+    }
+    // horizontal lines
+    stroke(255, 255, 255, 75);
+    for (float yy = 0.25; yy < 1.0; yy+= 0.25) {
+      float yyy = servoPercentToY(yy*100);
+      line(x0, yyy, x0 + w0, yyy);
+    }
+    
+    // door
+    float yy = gSERVO_DOOR_VALUE/100.0;
+    float yyy = y0+h0-yy*h0/2;
+    stroke(255, 0, 0, 127);
+    line(x0, yyy, x0 + w0, yyy);
+    // contact
+    yy = gSERVO_BUTTON_CONTACT_VALUE/100.0;
+    yyy = y0+h0-yy*h0/2;
+    stroke(255, 0, 0, 127);
+    line(x0, yyy, x0 + w0, yyy);
+
+    // display editors
+    if (editors != null) {
+      float servoPercent1 = 0.0;
+      ServoEditor sEditor1 = null;
+      for (int i = 0; i < editors.size(); i++) {
+        ScenarElemEditor editor = editors.get(i);
+        editor.Display();
+        
+        if (editor.type == "servo") {
+          ServoEditor sEditor2 = (ServoEditor)editor;
+          float x1, y2;
+          float y1 = servoPercentToY(servoPercent1);
+          float x2 = ms2pixels(sEditor2.anchort);
+          noFill(); stroke(0, 255, 0);
+          if (sEditor1 == null) {
+            x1 = 0;
+            y2 = y1;
+            line(x1, y1, x2, y2); //<>//
+          } else {
+            // we have sEditor1
+            x1 = ms2pixels(sEditor1.anchort);
+            float percent2 = sEditor1.percentAtFrom(sEditor2.anchort, servoPercent1);
+            if (percent2 == sEditor1.percent) {
+              // OK, reached
+              
+              // first line
+              float durEnd = sEditor1.real_dur_ms_from(servoPercent1);
+              x2 = ms2pixels(sEditor1.anchort + durEnd);
+              y2 = servoPercentToY(sEditor1.percent);
+              line(x1, y1, x2, y2);
+              
+              // second line
+              x1 = x2; y1 = y2;
+              x2 = ms2pixels(sEditor2.anchort);
+              servoPercent1 = sEditor1.percent;
+              y2 = servoPercentToY(servoPercent1);
+              line(x1, y1, x2, y2);
+            } else {
+              servoPercent1 = percent2;
+              y2 = servoPercentToY(servoPercent1);
+              line(x1, y1, x2, y2);
+            }
+          }
+          
+          sEditor1 = sEditor2;
+        }
+      }
+      if (sEditor1 != null) {
+        float x1 = ms2pixels(sEditor1.anchort);
+        float y1 = servoPercentToY(servoPercent1);
+        float durEnd = sEditor1.real_dur_ms_from(servoPercent1);
+        float x2 = ms2pixels(sEditor1.anchort + durEnd);
+        float y2 = servoPercentToY(sEditor1.percent);
+        line(x1, y1, x2, y2);
+      }
+    }
+    
+    // bitonio
+    bitonio.Display();
+    
+    // name
+    nameField.Display();
+    
+    if (playing) {
+      // cursor
+      stroke(255, 0, 0, 200); noFill();
+      float elapsed = millis() - playt0;
+      float cursorX = x0 + ms2pixels(elapsed);
+      line(cursorX, y0, cursorX, y0 + h0);
+    }
+  }
+  
+  void loop() {
+    if (!playing) return;
+    float elapsed = millis() - playt0;
+    
+    // playing, start events which should be triggered, starting at playNextIndex
+    if (playNextIndex < editors.size()) {
+      do {
+        ScenarElemEditor editor = editors.get(playNextIndex);
+        if (editor.anchort > elapsed) break;
+        
+        editor.Play();
+        if (editor.type.equals("audio")) runningAudioEditor = (AudioEditor)editor;
+        if (editor.type.equals("servo")) {
+          if (runningServoEditor == null) {
+            playPreviousPercent = 0;
+          } else {
+            playPreviousPercent = runningServoEditor.percentAtFrom(elapsed, playPreviousPercent);
+          }
+          
+          runningServoEditor = (ServoEditor)editor;
+        }
+        
+        playNextIndex++;
+        if (playNextIndex >= editors.size()) {
+          break;
+        }
+      } while (true);
+    }
+    
+    if (runningServoEditor == null) {
+      playCurrentPercent = 0;
+    } else {
+      playCurrentPercent = runningServoEditor.percentAtFrom(elapsed, playPreviousPercent);
+    }
+    bitonio.set(playCurrentPercent);
+    
+    // at the end wait all finished
+    if (playNextIndex >= editors.size()) {
+      boolean finished = true;
+      if (runningAudioEditor != null && runningAudioEditor.IsPlaying()) finished = false;
+      if (runningServoEditor != null && runningServoEditor.IsPlaying()) finished = false;
+      if (finished) {
+        Stop();
+      }
+    }
+  }
+  
+  void Stop() {
+      // stop
+      playing = false;
+      
+      // stop audio
+      if (runningAudioEditor != null) {
+        runningAudioEditor.Stop();
+        runningAudioEditor = null;
+      }
+      
+      bitonio.set(0);
+      
+      playNextIndex = 0;
+  }
+  
+  void TogglePlay() {
+    if (playing) {
+      Stop();
+    } else {
+      playing = true;
+      playt0 = playlastt = millis();
+      playNextIndex = 0;
+    }
+  }
+  
+  boolean checkMouseInside() {
+    if (mouseX < x0) return false;
+    if (mouseX > x0 + w0) return false;
+    if (mouseY < y0) return false;
+    if (mouseY > y0 + h0) return false;
+    return true;
+  }
+  
+  void mousePressed() {
+    if (nameField.IsInside(mouseX, mouseY)) {
+        nameField.mousePressed();
+        return;
+    }
+    
+    if (checkMouseInside()) {
+      
+      Stop();
+      
+      if (mouseY < y0 + h0/2) {
+        // audio line
+        
+        // find audio clicked
+        runningAudioEditor = null;
+        for (int i = 0; i < editors.size(); i++) {
+          ScenarElemEditor editor = editors.get(i);
+          if (!editor.type.equals("audio")) continue;
+          AudioEditor sEditor = (AudioEditor)editor;
+          if (!sEditor.IsMD(mouseX, mouseY)) continue;
+          // ok
+          runningAudioEditor = sEditor;
+          break;
+        }
+        if (runningAudioEditor != null) {
+          audioEditorAnchor0 = pixels2ms(mouseX) - runningAudioEditor.anchort;
+          runningAudioEditor.anchort = floor(pixels2ms(mouseX) - audioEditorAnchor0);
+        }
+      } else {
+        // servo line
+        
+        // find servo clicked
+        runningServoEditor = null;
+        for (int i = 0; i < editors.size(); i++) {
+          ScenarElemEditor editor = editors.get(i);
+          if (!editor.type.equals("servo")) continue;
+          ServoEditor sEditor = (ServoEditor)editor;
+          if (!sEditor.IsMD(mouseX, mouseY)) continue;
+          // ok
+          runningServoEditor = sEditor;
+          runningServoEditor.followMouse(mouseX, mouseY);
+          break;
+        }
+        
+        if (runningServoEditor == null) {
+          // click in background => create new
+          float initPercent = map(mouseY - (y0 + h0/2), 0, h0/2, 100, 0);
+          if (initPercent < 0) initPercent = 0;
+          if (initPercent > 100) initPercent = 100;
+          runningServoEditor = new ServoEditor(this, floor(pixels2ms(mouseX - x0)), initPercent, 0, x0, y0 + h0/2, w0, h0/2);
+          editors.add(runningServoEditor);
+          runningServoEditor.edited = true;
+          runningServoEditor.followMouse(mouseX, mouseY);
+        }
+      }
+    }
+  }
+  
+  void mouseDragged() {
+    if (runningServoEditor != null) {
+      runningServoEditor.followMouse(mouseX, mouseY);
+      ResortEditors();
+    }
+    if (runningAudioEditor != null) {
+      runningAudioEditor.anchort = max(0, floor(pixels2ms(mouseX) - audioEditorAnchor0));
+    }
+  }
+  
+  void mouseReleased() {
+    if (runningServoEditor != null) {
+      runningServoEditor.edited(false);
+      runningServoEditor = null;
+      // modified => resort
+      ResortEditors();
+    }
+  }
+  
+  void keyPressed() {
+    if (nameField.editing) {
+      // capture all key events
+      nameField.keyPressed();
+      if (!nameField.editing) {
+        // finished editing
+        name = nameField.label;
+        scen.name = name;
+        AsLog("new name='"+name+"'");
+      }
+      return;
+    }
+    
+    if (keyCode == BACKSPACE) {
+      Backspace();
+      return;
+    }
+    
+    if (key == ' ') {
+      TogglePlay();
+      return;
+    }
+  }
+  
+  void Backspace() {
+    if (runningServoEditor != null) {
+      // delete it
+      runningServoEditor.edited(false);
+      editors.remove(runningServoEditor);
+      runningServoEditor = null;
+      // modified => resort
+      ResortEditors();
+    }
+    // ??
+    if (runningAudioEditor != null) {
+      runningAudioEditor = null;
+      // modified => resort
+      ResortEditors();
+    }
+  }
+}
+
+// ******** ScenariosDisplay
+float gScen_x0, gScen_y0, gScen_w0, gScen_h0;
+AsButton gScen_saveBut;
+AsButton gScen_convertBut;
+AsButton gScen_reloadBut;
+AsButton gScen_parsePriv;
+
+int gScen_curScenarIndex = -1;
+int gScen_scollIndex = 0;
+
+void ScenariosUIInit() {
+  gScen_x0 = 0;
+  gScen_y0 = height/2;
+  gScen_w0 = 300;
+  gScen_h0 = height - gScen_y0;
+}
+
+void ScenariosDisplay() {
+  float dy0 = fontHeight + 2;
+  float y0 = gScen_y0;
+  if (gScenarios.size() == 0) return;
+  
+  fill(255, 50); stroke(255, 100);
+  rect(gScen_x0, gScen_y0, gScen_w0, gScen_h0);
+
+  fill(255); noStroke();
+  y0 += dy0;
+  for (int i = gScen_scollIndex; i < gScenarios.size() && y0 < gScen_y0 + gScen_h0; i++) {
+    Scenario scenar = gScenarios.get(i);
+    text(scenar.name, gScen_x0, y0); y0 += dy0;
+  }
+  
+  if (gScenarEditor != null) {
+    gScenarEditor.Display();
+  }
+  
+  if (gScen_saveBut == null) gScen_saveBut  = new AsButton("SAVE choregraphies.json", gScen_x0 + gScen_w0 + 2, gScen_y0 + 20, 0, fontHeight + 6);
+  gScen_saveBut.Display();
+  if (gScen_reloadBut == null) gScen_reloadBut  = new AsButton("RELOAD choregraphies.json", gScen_x0 + gScen_w0 + 2, gScen_y0 + 40, 0, fontHeight + 6);
+  gScen_reloadBut.Display();
+  if (gScen_convertBut == null) gScen_convertBut  = new AsButton("CONVERT to la_machine_scenarios.erl", gScen_x0 + gScen_w0 + 2, gScen_y0 + 60, 0, fontHeight + 6);
+  gScen_convertBut.Display();
+  if (gScen_parsePriv == null) gScen_parsePriv  = new AsButton("(RE)PARSE priv", gScen_x0 + gScen_w0 + 2, gScen_y0 + 80, 0, fontHeight + 6);
+  gScen_parsePriv.Display();
+  
+  
+}
+
+int ScenariosParseSoundFolder() {
+  int total = 0;
+  File privFolder = new File(sketchPath(PRIV_FOLDER));
+  File [] privFiles = privFolder.listFiles();
+  if (privFiles != null) {
+    for (int i = 0; i < privFiles.length; i++) {
+      File f = privFiles[i];
+      if (f.getName().equals(".DS_Store")) continue;
+      if (f.isFile()) {
+        String ext1 = fileNameGetExtension(f.getName());
+        if (ext1 == "aac") {
+        } else if (ext1 == "mp3") {
+        }
+      } else if (f.isDirectory()) {
+        String folderName = f.getName();
+        File [] folderFiles = f.listFiles();
+        for (int j = 0; j < folderFiles.length; j++) {
+          File ff = folderFiles[j];
+          String ffName = ff.getName();
+          if (ffName.equals(".DS_Store")) continue;
+          String ext = fileNameGetExtension(ffName);
+          if (ext.equals("aac")) {
+            if (ScenariosCreateScenarioForAudioIfNeeded(folderName, ffName)) {
+              total++;
+            }
+          } else {
+            AsLog("E : File not aac:"+folderName+"/"+ffName);
+          }
+        }
+        
+        if (total > 0) {
+          ScenariosResort();
+        }
+
+        //println("Directory " + f.getName());
+      }
+    }
+  }
+  return total;
+}
+
+void ScenariosSaveCurrent() {
+  if (gScenarEditor != null && gScen_curScenarIndex >= 0) {
+    String newDef = gScenarEditor.computeScenarioDef();
+    Scenario scenar = new Scenario(gScenarEditor.name, newDef);
+    
+    // save in data
+    gScenarios.set(gScen_curScenarIndex, scenar);
+    
+    // display
+    gScenarEditor.loadScenario(scenar);
+  }
+}
+
+void ScenariosSaveAll() {
+  // save current edited scenario in json + save json
+  ScenariosSaveCurrent();
+  
+  FileCopy("choreographies.json", "choreographiesSAVE.json");
+  ScenariosSaveToFile("choreographies.json");
+  
+  AsLog("SAVED");
+}
+
+boolean ScenariosMouseIsInside() {
+  if (mouseX < gScen_x0) return false;
+  if (mouseX > gScen_x0 + gScen_w0) return false;
+  if (mouseY < gScen_y0) return false;
+  if (mouseY > gScen_y0 + gScen_h0) return false;
+  return true;
+}
+
+boolean ScenariosListMousePressed() {
+  if (!ScenariosMouseIsInside()) return false;
+
+  int lin = floor((mouseY - gScen_y0 - 4)/float(fontHeight + 2)) + gScen_scollIndex;
+  println("clicked lin="+lin);
+  if (lin < 0) return false;
+  if (lin >= gScenarios.size()) return false;
+  Scenario scenar = gScenarios.get(lin);
+  
+  // save and close previous
+  ScenariosSaveCurrent();
+  if (gScenarEditor != null) {
+    gScenarEditor.Stop();
+    gScenarEditor = null;
+  }
+  
+  //String oldDef = scenar.getDef();
+  //println("DEF='"+oldDef+"'");
+  
+  gScen_curScenarIndex = lin;
+  gScenarEditor = new ScenarEditor(scenar);
+  return true;
+}
+
+void ScenariosMouseDragged() {
+  if (gScenarEditor != null) gScenarEditor.mouseDragged();
+}
+
+void ScenariosMouseMoved() {
+  if (gScen_saveBut.IsInside(mouseX, mouseY)
+    || gScen_convertBut.IsInside(mouseX, mouseY)
+    || gScen_parsePriv.IsInside(mouseX, mouseY)
+    || gScen_reloadBut.IsInside(mouseX, mouseY)) {
+    cursor(HAND);
+    return;
+  }
+  cursor(ARROW);
+}
+
+void ScenariosMouseWheel(float amount) {
+  if (amount > 0) {
+      if (gScen_scollIndex > 0) {
+        gScen_scollIndex -= 1;
+        return;
+      }
+  }
+  if (amount < 0) {
+      if (gScen_scollIndex < gScenarios.size() - 5) {
+        gScen_scollIndex += 1;
+        return;
+      }
+  }
+}
+
+void ScenariosMousePressed() {
+  if (ScenariosListMousePressed()) return;
+  
+  if (gScen_saveBut.IsInside(mouseX, mouseY)) {
+    ScenariosSaveAll();
+    AsLog("ALL SAVED");
+    return;
+  }
+  if (gScen_reloadBut.IsInside(mouseX, mouseY)) {
+    ScenariosInit("choreographies.json");
+    AsLog("RELOADED");
+    return;
+  }
+  if (gScen_convertBut.IsInside(mouseX, mouseY)) {
+    ConvertToErl("choreographies.json", "../src/la_machine_scenarios.erl");
+    AsLog("CONVERTED");
+    return;
+  }
+  if (gScen_parsePriv.IsInside(mouseX, mouseY)) {
+    int loaded = ScenariosParseSoundFolder();
+    AsLog("PARSED, and loaded:"+loaded);
+    return;
+  }
+  
+  if (gScenarEditor != null) gScenarEditor.mousePressed();
+}
+
+void ScenariosMouseReleased() {
+  if (gScenarEditor != null) gScenarEditor.mouseReleased();
+}

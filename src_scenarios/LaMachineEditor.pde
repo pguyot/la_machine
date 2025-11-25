@@ -1,0 +1,104 @@
+import ddf.minim.*;
+
+PFont font10;
+Minim minim;
+MyAudioPlayer curPlayer = null;
+int fontHeight;
+
+// Servo is 0.3s/60°. 360 = 1800ms
+float gSERVO_FULL_ANGLE_RANGE = (165 - 50);
+float gSERVO_FULL_DUR_MS = 1800*gSERVO_FULL_ANGLE_RANGE/360.0;
+float gSERVO_DOOR_VALUE = 45.0;
+float gSERVO_BUTTON_CONTACT_VALUE = 80.0;
+float GAME_SHORT_DUR_S = 2;
+float GAME_MEDIUM_DUR_S = 4;
+String PRIV_FOLDER = "../priv/";
+String MP3_FOLDER = "_mp3cache/";
+
+void setup() {
+  fullScreen();
+  frameRate(30);
+  font10 = loadFont("Geneva-12.vlw");
+  textFont(font10, 12);
+  fontHeight = 12;
+  
+  minim = new Minim(this);  
+  ScenariosInit("choreographies.json");
+  ScenariosUIInit();
+  AsLogInit();
+}
+
+void draw() {
+  background(0);
+  
+  if (gScenarEditor != null) gScenarEditor.loop();
+  ScenariosDisplay();
+
+  AsLogDisplay();
+}
+
+void keyPressed() {
+  if (gScenarEditor != null) gScenarEditor.keyPressed();
+}
+
+void mouseMoved() {
+  ScenariosMouseMoved();
+}
+
+void mouseDragged() {
+  ScenariosMouseDragged();
+}
+
+void mousePressed() {
+  ScenariosMousePressed();
+}
+
+void mouseReleased() {
+  ScenariosMouseReleased();
+}
+
+void mouseWheel(MouseEvent event) {
+  ScenariosMouseWheel(event.getCount());
+}
+
+// utils
+float ms2pixels(float ms) {
+  return map(ms, 0, 10000, 0, width);
+}
+
+float pixels2ms(float pixx) {
+  return map(pixx, 0, width, 0, 10000);
+}
+
+
+// ***** log ******
+ArrayList <String> gAsLogs;
+int asLogMaxLines = 30;
+int asLogLines;
+float asLogX0, asLogY0, asLogW0, asLogH0; 
+void AsLogInit() {
+  gAsLogs = new ArrayList();
+  asLogLines = 0;
+  asLogX0 = gScen_x0 + gScen_w0 + 2;
+  asLogY0 = height*0.666;
+  asLogW0 = 400;
+  asLogH0 = height - asLogY0 - 1;
+  asLogMaxLines = floor(asLogH0/float(fontHeight))-1;
+}
+void AsLogDisplay() {
+  float x = asLogX0;
+  float y = asLogY0 + fontHeight;
+  fill(0, 255, 0); noStroke();
+  for (int i = 0; i < gAsLogs.size(); i++) {
+    String lin = gAsLogs.get(i);
+    text(lin, x, y);
+    y += fontHeight;
+  }
+  stroke(0, 255, 0); noFill();
+  rect(asLogX0, asLogY0, asLogW0, asLogH0);
+}
+
+void AsLog(String txt) {
+  if (gAsLogs.size() > asLogMaxLines) gAsLogs.remove(0);
+  gAsLogs.add(txt);
+}
