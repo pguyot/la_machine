@@ -97,38 +97,62 @@
 
 %% Moods
 
-% Delay to start missing after interaction
-- define(MISSING_START_DELAY_S, 30).
-% Min delay to continue missing
-- define(MISSING_MIN_DELAY_S, 10).
-% Max delay to continue missing
-- define(MISSING_MAX_DELAY_S, 15).
-% MAX number of missing sounds
-- define(MAX_MISSING_SOUNDS, 3).
+% Travel Mode = always paused, no action
+-define(TRAVELMODE, 0).
+
+% Should process tripleclick (broken)
+-define(TRIPLECLICK, 0).
+
+% Delay to start calling after interaction
+- define(CALLING_START_DELAY_S, 15).
+% Min delay to continue calling
+- define(CALLING_MIN_DELAY_S, 10).
+% Max delay to continue calling
+- define(CALLING_MAX_DELAY_S, 15).
+% MAX number of calling sounds
+- define(MAX_CALLING_SOUNDS, 3).
 
 % MIN number of interactions in joy
 - define(JOY_MIN_GESTURES, 3).
 % Chances to change mood : joy => imitation
 - define(JOY_IMIT_CHANCE, 2).
+
 % MIN number of interactions in imitation
 - define(IMIT_MIN_GESTURES, 3).
 % Chances to change mood : imitation => dialectics
 - define(IMIT_DIAL_CHANCE, 2).
 % Chances to change mood : imitation => upset
 - define(IMIT_UPSET_CHANCE, 7).
+% Chances to change mood : imitation => tired
+- define(IMIT_TIRED_CHANCE, 7).
+% Chances to change mood : imitation => excited
+- define(IMIT_EXCITED_CHANCE, 7).
+
 % MIN number of interactions in dialectics
 - define(DIAL_MIN_GESTURES, 3).
 % Chances to change mood : dialectics => imitation
 - define(DIAL_IMIT_CHANCE, 2).
 % Chances to change mood : dialectics => upset
 - define(DIAL_UPSET_CHANCE, 7).
-% Chances to change mood : upset => imitation
-- define(UPSET_IMIT_CHANCE, 7).
+% Chances to change mood : dialectics => tired
+- define(DIAL_TIRED_CHANCE, 7).
+% Chances to change mood : dialectics => excited
+- define(DIAL_EXCITED_CHANCE, 7).
+
+% Chances to change mood : upset/tired/excited => imitation
+- define(MOODY_IMIT_CHANCE, 7).
 
 % Max duration of short gestures in games mood
 - define(GAME_SHORT_DUR_S, 2).
 % Max duration of medium gestures in games mood
 - define(GAME_MEDIUM_DUR_S, 4).
+
+%% DEBUG
+- define(DEBUG_PLAY_ONLY_ONE_MOOD, 0).
+% which mood
+- define(DEBUG_PLAY_ONLY_ONE_MOOD_MOOD, joy).
+% which number (staring at 1, -1 means random)
+- define(DEBUG_PLAY_ONLY_ONE_MOOD_INDEX, -1).
 
 
 
