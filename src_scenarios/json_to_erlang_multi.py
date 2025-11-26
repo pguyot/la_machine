@@ -133,7 +133,7 @@ def generate_erlang_functions(blocks: List[Tuple[str, str]], function_prefix: st
     for block_name, commands in blocks:
         if commands.strip():  # Only add non-empty blocks
             # The function
-            formatted_block = f"{function_prefix}{block_name}() ->\n\t[\n\t\t[\n\t\t\t{commands}\n\t\t]\n\t]."
+            formatted_block = f"{function_prefix}{block_name}() ->\n\t[\n\t\t{commands}\n\t]."
             all_blocks.append(formatted_block)
     
     # Join all blocks with nl

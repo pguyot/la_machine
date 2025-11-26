@@ -163,13 +163,13 @@ run() ->
             {play_scenario, Mood, Index} ->
                 if
                     Index < 0 ->
-                        play_random_scenario(Mood);
+                        play_random_scenario(Mood, undefined);
                     true ->
                         play_scenario(Mood, Index)
                 end,
                 StateX;
 
-            {play, Reason, Mood, SecondsElapsed, LastPlaySeq, PlayIndex, GestureCount} ->
+            {play, Reason, Mood, SecondsElapsed, LastPlaySeq, GestureCount} ->
                 io:format("Play Reason=~s Mood=~s GestureCount=~p LastPlaySeq=~p SecondsElapsed=~p\n", [Reason, Mood, GestureCount, LastPlaySeq, SecondsElapsed]),
 
                 % change mood ?
@@ -182,13 +182,9 @@ run() ->
                         la_machine_state:set_mood(Mood1, StateX);
                     true ->
                         % else : play and remember
-                        {PlayedSeq, NextPlayIndex} = play(Mood1, SecondsElapsed, LastPlaySeq1, PlayIndex),
-                        la_machine_state:append_play(Mood1, GestureCount1 + 1, PlayedSeq, NextPlayIndex, StateX)
+                        PlayedSeq = play_mood(Mood1, SecondsElapsed, LastPlaySeq1),
+                        la_machine_state:append_play(Mood1, GestureCount1 + 1, PlayedSeq, StateX)
                 end;
-
-            {poke, PokeIndex} ->
-                poke(PokeIndex),
-                la_machine_state:set_poke_index(PokeIndex + 1, StateX);
 
             reset ->
                 la_machine_audio:reset(),
@@ -308,12 +304,11 @@ action(_IsPausedNow, _WakeupCause, _ButtonState, not_resting, _State) ->
 % button on
 action(_IsPausedNow, _WakeupCause, on, ok, State) ->
     LastPlaySeq = la_machine_state:get_last_play_seq(State),
-    PlayIndex = la_machine_state:get_play_index(State),
     Mood = la_machine_state:get_mood(State),
     GestureCount = la_machine_state:get_gestures_count(State),
     LastPlayTime = la_machine_state:get_last_play_time(State),
     SecondsElapsed = erlang:system_time(second) - LastPlayTime,
-    {play, player, Mood, SecondsElapsed, LastPlaySeq, PlayIndex, GestureCount};
+    {play, player, Mood, SecondsElapsed, LastPlaySeq, GestureCount};
 
 % button off
 action(_IsPausedNow, sleep_wakeup_gpio, off, ok, _State) ->
@@ -322,55 +317,16 @@ action(_IsPausedNow, sleep_wakeup_gpio, off, ok, _State) ->
 % timer
 action(_IsPausedNow, sleep_wakeup_timer, _ButtonState, ok, State) ->
     LastPlaySeq = la_machine_state:get_last_play_seq(State),
-    PlayIndex = la_machine_state:get_play_index(State),
     Mood = la_machine_state:get_mood(State),
     GestureCount = la_machine_state:get_gestures_count(State),
     LastPlayTime = la_machine_state:get_last_play_time(State),
     SecondsElapsed = erlang:system_time(second) - LastPlayTime,
-    {play, timer, Mood, SecondsElapsed, LastPlaySeq, PlayIndex, GestureCount};
-
-% action(_IsPausedNow, sleep_wakeup_timer, _ButtonState, ok, State) ->
-%     {poke, la_machine_state:get_poke_index(State)};
+    {play, timer, Mood, SecondsElapsed, LastPlaySeq, GestureCount};
 
 % catch all
 action(_IsPausedNow, undefined, _ButtonState, _AccelerometerState, _State) ->
     reset.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% poke (unused)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-poke(_PokeIndex) ->
-    PokeScenario = la_machine_scenarios:get(poke, 1),
-    PokeScenarioPart = hd(PokeScenario),
-    {ok, Pid} = la_machine_player:start_link(),
-    ok = la_machine_player:play(Pid, PokeScenarioPart),
-    ok = la_machine_player:stop(Pid),
-    ok.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% play_wait_5000
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-play_wait_5000() ->
-    io:format("play_wait_5000\n"),
-    ScenarioPart = [{wait, 5000}],
-    {ok, Pid} = la_machine_player:start_link(),
-    ok = la_machine_player:play(Pid, ScenarioPart),
-    ok = la_machine_player:stop(Pid),
-    ok.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% play_meuh
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-play_meuh() ->
-    <<RandScenario>> = crypto:strong_rand_bytes(1),
-    Count = la_machine_scenarios:count(meuh),
-    ScenarioIx = 1 + (RandScenario rem Count),
-    MeuhScenario = la_machine_scenarios:get(meuh, ScenarioIx),
-    MeuhScenarioPart = hd(MeuhScenario),
-    {ok, Pid} = la_machine_player:start_link(),
-    ok = la_machine_player:play(Pid, MeuhScenarioPart),
-    ok = la_machine_player:stop(Pid),
-    ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% check mood change
@@ -517,24 +473,7 @@ change_moodp(Mood, _Reason, GestureCount, _SecondsElapsed, LastPlaySeq) ->
 %% play
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% unused
-play(_Mood, ElapsedSeconds, LastPlaySeq, PlayIndex) when
-    PlayIndex > 0 andalso ElapsedSeconds < ?PARTS_MAX_ELAPSE_INTERVAL
-->
-    % play next part of scenario
-    ScenarioParts = la_machine_scenarios:get(play, LastPlaySeq),
-    ScenarioPart = lists:nth(PlayIndex, ScenarioParts),
-    {ok, Pid} = la_machine_player:start_link(),
-    ok = la_machine_player:play(Pid, ScenarioPart),
-    ok = la_machine_player:stop(Pid),
-    if
-        length(ScenarioParts) > PlayIndex ->
-            {LastPlaySeq, PlayIndex + 1};
-        true ->
-            {LastPlaySeq, 0}
-    end;
-
-play(imitation, ElapsedSeconds, LastPlaySeq, _PlayIndex) ->
+play_mood(imitation, ElapsedSeconds, LastPlaySeq) ->
     Mood = imitation,
     io:format("playing mood : ~s ElapsedSeconds=~p\n", [Mood, ElapsedSeconds]),
 
@@ -546,16 +485,11 @@ play(imitation, ElapsedSeconds, LastPlaySeq, _PlayIndex) ->
                 game_medium;
             true -> game_long
         end,
+    NewPlayedSeq = play_random_scenario(MoodScenar, LastPlaySeq),
+    play_random_hit(),
+    NewPlayedSeq;
 
-    ScenarioCount = la_machine_scenarios:count(MoodScenar),
-    io:format("MoodScenar=~p ScenarioCount=~p\n", [MoodScenar, ScenarioCount]),
-
-    % play random scenario, but different from LastPlaySeq
-    ScenarioIx = random_num_upto_butnot(ScenarioCount, LastPlaySeq),
-    io:format("ScenarioIx=~p\n", [ScenarioIx]),
-    play_scenario(MoodScenar, ScenarioIx);
-
-play(dialectics, ElapsedSeconds, LastPlaySeq, _PlayIndex) ->
+play_mood(dialectics, ElapsedSeconds, LastPlaySeq) ->
     Mood = dialectics,
     io:format("playing mood : ~s ElapsedSeconds=~p\n", [Mood, ElapsedSeconds]),
     % play inverse
@@ -565,57 +499,80 @@ play(dialectics, ElapsedSeconds, LastPlaySeq, _PlayIndex) ->
                 game_long;
             true -> game_short
         end,
+    NewPlayedSeq = play_random_scenario(MoodScenar, LastPlaySeq),
+    play_random_hit(),
+    NewPlayedSeq;
 
-    ScenarioCount = la_machine_scenarios:count(MoodScenar),
-    io:format("MoodScenar=~p ScenarioCount=~p\n", [MoodScenar, ScenarioCount]),
-
-    % play random scenario, but different from LastPlaySeq
-    ScenarioIx = random_num_upto_butnot(ScenarioCount, LastPlaySeq),
-    io:format("ScenarioIx=~p\n", [ScenarioIx]),
-    play_scenario(MoodScenar, ScenarioIx);
-
-play(Mood, _ElapsedSeconds, LastPlaySeq, _PlayIndex) ->
+% calling, poke (no hit)
+play_mood(Mood, _ElapsedSeconds, LastPlaySeq)
+    when Mood == calling orelse Mood == poke
+    ->
     io:format("playing mood : ~s\n", [Mood]),
-
     MoodScenar = Mood,
+    play_random_scenario(MoodScenar, LastPlaySeq);
 
+% all others : joy, tired, upset, excited
+play_mood(Mood, _ElapsedSeconds, LastPlaySeq) ->
+    io:format("playing mood : ~s\n", [Mood]),
+    MoodScenar = Mood,
+    NewPlayedSeq = play_random_scenario(MoodScenar, LastPlaySeq),
+    play_random_hit(),
+    NewPlayedSeq.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% play_wait_5000
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+play_wait_5000() ->
+    io:format("play_wait_5000\n"),
+    ScenarioPart = [{wait, 5000}],
+    {ok, Pid} = la_machine_player:start_link(),
+    ok = la_machine_player:play(Pid, ScenarioPart),
+    ok = la_machine_player:stop(Pid),
+    ok.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% play_meuh
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+play_meuh() ->
+    play_random_scenario(meuh, undefined).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% play_random_hit
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+play_random_hit() ->
+    MoodScenar = hit,
     ScenarioCount = la_machine_scenarios:count(MoodScenar),
-    io:format("MoodScenar=~p ScenarioCount=~p\n", [MoodScenar, ScenarioCount]),
-
-    % play random scenario, but different from LastPlaySeq, if possible
-    ScenarioIx = random_num_upto_butnot(ScenarioCount, LastPlaySeq),
-    io:format("ScenarioIx=~p\n", [ScenarioIx]),
-    play_scenario(MoodScenar, ScenarioIx).
-
+    ScenarioIx = random_num_upto_butnot(ScenarioCount, undefined),
+    io:format("play_random_hit ScenarioIx=~p\n", [ScenarioIx]),
+    Scenario = la_machine_scenarios:get(MoodScenar, ScenarioIx),
+    % could be adapted to lenth of hit
+    Scenario_Full = Scenario ++ [{servo, 100}, {wait, 100}, {servo, 0}],
+    {ok, Pid} = la_machine_player:start_link(),
+    ok = la_machine_player:play(Pid, Scenario_Full),
+    ok = la_machine_player:stop(Pid),
+    ScenarioIx.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% play_random_scenario : play random scenario of MoodScenar
+%% play_random_scenario : play random scenario of MoodScenar, but not LastPlaySeq if possible
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-play_random_scenario(MoodScenar) ->
+play_random_scenario(MoodScenar, LastPlaySeq) ->
     ScenarioCount = la_machine_scenarios:count(MoodScenar),
     io:format("play_random_scenario MoodScenar=~p ScenarioCount=~p\n", [MoodScenar, ScenarioCount]),
 
     % play random scenario
-    ScenarioIx = random_num_upto_butnot(ScenarioCount, undefined),
+    ScenarioIx = random_num_upto_butnot(ScenarioCount, LastPlaySeq),
     io:format("ScenarioIx=~p\n", [ScenarioIx]),
     play_scenario(MoodScenar, ScenarioIx).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% play_scenario : play scenario ScenarioIx of MoodScenar
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 play_scenario(MoodScenar, ScenarioIx) ->
-    ScenarioParts = la_machine_scenarios:get(MoodScenar, ScenarioIx),
-    ScenarioPart = hd(ScenarioParts),
+    Scenario = la_machine_scenarios:get(MoodScenar, ScenarioIx),
     {ok, Pid} = la_machine_player:start_link(),
-    ok = la_machine_player:play(Pid, ScenarioPart),
+    ok = la_machine_player:play(Pid, Scenario),
     ok = la_machine_player:stop(Pid),
-    if
-        length(ScenarioParts) > 1 ->
-            {ScenarioIx, 2};
-        true ->
-            {ScenarioIx, 0}
-    end.
+    ScenarioIx.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% setup_sleep
@@ -664,27 +621,6 @@ compute_sleep_timer(State) ->
             io:format("in ~s : sleep default ~ps\n", [Mood, Delay]),
             Delay
     end.
-
-% compute_sleep_timer(State) ->
-%     % AtomVM integers are up to signed 64 bits
-%     <<RandHour:56>> = crypto:strong_rand_bytes(7),
-%     <<RandSec:56>> = crypto:strong_rand_bytes(7),
-%     compute_sleep_timer(RandHour, RandSec, State).
-
-% compute_sleep_timer(RandHour, RandSec, State) ->
-%     NextPokeIndex = la_machine_state:get_poke_index(State),
-%     PlayHoursCount = la_machine_state:get_play_hours_count(State),
-%     PokeHour =
-%         case PlayHoursCount of
-%             0 ->
-%                 0;
-%             N ->
-%                 la_machine_state:get_play_hour(RandHour rem N, State)
-%         end,
-%     % starts with 24 hours followed by 48 hours
-%     PokeBase = fib(2 + NextPokeIndex) * 24,
-%     PokeTime = PokeHour + PokeBase,
-%     PokeTime * 3600 + (RandSec rem 3600) - 1800.
 
 % recursive implementation of random number
 % return a random number 1 <= N <= MaxNumber, but not equel to NotNumber (if defined)

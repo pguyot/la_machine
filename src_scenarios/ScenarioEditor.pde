@@ -723,14 +723,23 @@ void ScenariosDisplay() {
     gScenarEditor.Display();
   }
   
-  if (gScen_saveBut == null) gScen_saveBut  = new AsButton("SAVE choregraphies.json", gScen_x0 + gScen_w0 + 2, gScen_y0 + 20, 0, fontHeight + 6);
-  gScen_saveBut.Display();
-  if (gScen_reloadBut == null) gScen_reloadBut  = new AsButton("RELOAD choregraphies.json", gScen_x0 + gScen_w0 + 2, gScen_y0 + 40, 0, fontHeight + 6);
+  float yyy = gScen_y0;
+  float dyyy = fontHeight + 6 + 2;
+  if (gScen_reloadBut == null) gScen_reloadBut  = new AsButton("RELOAD choregraphies.json", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
   gScen_reloadBut.Display();
-  if (gScen_convertBut == null) gScen_convertBut  = new AsButton("CONVERT to la_machine_scenarios.erl", gScen_x0 + gScen_w0 + 2, gScen_y0 + 60, 0, fontHeight + 6);
+  yyy += dyyy;
+
+  if (gScen_saveBut == null) gScen_saveBut  = new AsButton("SAVE choregraphies.json", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
+  gScen_saveBut.Display();
+  yyy += dyyy;
+  
+  if (gScen_convertBut == null) gScen_convertBut  = new AsButton("CONVERT to la_machine_scenarios.erl", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
   gScen_convertBut.Display();
-  if (gScen_parsePriv == null) gScen_parsePriv  = new AsButton("(RE)PARSE priv", gScen_x0 + gScen_w0 + 2, gScen_y0 + 80, 0, fontHeight + 6);
+  yyy += dyyy;
+
+  if (gScen_parsePriv == null) gScen_parsePriv  = new AsButton("(RE)PARSE priv", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
   gScen_parsePriv.Display();
+  yyy += dyyy;
   
   
 }
