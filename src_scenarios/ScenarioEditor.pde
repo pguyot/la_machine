@@ -16,7 +16,7 @@ class Bitonio {
     float y0 = y + h100*gSERVO_DOOR_VALUE/100.0;
     float buttony = y0 - h100*gSERVO_BUTTON_CONTACT_VALUE/100.0;
     float buttonw = w/5;
-    float bitoWidth = w/6;
+    float bitoWidth = w/10;
 
     // box
     fill(255, 255, 0, 150); noStroke();
@@ -243,8 +243,8 @@ class ScenarEditor {
     name = scen.name;
     loadScenario(scen);
     runningAudioEditor = null;
-    float hbito = 100;
-    bitonio = new Bitonio(width - hbito - 20, y0 + h0 + (height - (y0 + h0))/2 - hbito/2, hbito, hbito);
+    float hbito = 400;
+    bitonio = new Bitonio(width/2 - hbito/2 + 200, height - hbito, hbito, hbito);
     nameField = new AsTextField(name, x0 + w0/2, y0 + h0 + 2, 0, fontHeight+6);
   }
   
@@ -557,6 +557,7 @@ class ScenarEditor {
       playing = true;
       playt0 = playlastt = millis();
       playNextIndex = 0;
+      playPreviousPercent = playCurrentPercent = 0;
     }
   }
   
@@ -714,16 +715,24 @@ void ScenariosDisplay() {
 
   fill(255); noStroke();
   y0 += dy0;
-  for (int i = gScen_scollIndex; i < gScenarios.size() && y0 < gScen_y0 + gScen_h0; i++) {
-    Scenario scenar = gScenarios.get(i);
-    text(scenar.name, gScen_x0, y0); y0 += dy0;
+  if (gScenarios.size() > 0) {
+    for (int i = gScen_scollIndex; i < gScenarios.size() && y0 < gScen_y0 + gScen_h0; i++) {
+      Scenario scenar = gScenarios.get(i);
+      text(scenar.name, gScen_x0, y0); y0 += dy0;
+    }
+    int maxLines = floor(gScen_h0/dy0);
+    int displayedLines = gScenarios.size() - gScen_scollIndex;
+    int visibleLines = displayedLines >= maxLines ? maxLines : displayedLines;
+    float scrollBarH = gScen_h0*float(visibleLines)/float(gScenarios.size());
+    float scrollBarY = gScen_y0 + gScen_h0*float(gScen_scollIndex)/float(gScenarios.size());
+    fill(255); noStroke();
+    rect(gScen_x0+gScen_w0-5, scrollBarY, 5, scrollBarH);
   }
-  
   if (gScenarEditor != null) {
     gScenarEditor.Display();
   }
   
-  float yyy = gScen_y0;
+  float yyy = gScen_y0 + 20;
   float dyyy = fontHeight + 6 + 2;
   if (gScen_reloadBut == null) gScen_reloadBut  = new AsButton("RELOAD choregraphies.json", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
   gScen_reloadBut.Display();
@@ -856,13 +865,13 @@ void ScenariosMouseMoved() {
 }
 
 void ScenariosMouseWheel(float amount) {
-  if (amount > 0) {
+  if (amount < 0) {
       if (gScen_scollIndex > 0) {
         gScen_scollIndex -= 1;
         return;
       }
   }
-  if (amount < 0) {
+  if (amount > 0) {
       if (gScen_scollIndex < gScenarios.size() - 5) {
         gScen_scollIndex += 1;
         return;

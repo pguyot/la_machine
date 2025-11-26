@@ -90,11 +90,6 @@
 % La machine panics and state stored in RTC Slow memory is ignored on next boot.
 -define(WATCHDOG_TIMEOUT_MS, 60000).
 
-%% Behavior
-
-% Maximum number of seconds to play next part of a multi-part scenario
--define(PARTS_MAX_ELAPSE_INTERVAL, 60).
-
 %% Moods
 
 % Travel Mode = always paused, no action
@@ -120,24 +115,24 @@
 % MIN number of interactions in imitation
 - define(IMIT_MIN_GESTURES, 3).
 % Chances to change mood : imitation => dialectics
-- define(IMIT_DIAL_CHANCE, 2).
+- define(IMIT_DIAL_CHANCE, 3).
 % Chances to change mood : imitation => upset
-- define(IMIT_UPSET_CHANCE, 7).
+- define(IMIT_UPSET_CHANCE, 5).
 % Chances to change mood : imitation => tired
-- define(IMIT_TIRED_CHANCE, 7).
+- define(IMIT_TIRED_CHANCE, 5).
 % Chances to change mood : imitation => excited
-- define(IMIT_EXCITED_CHANCE, 7).
+- define(IMIT_EXCITED_CHANCE, 5).
 
 % MIN number of interactions in dialectics
 - define(DIAL_MIN_GESTURES, 3).
 % Chances to change mood : dialectics => imitation
-- define(DIAL_IMIT_CHANCE, 2).
+- define(DIAL_IMIT_CHANCE, 3).
 % Chances to change mood : dialectics => upset
-- define(DIAL_UPSET_CHANCE, 7).
+- define(DIAL_UPSET_CHANCE, 5).
 % Chances to change mood : dialectics => tired
-- define(DIAL_TIRED_CHANCE, 7).
+- define(DIAL_TIRED_CHANCE, 5).
 % Chances to change mood : dialectics => excited
-- define(DIAL_EXCITED_CHANCE, 7).
+- define(DIAL_EXCITED_CHANCE, 5).
 
 % Chances to change mood : upset/tired/excited => imitation
 - define(MOODY_IMIT_CHANCE, 7).
@@ -148,10 +143,11 @@
 - define(GAME_MEDIUM_DUR_S, 4).
 
 %% DEBUG
+% play only one mood (to debug)
 - define(DEBUG_PLAY_ONLY_ONE_MOOD, 0).
 % which mood
 - define(DEBUG_PLAY_ONLY_ONE_MOOD_MOOD, joy).
-% which number (staring at 1, -1 means random)
+% which scenario number (staring at 1, -1 means random)
 - define(DEBUG_PLAY_ONLY_ONE_MOOD_INDEX, -1).
 
 
