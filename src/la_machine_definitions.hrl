@@ -74,7 +74,7 @@
 -define(LEDC_CHANNEL, 0).
 
 -define(SERVO_CLOSED_ANGLE, 50.0).
--define(SERVO_SLIGHTLY_OPEN_ANGLE, 50.0).
+%-define(SERVO_SLIGHTLY_OPEN_ANGLE, 50.0).
 -define(SERVO_INTERRUPT_ANGLE, 165.0).
 
 -define(SERVO_MAX_ANGLE, 180.0).
@@ -93,7 +93,7 @@
 %% Moods
 
 % Travel Mode = always paused, no action
--define(TRAVELMODE, 0).
+-define(TRAVELMODE, 1).
 
 % Should process tripleclick (broken)
 -define(TRIPLECLICK, 0).
@@ -103,7 +103,8 @@
 % Min delay to continue calling
 - define(CALLING_MIN_DELAY_S, 10).
 % Max delay to continue calling
-- define(CALLING_MAX_DELAY_S, 15).
+- define(CALLING_MAX_DELAY_S, 25).
+
 % MAX number of calling sounds
 - define(MAX_CALLING_SOUNDS, 3).
 
@@ -142,11 +143,14 @@
 % Max duration of medium gestures in games mood
 - define(GAME_MEDIUM_DUR_S, 4).
 
+% Sensitivity accelerometer
+- define(ACCEL_REST_VALUE, (300 div 16)).
+
 %% DEBUG
 % play only one mood (to debug)
-- define(DEBUG_PLAY_ONLY_ONE_MOOD, 0).
+- define(DEBUG_PLAY_ONLY_ONE_MOOD, 1).
 % which mood
-- define(DEBUG_PLAY_ONLY_ONE_MOOD_MOOD, joy).
+- define(DEBUG_PLAY_ONLY_ONE_MOOD_MOOD, upset).
 % which scenario number (staring at 1, -1 means random)
 - define(DEBUG_PLAY_ONLY_ONE_MOOD_INDEX, -1).
 

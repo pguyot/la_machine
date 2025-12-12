@@ -45,16 +45,19 @@
     get_play_hour/2,
     get_mood/1,
     get_gestures_count/1,
+    get_total_gestures_count/1,
     get_battery_low/1,
     get_ms_since_last_on/1,
     get_click_count/1,
-    get_is_paused/1
+    get_is_paused/1,
+    get_play_info/1,
+    get_seconds_since_boot/1
 ]).
 
 % Modifiers
 -export([
     append_play/4,
-    set_mood/2,
+    set_mood_waiting/1,
     set_battery_low/2,
     set_last_on_now/1,
     set_click_count/2,
@@ -82,13 +85,15 @@
     % - avoid playing one twice in a row
     % - or play scenarios sequentially (demo mode)
     last_play_seq = 0 :: non_neg_integer(),
-    % buffer with hours, appended to, and then rotated
     mood = 0 :: non_neg_integer(),
     gesture_count = 0 :: non_neg_integer(),
+    % number of gestures since last waiting
+    total_gesture_count = 0 :: non_neg_integer(),
     battery_low = 0 :: non_neg_integer(),
     last_on = 0 :: non_neg_integer(),
     click_count = 0 :: non_neg_integer(),
     is_paused = 0 :: non_neg_integer(),
+    % buffer with hours, appended to, and then rotated
     play_hours = <<>> :: binary() % the rest of the memory
 }).
 
@@ -118,7 +123,7 @@ get_state() ->
 
 -spec deserialize_state(non_neg_integer(), binary() | undefined) -> state().
 deserialize_state(
-    Now, <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8, BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8, PlayHours/binary>>
+    Now, <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8, TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8, PlayHours/binary>>
 ) when
     BootTime =< Now andalso byte_size(PlayHours) =< ?MAX_PLAY_HOURS
 ->
@@ -129,6 +134,7 @@ deserialize_state(
         last_play_seq = LastPlaySeq,
         mood = Mood,
         gesture_count = GestureCount,
+        total_gesture_count = TotalGestureCount,
         battery_low = BatteryLow,
         last_on = LastOn,
         click_count = ClickCount,
@@ -143,6 +149,7 @@ deserialize_state(Now, _) ->
         last_play_seq = 0,
         mood = 0,
         gesture_count = 0,
+        total_gesture_count = 0,
         battery_low = 0,
         last_on = 0,
         click_count = 0,
@@ -157,33 +164,24 @@ serialize_state(#state{
     last_play_seq = LastPlaySeq,
     mood = Mood,
     gesture_count = GestureCount,
+    total_gesture_count = TotalGestureCount,
     battery_low = BatteryLow,
     last_on = LastOn,
     click_count = ClickCount,
     is_paused = IsPaused,
     play_hours = PlayHours
 }) ->
-    <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8, BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8, PlayHours/binary>>.
+    <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8, TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8, PlayHours/binary>>.
 
-%% Function called after a sequence has been played
-set_mood(Mood, State) ->
-    MoodInt = case Mood of
-        joy -> 0;
-        imitation -> 1;
-        dialectic -> 2;
-        upset -> 3;
-        calling -> 4;
-        waiting -> 5;
-        poke -> 6;
-        tired -> 7;
-        excited -> 8;
-        _ -> 0
-    end,
+%% To set the mood to waiting. Reset total_gesture_count
+set_mood_waiting(State) ->
     State#state{
-        mood = MoodInt
+        mood = 5, % waiting
+        total_gesture_count = 0
     }.
 
-append_play(Mood, GestureCount, PlaySeqIndex, #state{boot_time = BootTime, play_hours = PlayHours0} = State) ->
+% we just played
+append_play(Mood, GestureCount, PlaySeqIndex, #state{boot_time = BootTime, play_hours = PlayHours0, total_gesture_count = TotalGestureCount} = State) ->
     % Add the play hour
     Now = erlang:system_time(second),
     NowHour = ((Now - BootTime) div 3600) rem 24,
@@ -205,6 +203,7 @@ append_play(Mood, GestureCount, PlaySeqIndex, #state{boot_time = BootTime, play_
         last_play_seq = PlaySeqIndex,
         play_hours = PlayHours1,
         gesture_count = GestureCount,
+        total_gesture_count = TotalGestureCount + 1,
         mood = MoodInt
     }.
 
@@ -230,6 +229,16 @@ append_hour(Hour, Buffer) ->
     SubBuffer = binary:part(Buffer, 0, ?MAX_PLAY_HOURS - 1),
     <<Hour, SubBuffer/binary>>.
 
+-spec get_play_info(state()) -> {
+        Mood :: atom(),
+        LastPlaySeq :: non_neg_integer() | undefined,
+        GestureCount :: non_neg_integer(),
+        LastPlayTime :: non_neg_integer()
+    }.
+get_play_info(#state{last_play_time = LastPlayTime, gesture_count = GestureCount, last_play_seq = LastPlaySeq} = State) ->
+    Mood = get_mood(State),
+    {Mood, LastPlaySeq, GestureCount, LastPlayTime}.
+
 -spec get_last_play_time(state()) -> non_neg_integer().
 get_last_play_time(#state{last_play_time = LastPlayTime}) -> LastPlayTime.
 
@@ -240,10 +249,17 @@ get_last_play_seq(#state{last_play_seq = LastPlaySeq}) -> LastPlaySeq.
 -spec get_gestures_count(state()) -> non_neg_integer().
 get_gestures_count(#state{gesture_count = GestureCount}) -> GestureCount.
 
+-spec get_total_gestures_count(state()) -> non_neg_integer().
+get_total_gestures_count(#state{total_gesture_count = TotalGestureCount}) -> TotalGestureCount.
+
 -spec get_battery_low(state()) -> non_neg_integer().
 get_battery_low(#state{battery_low = BatteryLow}) -> BatteryLow.
 
 set_battery_low(BatteryLow, State) -> State#state{battery_low = BatteryLow}.
+
+get_seconds_since_boot(#state{boot_time = BootTime}) ->
+    Now_s = erlang:system_time(second),
+    (Now_s - BootTime).
 
 -spec get_ms_since_last_on(state()) -> non_neg_integer().
 get_ms_since_last_on(#state{last_on = LastOn}) ->
@@ -260,7 +276,7 @@ get_click_count(#state{click_count = ClickCount}) -> ClickCount.
 set_click_count(ClickCount, State) -> State#state{click_count = ClickCount}.
 
 -spec get_is_paused(state()) -> non_neg_integer().
--if(TRAVELMODE).
+-if(?TRAVELMODE == 1).
 % mode where it is in TRAVELMODE => always paused
 get_is_paused(_State) -> 1.
 -else.

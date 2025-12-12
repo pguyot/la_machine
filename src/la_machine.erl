@@ -148,7 +148,7 @@ run() ->
 
     State0 = la_machine_state:load_state(),
 
-    io:format("Waking up : WakeupCause=~s ButtonState=~s\n", [WakeupCause, ButtonState]),
+    io:format("Waking up : WakeupCause=~s ButtonState=~s AccelerometerState=~s\n", [WakeupCause, ButtonState, AccelerometerState]),
 
     %% process click
     StateX = do_process_click(WakeupCause, ButtonState, State0),
@@ -160,26 +160,30 @@ run() ->
                 play_meuh(),
                 StateX;
 
+            % only used when DEBUG_PLAY_ONLY_ONE_MOOD
             {play_scenario, Mood, Index} ->
                 if
                     Index < 0 ->
-                        play_random_scenario(Mood, undefined);
+                        play_random_scenario_with_hit(Mood, undefined);
                     true ->
-                        play_scenario(Mood, Index)
+                        play_scenario(Mood, Index),
+                        play_hit_if_needed()
                 end,
                 StateX;
 
+            % normal play
             {play, Reason, Mood, SecondsElapsed, LastPlaySeq, GestureCount} ->
                 io:format("Play Reason=~s Mood=~s GestureCount=~p LastPlaySeq=~p SecondsElapsed=~p\n", [Reason, Mood, GestureCount, LastPlaySeq, SecondsElapsed]),
 
                 % change mood ?
-                {Mood1, GestureCount1, LastPlaySeq1} = change_moodp(Mood, Reason, GestureCount, SecondsElapsed, LastPlaySeq),
+                Total_Gesture_Count = la_machine_state:get_total_gestures_count(StateX),
+                {Mood1, GestureCount1, LastPlaySeq1} = change_moodp(Mood, Reason, GestureCount, Total_Gesture_Count, SecondsElapsed, LastPlaySeq),
 
                 if
                     Mood1 == waiting ->
                         % waiting : don't play anything
-                        % ?? Should Only change the mood
-                        la_machine_state:set_mood(Mood1, StateX);
+                        % Only change the mood
+                        la_machine_state:set_mood_waiting(StateX);
                     true ->
                         % else : play and remember
                         PlayedSeq = play_mood(Mood1, SecondsElapsed, LastPlaySeq1),
@@ -187,6 +191,7 @@ run() ->
                 end;
 
             reset ->
+                io:format("resetting\n"),
                 la_machine_audio:reset(),
                 la_machine_servo:reset(),
                 StateX;
@@ -262,12 +267,13 @@ do_process_click(_, _, State) -> State.
     non_neg_integer(),
     esp:esp_wakeup_cause(),
     on | off,
-    ok | {play, meuh} | not_resting,
+    ok | {play, meuh} | not_resting | replaced,
     la_machine_state:state()
 ) -> action().
 
 -if(?DEBUG_PLAY_ONLY_ONE_MOOD == 1).
-compute_action(_IsPausedNow, _WakeupCause, on, ok, _State) ->
+    % DEBUG 
+compute_action(0, _WakeupCause, on, ok, _State) ->
     io:format("play one mood : ~p, Index =~p\n", [?DEBUG_PLAY_ONLY_ONE_MOOD_MOOD, ?DEBUG_PLAY_ONLY_ONE_MOOD_INDEX]),
     {play_scenario, ?DEBUG_PLAY_ONLY_ONE_MOOD_MOOD, ?DEBUG_PLAY_ONLY_ONE_MOOD_INDEX};
 
@@ -285,7 +291,7 @@ compute_action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, State)
     non_neg_integer(),
     esp:esp_wakeup_cause(),
     on | off,
-    ok | {play, meuh} | not_resting,
+    ok | {play, meuh} | not_resting | replaced,
     la_machine_state:state()
 ) -> action().
 
@@ -302,12 +308,15 @@ action(_IsPausedNow, _WakeupCause, _ButtonState, {play, meuh}, _State) ->
 action(_IsPausedNow, _WakeupCause, _ButtonState, not_resting, _State) ->
     reset;
 
+% replaced
+action(_IsPausedNow, _WakeupCause, _ButtonState, replaced, State) ->
+    {Mood, LastPlaySeq, GestureCount, LastPlayTime} = la_machine_state:get_play_info(State),
+    SecondsElapsed = erlang:system_time(second) - LastPlayTime,
+    {play, replaced, Mood, SecondsElapsed, LastPlaySeq, GestureCount};
+
 % button on
 action(_IsPausedNow, _WakeupCause, on, ok, State) ->
-    LastPlaySeq = la_machine_state:get_last_play_seq(State),
-    Mood = la_machine_state:get_mood(State),
-    GestureCount = la_machine_state:get_gestures_count(State),
-    LastPlayTime = la_machine_state:get_last_play_time(State),
+    {Mood, LastPlaySeq, GestureCount, LastPlayTime} = la_machine_state:get_play_info(State),
     SecondsElapsed = erlang:system_time(second) - LastPlayTime,
     {play, player, Mood, SecondsElapsed, LastPlaySeq, GestureCount};
 
@@ -317,10 +326,7 @@ action(_IsPausedNow, sleep_wakeup_gpio, off, ok, _State) ->
 
 % timer
 action(_IsPausedNow, sleep_wakeup_timer, _ButtonState, ok, State) ->
-    LastPlaySeq = la_machine_state:get_last_play_seq(State),
-    Mood = la_machine_state:get_mood(State),
-    GestureCount = la_machine_state:get_gestures_count(State),
-    LastPlayTime = la_machine_state:get_last_play_time(State),
+    {Mood, LastPlaySeq, GestureCount, LastPlayTime} = la_machine_state:get_play_info(State),
     SecondsElapsed = erlang:system_time(second) - LastPlayTime,
     {play, timer, Mood, SecondsElapsed, LastPlaySeq, GestureCount};
 
@@ -333,13 +339,24 @@ action(_IsPausedNow, undefined, _ButtonState, _AccelerometerState, _State) ->
 %% check mood change
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-spec change_moodp(Mood :: atom(), Reason :: atom(), GestureCount :: non_neg_integer(), Total_Gesture_Count :: non_neg_integer(), SecondsElapsed :: non_neg_integer(), LastPlaySeq :: non_neg_integer() | undefined) -> {
+        NewMood :: atom(),
+        NewGestureCount :: non_neg_integer(),
+        NewLastPlaySeq :: non_neg_integer() | undefined
+    }.
+
 % timer while waiting -> start poke
-change_moodp(waiting, timer, _GestureCount, _SecondsElapsed, _LastPlaySeq) ->
+change_moodp(waiting, timer, _GestureCount, _Total_Gesture_Count, _SecondsElapsed, _LastPlaySeq) ->
     io:format("Wakeup timer while waiting : poke\n"),
+    {poke, 0, undefined};
+    
+% replaced while waiting -> start poke
+change_moodp(waiting, replaced, _GestureCount, _Total_Gesture_Count, _SecondsElapsed, _LastPlaySeq) ->
+    io:format("Wakeup replaced while waiting : poke\n"),
     {poke, 0, undefined};
 
 % timer while poke -> continue poke or start waiting
-change_moodp(poke, timer, GestureCount, _SecondsElapsed, LastPlaySeq) ->
+change_moodp(poke, timer, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
     io:format("Wakeup timer while poke\n"),
     if
         GestureCount >= ?MAX_CALLING_SOUNDS ->
@@ -351,11 +368,18 @@ change_moodp(poke, timer, GestureCount, _SecondsElapsed, LastPlaySeq) ->
     end;
 
 % timer while calling -> continue calling or start waiting
-change_moodp(calling, timer, GestureCount, _SecondsElapsed, LastPlaySeq) ->
+change_moodp(calling, timer, GestureCount, Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
     io:format("Wakeup while calling\n"),
+    % number of calls depends on Total_Gesture_Count 
+    Max_Calling_Times =
+        if
+            Total_Gesture_Count < 3 -> 1;
+            Total_Gesture_Count < 10 -> 2;
+            true -> ?MAX_CALLING_SOUNDS
+        end,
     if
-        GestureCount >= ?MAX_CALLING_SOUNDS ->
-            io:format("   max times => waiting\n"),
+        GestureCount >= Max_Calling_Times ->
+            io:format("   max times (TotalGesture=~p => MaxTimes=~p)=> waiting\n", [Total_Gesture_Count, Max_Calling_Times]),
             {waiting, 0, undefined};
         true -> 
             io:format("   continue calling\n"),
@@ -363,22 +387,22 @@ change_moodp(calling, timer, GestureCount, _SecondsElapsed, LastPlaySeq) ->
     end;
 
 % timer while all other moods -> start calling
-change_moodp(Mood, timer, _GestureCount, _SecondsElapsed, _LastPlaySeq) ->
+change_moodp(Mood, timer, _GestureCount, _Total_Gesture_Count, _SecondsElapsed, _LastPlaySeq) ->
     io:format("Wakeup while in ~s => calling\n", [Mood]),
     {calling, 0, undefined};
 
 % player plays while calling -> continue game imitation
-change_moodp(calling, player, _GestureCount, _SecondsElapsed, _LastPlaySeq) ->
+change_moodp(calling, player, _GestureCount, _Total_Gesture_Count, _SecondsElapsed, _LastPlaySeq) ->
     io:format("Long time no see : joy\n"),
     {imitation, 0, undefined};
 
 % player plays while waiting -> joy
-change_moodp(waiting, player, _GestureCount, _SecondsElapsed, _LastPlaySeq) ->
+change_moodp(waiting, player, _GestureCount, _Total_Gesture_Count, _SecondsElapsed, _LastPlaySeq) ->
     io:format("Long time no see : joy\n"),
     {joy, 0, undefined};
 
 % joy : mood change ?
-change_moodp(joy, player, GestureCount, _SecondsElapsed, LastPlaySeq) ->
+change_moodp(joy, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
     Mood = joy,
     % if more than JOY_MIN_GESTURES gestures, one chance out of 2 to go to imitation
     <<RandChange>> = crypto:strong_rand_bytes(1),
@@ -395,7 +419,7 @@ change_moodp(joy, player, GestureCount, _SecondsElapsed, LastPlaySeq) ->
     end;
 
 % imitation : mood change ?
-change_moodp(imitation, player, GestureCount, _SecondsElapsed, LastPlaySeq) ->
+change_moodp(imitation, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
     Mood = imitation,
     <<RandChangeDial>> = crypto:strong_rand_bytes(1),
     <<RandChangeUpset>> = crypto:strong_rand_bytes(1),
@@ -426,7 +450,7 @@ change_moodp(imitation, player, GestureCount, _SecondsElapsed, LastPlaySeq) ->
     end;
 
 % dialectics : mood change ?
-change_moodp(dialectics, player, GestureCount, _SecondsElapsed, LastPlaySeq) ->
+change_moodp(dialectics, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
     Mood = dialectics,
     <<RandChangeImit>> = crypto:strong_rand_bytes(1),
     <<RandChangeUpset>> = crypto:strong_rand_bytes(1),
@@ -457,7 +481,7 @@ change_moodp(dialectics, player, GestureCount, _SecondsElapsed, LastPlaySeq) ->
     end;
 
 % upset, tired, excited : mood change ?
-change_moodp(Mood, player, GestureCount, _SecondsElapsed, LastPlaySeq) 
+change_moodp(Mood, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) 
     when Mood == upset orelse Mood == tired orelse Mood == excited
     ->
     <<RandChange>> = crypto:strong_rand_bytes(1),
@@ -474,7 +498,7 @@ change_moodp(Mood, player, GestureCount, _SecondsElapsed, LastPlaySeq)
     end;
 
 % catch all : no change
-change_moodp(Mood, _Reason, GestureCount, _SecondsElapsed, LastPlaySeq) ->
+change_moodp(Mood, _Reason, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
     {Mood, GestureCount, LastPlaySeq}.
 
 
@@ -494,8 +518,7 @@ play_mood(imitation, ElapsedSeconds, LastPlaySeq) ->
                 game_medium;
             true -> game_long
         end,
-    NewPlayedSeq = play_random_scenario(MoodScenar, LastPlaySeq),
-    play_random_hit(),
+    NewPlayedSeq = play_random_scenario_with_hit(MoodScenar, LastPlaySeq),
     NewPlayedSeq;
 
 play_mood(dialectics, ElapsedSeconds, LastPlaySeq) ->
@@ -508,7 +531,7 @@ play_mood(dialectics, ElapsedSeconds, LastPlaySeq) ->
                 game_long;
             true -> game_short
         end,
-    NewPlayedSeq = play_random_scenario(MoodScenar, LastPlaySeq),
+    NewPlayedSeq = play_random_scenario_with_hit(MoodScenar, LastPlaySeq),
     play_random_hit(),
     NewPlayedSeq;
 
@@ -524,7 +547,7 @@ play_mood(Mood, _ElapsedSeconds, LastPlaySeq)
 play_mood(Mood, _ElapsedSeconds, LastPlaySeq) ->
     io:format("playing mood : ~s\n", [Mood]),
     MoodScenar = Mood,
-    NewPlayedSeq = play_random_scenario(MoodScenar, LastPlaySeq),
+    NewPlayedSeq = play_random_scenario_with_hit(MoodScenar, LastPlaySeq),
     play_random_hit(),
     NewPlayedSeq.
 
@@ -562,6 +585,17 @@ play_random_hit() ->
     ScenarioIx.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% play_hit_if_needed
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+play_hit_if_needed() ->
+    ButtonState = read_button(),
+    io:format("   after play ButtonState=~s\n", [ButtonState]),
+    if
+        ButtonState == on -> play_random_hit();
+        true -> 1
+    end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% play_random_scenario : play random scenario of MoodScenar, but not LastPlaySeq if possible
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 play_random_scenario(MoodScenar, LastPlaySeq) ->
@@ -572,6 +606,14 @@ play_random_scenario(MoodScenar, LastPlaySeq) ->
     ScenarioIx = random_num_upto_butnot(ScenarioCount, LastPlaySeq),
     io:format("ScenarioIx=~p\n", [ScenarioIx]),
     play_scenario(MoodScenar, ScenarioIx).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% play_random_scenario_with_hit : play_random_scenario + play hit if needed
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+play_random_scenario_with_hit(MoodScenar, LastPlaySeq) ->
+    ScenarioIx = play_random_scenario(MoodScenar, LastPlaySeq),
+    play_hit_if_needed(),
+    ScenarioIx.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% play_scenario : play scenario ScenarioIx of MoodScenar
@@ -599,30 +641,28 @@ setup_sleep(SleepSecs) ->
 compute_sleep_timer(State) ->
     Mood = la_machine_state:get_mood(State),
     case Mood of
-        % if waiting => 24h (for now)
+        % if waiting => 24h
         waiting ->
             io:format("waiting : sleep 24h\n"),
             3600 * 24;
 
         % if calling => compute delay from GestureCount
         calling -> 
+            % delay = random(CALLING_MIN_DELAY_S, CALLING_MAX_DELAY_S)
             GestureCount = la_machine_state:get_gestures_count(State),
             <<RandS:56>> = crypto:strong_rand_bytes(7),
-            DelayRange = ?CALLING_MAX_DELAY_S - ?CALLING_MIN_DELAY_S,
-            Delay = ?CALLING_MIN_DELAY_S + (RandS rem DelayRange),
-            DelayFull = GestureCount * Delay,
-            io:format("calling : sleep ~ps (GestureCount=~p)\n", [DelayFull, GestureCount]),
-            DelayFull;
+            Delay = (?CALLING_MIN_DELAY_S + (RandS rem (?CALLING_MAX_DELAY_S - ?CALLING_MIN_DELAY_S))),
+            io:format("calling : sleep ~ps (GestureCount=~p)\n", [Delay, GestureCount]),
+            Delay;
 
         % if poke => compute delay from GestureCount
         poke -> 
+            % delay = random(CALLING_MIN_DELAY_S, CALLING_MAX_DELAY_S)
             GestureCount = la_machine_state:get_gestures_count(State),
             <<RandS:56>> = crypto:strong_rand_bytes(7),
-            DelayRange = ?CALLING_MAX_DELAY_S - ?CALLING_MIN_DELAY_S,
-            Delay = ?CALLING_MIN_DELAY_S + (RandS rem DelayRange),
-            DelayFull = GestureCount * Delay,
-            io:format("poke : sleep ~ps (GestureCount=~p)\n", [DelayFull, GestureCount]),
-            DelayFull;
+            Delay = (?CALLING_MIN_DELAY_S + (RandS rem (?CALLING_MAX_DELAY_S - ?CALLING_MIN_DELAY_S))),
+            io:format("poke : sleep ~ps (GestureCount=~p)\n", [Delay, GestureCount]),
+            Delay;
 
         % else : delay first calling
         _ ->
