@@ -39,6 +39,7 @@
 -type action() ::
     reset
     | play_poke
+    | play_meuh
     | play_wait_5000
     | {
         play_scenario,
@@ -53,14 +54,6 @@
         LastPlaySeq :: non_neg_integer() | undefined,
         PlayIndex :: non_neg_integer(),
         GestureCount :: non_neg_integer()        
-    }
-    | {
-        poke,
-        PokeIndex :: non_neg_integer()
-    }
-    | {
-        play,
-        meuh
     }.
 
 %% @doc Configure watchdog to panic after `WATCHDOG_TIMEOUT_MS' ms (1 minute).
@@ -157,7 +150,7 @@ run() ->
 
     State1 =
         case compute_action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, StateX) of
-            {play, meuh} ->
+            play_meuh ->
                 play_meuh(),
                 StateX;
 
@@ -309,17 +302,15 @@ action(1, _WakeupCause, _ButtonState, _AccelerometerState, _State) ->
 
 % meuh
 action(_IsPausedNow, _WakeupCause, _ButtonState, {play, meuh}, _State) ->
-    {play, meuh};
+    play_meuh;
 
 % not resting
 action(_IsPausedNow, _WakeupCause, _ButtonState, not_resting, _State) ->
     reset;
 
-% replaced
-action(_IsPausedNow, _WakeupCause, _ButtonState, replaced, State) ->
-    {Mood, LastPlaySeq, GestureCount, LastPlayTime} = la_machine_state:get_play_info(State),
-    SecondsElapsed = erlang:system_time(second) - LastPlayTime,
-    {play, replaced, Mood, SecondsElapsed, LastPlaySeq, GestureCount};
+% replaced => play_poke
+action(_IsPausedNow, _WakeupCause, _ButtonState, replaced, _State) ->
+    play_poke;
 
 % button on
 action(_IsPausedNow, _WakeupCause, on, ok, State) ->
@@ -356,28 +347,6 @@ action(_IsPausedNow, undefined, _ButtonState, _AccelerometerState, _State) ->
         NewGestureCount :: non_neg_integer(),
         NewLastPlaySeq :: non_neg_integer() | undefined
     }.
-
-% timer while waiting -> start poke
-change_moodp(waiting, timer, _GestureCount, _Total_Gesture_Count, _SecondsElapsed, _LastPlaySeq) ->
-    io:format("Wakeup timer while waiting : poke\n"),
-    {poke, 0, undefined};
-    
-% replaced while waiting -> start poke
-change_moodp(waiting, replaced, _GestureCount, _Total_Gesture_Count, _SecondsElapsed, _LastPlaySeq) ->
-    io:format("Wakeup replaced while waiting : poke\n"),
-    {poke, 0, undefined};
-
-% timer while poke -> continue poke or start waiting
-change_moodp(poke, timer, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
-    io:format("Wakeup timer while poke\n"),
-    if
-        GestureCount >= ?MAX_CALLING_SOUNDS ->
-            io:format("   max times => waiting\n"),
-            {waiting, 0, undefined};
-        true -> 
-            io:format("   continue calling\n"),
-            {poke, GestureCount, LastPlaySeq}
-    end;
 
 % timer while calling -> continue calling or start waiting
 change_moodp(calling, timer, GestureCount, Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
@@ -544,10 +513,9 @@ play_mood(dialectics, ElapsedSeconds, LastPlaySeq) ->
         end,
     play_random_scenario_with_hit(MoodScenar, LastPlaySeq);
 
-% calling, poke (no hit)
-play_mood(Mood, _ElapsedSeconds, LastPlaySeq)
-    when Mood == calling orelse Mood == poke
-    ->
+% calling (no hit)
+play_mood(calling, _ElapsedSeconds, LastPlaySeq) ->
+    Mood = calling,
     io:format("playing mood : ~s\n", [Mood]),
     MoodScenar = Mood,
     play_random_scenario(MoodScenar, LastPlaySeq);

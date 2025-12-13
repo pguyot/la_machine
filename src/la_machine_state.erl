@@ -200,9 +200,8 @@ append_play(Mood, GestureCount, PlaySeqIndex, #state{boot_time = BootTime, play_
         upset -> 3;
         calling -> 4;
         waiting -> 5;
-        poke -> 6;
-        tired -> 7;
-        excited -> 8;
+        tired -> 6;
+        excited -> 7;
         _ -> 0
     end,
     State#state{
@@ -223,9 +222,8 @@ get_mood(#state{mood = MoodInt}) ->
         3 -> upset;
         4 -> calling;
         5 -> waiting;
-        6 -> poke;
-        7 -> tired;
-        8 -> excited;
+        6 -> tired;
+        7 -> excited;
         _ -> joy
     end
     .
