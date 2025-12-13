@@ -35,6 +35,7 @@
     power_on/0,
     power_off/0,
     reset/0,
+    set_angle/2,
     set_target/2,
     set_target/3,
     timeout/1
@@ -106,6 +107,21 @@ reset() ->
     power_off().
 
 %% -----------------------------------------------------------------------------
+%% @param Angle angle for the servo (from 0 to 180)
+%% @param State current state
+%% @return a tuple with the time until the end of the move and the new state
+%% @doc Set the angle and move the servo as fast as possible. Used for
+%% calibration purposes.
+%% @end
+%% -----------------------------------------------------------------------------
+-spec set_angle(Angle :: 0..180, State :: state()) -> {non_neg_integer(), state()}.
+set_angle(Angle, State) ->
+    Duty = angle_to_duty(Angle),
+    ok = ledc:set_duty(?LEDC_MODE, ?LEDC_CHANNEL, Duty),
+    ok = ledc:update_duty(?LEDC_MODE, ?LEDC_CHANNEL),
+    target_duty_timeout(Duty, 0, State).
+
+%% -----------------------------------------------------------------------------
 %% @param Target target for the servo (from 0 to 100)
 %% @param State current state
 %% @return a tuple with the time until the end of the move and the new state
@@ -147,6 +163,9 @@ target_duty_timeout(Duty, MinTimeMS, #state{pre_min = PreMin, pre_max = PreMax} 
 
 target_to_duty(Target) ->
     Angle = Target * (?SERVO_INTERRUPT_ANGLE - ?SERVO_CLOSED_ANGLE) / 100 + ?SERVO_CLOSED_ANGLE,
+    angle_to_duty(Angle).
+
+angle_to_duty(Angle) ->
     AngleUS =
         (Angle / ?SERVO_MAX_ANGLE) * (?SERVO_MAX_WIDTH_US - ?SERVO_MIN_WIDTH_US) +
             ?SERVO_MIN_WIDTH_US,
@@ -163,11 +182,21 @@ reset_target(#state{target = Target} = State) ->
 
 -ifdef(TEST).
 % Values depend on ?SERVO_INTERRUPT_ANGLE and ?SERVO_CLOSED_ANGLE
+-if(?HARDWARE_REVISION =:= proto_20241023).
 target_to_duty_test_() ->
     [
         ?_assertEqual(432, target_to_duty(0)),
         ?_assertEqual(955, target_to_duty(100))
     ].
+-elif(?HARDWARE_REVISION =:= proto_20260106).
+target_to_duty_test_() ->
+    [
+        ?_assertEqual(841, target_to_duty(0)),
+        ?_assertEqual(341, target_to_duty(100))
+    ].
+-else.
+-error({unsupported_hardware_revision, ?HARDWARE_REVISION}).
+-endif.
 
 target_duty_timeout_test_() ->
     [

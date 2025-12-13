@@ -8,8 +8,8 @@ on:
 
 jobs:
   erlfmt:
-    runs-on: ubuntu-latest
-    container: erlang:27
+    runs-on: ubuntu-24.04
+    container: erlang:28
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -18,8 +18,8 @@ jobs:
         rebar3 as check fmt --check
 
   build_and_test:
-    runs-on: ubuntu-latest
-    container: erlang:27
+    runs-on: ubuntu-24.04
+    container: erlang:28
     steps:
     - name: Checkout AtomVM
       uses: actions/checkout@v4
@@ -27,7 +27,7 @@ jobs:
         # repository: atomvm/AtomVM
         # ref: release-0.6
         repository: pguyot/AtomVM
-        ref: w25/la_machine
+        ref: w50/la-machine-12-2025
         path: AtomVM
 
     - name: Checkout la_machine
@@ -64,7 +64,7 @@ jobs:
     - name: Build PLT
       working-directory: la_machine/
       run: |
-        dialyzer --build_plt --output_plt la_machine_deps.plt ../AtomVM/build/libs/estdlib/src/beams ../AtomVM/build/libs/eavmlib/src/beams _build/default/lib/atomvm_esp_adf/ebin/
+        dialyzer --build_plt --output_plt la_machine_deps.plt ../AtomVM/build/libs/estdlib/src/beams ../AtomVM/build/libs/eavmlib/src/beams ../AtomVM/build/libs/jit/src/beams/jit.beam _build/default/lib/atomvm_esp_adf/ebin/
 
     - name: Run dialyzer using source code
       working-directory: la_machine/
@@ -109,11 +109,11 @@ jobs:
         retention-days: 1
 
   build_variants:
-    runs-on: ubuntu-latest
-    container: erlang:27
+    runs-on: ubuntu-24.04
+    container: erlang:28
     strategy:
       matrix:
-        variant: ["demo"]
+        variant: ["proto_20241023"]
 
     steps:
     - name: Checkout AtomVM
@@ -122,7 +122,7 @@ jobs:
         # repository: atomvm/AtomVM
         # ref: release-0.6
         repository: pguyot/AtomVM
-        ref: w25/la_machine
+        ref: w50/la-machine-12-2025
         path: AtomVM
 
     - name: Checkout la_machine
@@ -134,6 +134,11 @@ jobs:
       working-directory: la_machine/
       run: |
         rebar3 as ${{ matrix.variant }} compile
+
+    - name: Run eunit tests with BEAM
+      working-directory: la_machine/
+      run: |
+        rebar3 as ${{ matrix.variant }} eunit
 
     - name: Install dependencies to build AtomVM libraries
       run: |
@@ -167,7 +172,7 @@ jobs:
         retention-days: 1
 
   build_vm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container: espressif/idf:v5.4
     steps:
     - name: Checkout La Machine
@@ -181,7 +186,7 @@ jobs:
         # repository: atomvm/AtomVM
         # ref: release-0.6
         repository: pguyot/AtomVM
-        ref: w25/la_machine
+        ref: w50/la-machine-12-2025
         path: AtomVM
 
     - name: Checkout atomvm_esp_adf
@@ -215,10 +220,10 @@ jobs:
         echo CONFIG_AVM_ESP_ADF_PWM_OUTPUT_ENABLE=n >> sdkconfig
         echo CONFIG_AVM_ENABLE_UART_PORT_DRIVER=n >> sdkconfig
         echo CONFIG_AVM_ENABLE_STORAGE_NIFS=n >> sdkconfig
-        echo CONFIG_AVM_ENABLE_STORAGE_NIFS=n >> sdkconfig
         echo CONFIG_AVM_ENABLE_SPI_PORT_DRIVER=n >> sdkconfig
         echo CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y >> sdkconfig
         echo CONFIG_ESPTOOLPY_FLASHSIZE="16MB" >> sdkconfig
+        echo CONFIG_ESP_SLEEP_GPIO_ENABLE_INTERNAL_RESISTORS=n >> sdkconfig
         idf.py build
 
     - name: Build la machine partitions map
@@ -249,7 +254,7 @@ jobs:
 
   test_with_qemu:
     needs: [build_and_test, build_vm]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container: espressif/idf:v5.4
     steps:
     - name: Checkout La Machine
@@ -282,11 +287,11 @@ jobs:
 
   make_image:
     needs: [build_and_test, build_vm, build_variants]
-    runs-on: ubuntu-latest
-    container: erlang:27
+    runs-on: ubuntu-24.04
+    container: erlang:28
     strategy:
       matrix:
-        suffix: ["", "-demo"]
+        suffix: ["", "-proto_20241023"]
 
     steps:
     - name: Checkout

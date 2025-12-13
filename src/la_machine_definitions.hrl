@@ -19,7 +19,13 @@
 %
 
 % Hardware definitions
-% Prototype 20241023 : boîte inutile 1.2
+% Prototypes:
+% - 20241023 : boîte inutile 1.2-1.3
+% - 20260106 : boîte inutile 1.6+
+
+-ifndef(HARDWARE_REVISION).
+-define(HARDWARE_REVISION, proto_20260106).
+-endif.
 
 %% GPIOs
 
@@ -44,7 +50,6 @@
 
 -define(BUTTON_GPIO, 3).
 -define(BUTTON_GPIO_PULL, down).
--define(BUTTON_GPIO_HOLD(_), ok).
 -define(BUTTON_GPIO_WAKEUP_LEVEL, 1).
 -define(BUTTON_GPIO_OFF, low).
 -define(BUTTON_GPIO_ON, high).
@@ -56,9 +61,44 @@
 -define(I2C_SDA_GPIO, 2).
 -define(I2C_SCL_GPIO, ?U0RXD_GPIO).
 
+-if(?HARDWARE_REVISION =:= proto_20260106).
+% Calibration button GPIO is the same as the accelerometer interrupt GPIO
+% On 1.5+, do not set the internal 45kΩ pull down because the
+% accelerometer is protected from the calibration button by a 100 kΩ and
+% we already have a 1 MΩ pull down.
+-define(CALIBRATION_BUTTON_GPIO, ?MTDI_GPIO).
+-define(ACC_IRQ_GPIO_PULL, floating).
+-else.
+-define(ACC_IRQ_GPIO_PULL, down).
+-endif.
+
 %% Accelerometer
 %% SDA0 is connected to GND
 -define(LIS3DH_ADDR, 2#0011000).
+
+-if(?HARDWARE_REVISION =:= proto_20241023 orelse ?HARDWARE_REVISION =:= proto_20260106).
+% La Boîte Inutile 1.2-1.4 and 1.6
+%
+% _____
+% |   | U5
+% |o__|
+%
+% X : low, Y : high Z : low
+-define(LIS3DH_RESTING(XH, YH, ZH),
+    XH =< (300 div 16) andalso XH >= -(300 div 16) andalso
+        YH >= (700 div 16) andalso
+        ZH =< (300 div 16) andalso ZH >= -(300 div 16)
+).
+-define(LIS3DH_MEUH_ZONE(_XH, YH, _ZH),
+    if
+        YH =< -(700 div 16) -> neg;
+        YH >= 700 div 16 -> pos;
+        true -> low
+    end
+).
+-else.
+-error({unsupported_hardware_revision, ?HARDWARE_REVISION}).
+-endif.
 
 %% SERVO
 
@@ -73,9 +113,15 @@
 -define(LEDC_CH_GPIO, ?SERVO_PWM_GPIO).
 -define(LEDC_CHANNEL, 0).
 
+-if(?HARDWARE_REVISION =:= proto_20241023).
 -define(SERVO_CLOSED_ANGLE, 50.0).
--define(SERVO_SLIGHTLY_OPEN_ANGLE, 50.0).
 -define(SERVO_INTERRUPT_ANGLE, 165.0).
+-elif(?HARDWARE_REVISION =:= proto_20260106).
+-define(SERVO_CLOSED_ANGLE, 140.0).
+-define(SERVO_INTERRUPT_ANGLE, 30.0).
+-else.
+-error({unsupported_hardware_revision, ?HARDWARE_REVISION}).
+-endif.
 
 -define(SERVO_MAX_ANGLE, 180.0).
 -define(SERVO_MAX_WIDTH_US, 2500).
