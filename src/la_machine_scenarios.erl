@@ -239,52 +239,52 @@ scenario_game_long_05coucoudefil() ->
 
 scenario_game_medium_02292() ->
 	[
-		{wait, 5}, {servo, 59}, {wait, 239}, {aac, <<"game/02292.aac">>}, {wait, 396}, {servo, 65}, {wait, 427}, {servo, 73}, {wait, 453}, {servo, 62}, {wait, 297}, {servo, 48}, {wait, 433}, {servo, 34}
+		{wait, 5}, {servo, 59}, {wait, 239}, {aac, <<"game/02292.aac">>}, {wait, 396}, {servo, 65}, {wait, 427}, {servo, 73}, {wait, 453}, {servo, 62}, {wait, 297}, {servo, 48}, {wait, 433}, {servo, 34}, {wait, 630}, {servo, 33}
 	].
 
 scenario_game_medium_02309() ->
 	[
-		{aac, <<"game/02309.aac">>}, {servo, 22}, {wait, 255}, {servo, 49}, {wait, 385}, {servo, 59}, {wait, 193}, {servo, 62}, {wait, 208}, {servo, 68}, {wait, 229}, {servo, 69}, {wait, 177}, {servo, 71}, {wait, 178}, {servo, 76, -21}, {wait, 78}, {servo, 69, 52}, {wait, 109}, {servo, 74, 36}, {wait, 73}, {servo, 64}, {wait, 125}, {servo, 58}, {wait, 141}, {servo, 52}, {wait, 119}, {servo, 47}
+		{aac, <<"game/02309.aac">>}, {servo, 22}, {wait, 255}, {servo, 49}, {wait, 385}, {servo, 59}, {wait, 193}, {servo, 62}, {wait, 208}, {servo, 68}, {wait, 229}, {servo, 69}, {wait, 177}, {servo, 71}, {wait, 178}, {servo, 76}, {wait, 78}, {servo, 69, 52}, {wait, 109}, {servo, 74, 36}, {wait, 73}, {servo, 64}, {wait, 125}, {servo, 58}, {wait, 141}, {servo, 52}, {wait, 119}, {servo, 47}, {wait, 313}, {servo, 48}
 	].
 
 scenario_game_medium_02824() ->
 	[
-		{aac, <<"game/02824.aac">>}, {wait, 5}, {servo, 24}, {wait, 416}, {servo, 31}, {wait, 141}, {servo, 37}, {wait, 188}, {servo, 46}, {wait, 161}, {servo, 51}, {wait, 109}, {servo, 55}, {wait, 157}, {servo, 61}, {wait, 218}, {servo, 68}, {wait, 136}, {servo, 69}, {wait, 161}, {servo, 74}, {wait, 120}, {servo, 77}, {wait, 172}, {servo, 72, -37}, {wait, 250}, {servo, 64, 172}, {wait, 260}, {servo, 59}
+		{aac, <<"game/02824.aac">>}, {wait, 5}, {servo, 24}, {wait, 416}, {servo, 31}, {wait, 141}, {servo, 37}, {wait, 188}, {servo, 46}, {wait, 161}, {servo, 51}, {wait, 109}, {servo, 55}, {wait, 157}, {servo, 61}, {wait, 218}, {servo, 68}, {wait, 136}, {servo, 69}, {wait, 161}, {servo, 74}, {wait, 120}, {servo, 77}, {wait, 172}, {servo, 72}, {wait, 250}, {servo, 64, 172}, {wait, 260}, {servo, 59}, {wait, 657}, {servo, 59}
 	].
 
 scenario_game_medium_02903() ->
 	[
-		{wait, 10}, {servo, 55}, {wait, 296}, {aac, <<"game/02903.aac">>}, {wait, 246}, {servo, 68}, {wait, 161}, {servo, 41}, {wait, 198}, {servo, 70}, {wait, 234}, {servo, 39}, {wait, 198}, {servo, 70}, {wait, 183}, {servo, 39}, {wait, 229}, {servo, 73}, {wait, 422}, {servo, 76, -6}, {wait, 192}, {servo, 72, -31}, {wait, 162}, {servo, 64}, {wait, 219}, {servo, 59}, {wait, 109}, {servo, 52}, {wait, 255}, {servo, 75}
+		{wait, 10}, {servo, 55}, {wait, 296}, {aac, <<"game/02903.aac">>}, {wait, 246}, {servo, 68}, {wait, 161}, {servo, 41}, {wait, 198}, {servo, 70}, {wait, 234}, {servo, 39}, {wait, 198}, {servo, 70}, {wait, 183}, {servo, 39}, {wait, 229}, {servo, 73}, {wait, 422}, {servo, 76}, {wait, 192}, {servo, 72}, {wait, 162}, {servo, 64}, {wait, 219}, {servo, 59}, {wait, 109}, {servo, 52}, {wait, 255}, {servo, 75}, {wait, 359}, {servo, 75, 99}
 	].
 
 scenario_game_medium_03923() ->
 	[
-		{servo, 52}, {wait, 244}, {aac, <<"game/03923.aac">>}, {wait, 146}, {servo, 37}, {wait, 141}, {servo, 50}, {wait, 198}, {servo, 36}, {wait, 172}, {servo, 76, 2297}, {wait, 2421}, {servo, 64, 89}, {wait, 276}, {servo, 58}, {wait, 162}, {servo, 52, 99}, {wait, 182}, {servo, 46, 89}, {wait, 203}, {servo, 38}
+		{servo, 52}, {wait, 244}, {aac, <<"game/03923.aac">>}, {wait, 146}, {servo, 37}, {wait, 141}, {servo, 50}, {wait, 198}, {servo, 36}, {wait, 172}, {servo, 76, 2297}, {wait, 2421}, {servo, 64, 89}, {wait, 276}, {servo, 58}, {wait, 162}, {servo, 52, 99}, {wait, 182}, {servo, 46, 89}, {wait, 203}, {servo, 38}, {wait, 282}, {servo, 37}
 	].
 
 scenario_game_short_00992() ->
 	[
-		{servo, 72}, {wait, 197}, {aac, <<"game/00992.aac">>}, {wait, 219}, {servo, 50}, {wait, 177}, {servo, 70}, {wait, 193}, {servo, 51}
+		{servo, 72}, {wait, 197}, {aac, <<"game/00992.aac">>}, {wait, 219}, {servo, 50}, {wait, 177}, {servo, 70}, {wait, 193}, {servo, 51}, {wait, 703}, {servo, 50}
 	].
 
 scenario_game_short_01261() ->
 	[
-		{wait, 203}, {servo, 72}, {wait, 416}, {aac, <<"game/01261.aac">>}, {wait, 328}, {servo, 65}, {wait, 183}, {servo, 61}, {wait, 213}, {servo, 55}, {wait, 183}, {servo, 50}, {wait, 156}, {servo, 44}, {wait, 177}, {servo, 50, 5}
+		{wait, 203}, {servo, 72}, {wait, 416}, {aac, <<"game/01261.aac">>}, {wait, 328}, {servo, 65}, {wait, 183}, {servo, 61}, {wait, 213}, {servo, 55}, {wait, 183}, {servo, 50}, {wait, 156}, {servo, 44}, {wait, 177}, {servo, 50, 5}, {wait, 271}, {servo, 50}
 	].
 
 scenario_game_short_01512() ->
 	[
-		{servo, 49, 828}, {wait, 848}, {aac, <<"game/01512.aac">>}, {wait, 27}, {servo, 55}, {wait, 119}, {servo, 61}, {wait, 209}, {servo, 69}, {wait, 140}, {servo, 74}, {wait, 177}, {servo, 69}, {wait, 146}, {servo, 65}, {wait, 136}, {servo, 70}, {wait, 145}, {servo, 76}, {wait, 308}, {servo, 61}, {wait, 130}, {servo, 48}
+		{servo, 49, 828}, {wait, 848}, {aac, <<"game/01512.aac">>}, {wait, 27}, {servo, 55}, {wait, 119}, {servo, 61}, {wait, 209}, {servo, 69}, {wait, 140}, {servo, 74}, {wait, 177}, {servo, 69}, {wait, 146}, {servo, 65}, {wait, 136}, {servo, 70}, {wait, 145}, {servo, 76}, {wait, 308}, {servo, 61}, {wait, 130}, {servo, 48}, {wait, 224}, {servo, 49}
 	].
 
 scenario_game_short_01683() ->
 	[
-		{servo, 61}, {wait, 223}, {aac, <<"game/01683.aac">>}, {wait, 250}, {servo, 32}, {wait, 334}, {servo, 65}, {wait, 359}, {servo, 33}, {wait, 307}, {servo, 65}
+		{servo, 61}, {wait, 223}, {aac, <<"game/01683.aac">>}, {wait, 250}, {servo, 32}, {wait, 334}, {servo, 65}, {wait, 359}, {servo, 33}, {wait, 307}, {servo, 65}, {wait, 745}, {servo, 65}
 	].
 
 scenario_game_short_01800() ->
 	[
-		{servo, 66}, {wait, 291}, {aac, <<"game/01800.aac">>}, {wait, 370}, {servo, 74}, {wait, 177}, {servo, 66}, {wait, 141}, {servo, 61}, {wait, 104}, {servo, 55}, {wait, 198}, {servo, 47}, {wait, 99}, {servo, 74}, {wait, 453}, {servo, 19}
+		{servo, 66}, {wait, 291}, {aac, <<"game/01800.aac">>}, {wait, 370}, {servo, 74}, {wait, 177}, {servo, 66}, {wait, 141}, {servo, 61}, {wait, 104}, {servo, 55}, {wait, 198}, {servo, 47}, {wait, 99}, {servo, 74}, {wait, 453}, {servo, 19}, {wait, 536}, {servo, 18}
 	].
 
 scenario_hits_00412() ->
@@ -464,7 +464,7 @@ scenario_upset_00570() ->
 
 scenario_upset_00800() ->
 	[
-		{wait, 10}, {servo, 50, 302}, {wait, 495}, {servo, 39}, {wait, 208}, {servo, 49}, {wait, 271}, {servo, 36}, {wait, 266}, {servo, 49}, {wait, 250}, {servo, 36}, {wait, 286}, {servo, 50}, {wait, 224}, {servo, 35}, {wait, 130}, {servo, 100}, {wait, 172}, {aac, <<"upset/00800.aac">>}, {wait, 547}, {servo, 24}
+		{wait, 10}, {servo, 50, 302}, {wait, 495}, {servo, 39}, {wait, 208}, {servo, 49}, {wait, 271}, {servo, 36}, {wait, 266}, {servo, 49}, {wait, 250}, {servo, 36}, {wait, 286}, {servo, 50}, {wait, 224}, {servo, 35}, {wait, 130}, {servo, 100}, {wait, 172}, {aac, <<"upset/00800.aac">>}, {wait, 490}, {servo, 0}
 	].
 
 scenario_upset_00806() ->

@@ -39,6 +39,7 @@
 
 % Accessor to state
 -export([
+    get_poke_index/1,
     get_last_play_time/1,
     get_last_play_seq/1,
     get_play_hours_count/1,
@@ -56,6 +57,7 @@
 
 % Modifiers
 -export([
+    set_poke_index/2,
     append_play/4,
     set_mood_waiting/1,
     set_battery_low/2,
@@ -93,6 +95,7 @@
     last_on = 0 :: non_neg_integer(),
     click_count = 0 :: non_neg_integer(),
     is_paused = 0 :: non_neg_integer(),
+    play_poke_index = 0 :: non_neg_integer(),
     % buffer with hours, appended to, and then rotated
     play_hours = <<>> :: binary() % the rest of the memory
 }).
@@ -123,7 +126,7 @@ get_state() ->
 
 -spec deserialize_state(non_neg_integer(), binary() | undefined) -> state().
 deserialize_state(
-    Now, <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8, TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8, PlayHours/binary>>
+    Now, <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8, TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8, PlayPokeIndex:8, PlayHours/binary>>
 ) when
     BootTime =< Now andalso byte_size(PlayHours) =< ?MAX_PLAY_HOURS
 ->
@@ -139,6 +142,7 @@ deserialize_state(
         last_on = LastOn,
         click_count = ClickCount,
         is_paused = IsPaused,
+        play_poke_index = PlayPokeIndex,
         play_hours = PlayHours
     };
 deserialize_state(Now, _) ->
@@ -154,6 +158,7 @@ deserialize_state(Now, _) ->
         last_on = 0,
         click_count = 0,
         is_paused = 0,
+        play_poke_index = 0,
         play_hours = <<>>
     }.
 
@@ -169,15 +174,17 @@ serialize_state(#state{
     last_on = LastOn,
     click_count = ClickCount,
     is_paused = IsPaused,
+    play_poke_index = PlayPokeIndex,
     play_hours = PlayHours
 }) ->
-    <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8, TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8, PlayHours/binary>>.
+    <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8, TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8, PlayPokeIndex:8, PlayHours/binary>>.
 
-%% To set the mood to waiting. Reset total_gesture_count
+%% To set the mood to waiting. Reset total_gesture_count and play_poke_index
 set_mood_waiting(State) ->
     State#state{
         mood = 5, % waiting
-        total_gesture_count = 0
+        total_gesture_count = 0,
+        play_poke_index = 0
     }.
 
 % we just played
@@ -245,6 +252,12 @@ get_last_play_time(#state{last_play_time = LastPlayTime}) -> LastPlayTime.
 -spec get_last_play_seq(state()) -> undefined | non_neg_integer().
 get_last_play_seq(#state{last_play_time = 0}) -> undefined;
 get_last_play_seq(#state{last_play_seq = LastPlaySeq}) -> LastPlaySeq.
+
+-spec get_poke_index(state()) -> non_neg_integer().
+get_poke_index(#state{last_play_time = 0, play_poke_index = PlayPokeIndex}) -> PlayPokeIndex;
+get_poke_index(#state{last_play_time = _}) -> 0.
+set_poke_index(PokeIndex, State) ->
+    State#state{play_poke_index = PokeIndex, last_play_time = 0}.
 
 -spec get_gestures_count(state()) -> non_neg_integer().
 get_gestures_count(#state{gesture_count = GestureCount}) -> GestureCount.

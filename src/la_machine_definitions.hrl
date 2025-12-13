@@ -93,7 +93,7 @@
 %% Moods
 
 % Travel Mode = always paused, no action
--define(TRAVELMODE, 1).
+-define(TRAVELMODE, 0).
 
 % Should process tripleclick (broken)
 -define(TRIPLECLICK, 0).
@@ -148,11 +148,11 @@
 
 %% DEBUG
 % play only one mood (to debug)
-- define(DEBUG_PLAY_ONLY_ONE_MOOD, 1).
+- define(DEBUG_PLAY_ONLY_ONE_MOOD, 0).
 % which mood
-- define(DEBUG_PLAY_ONLY_ONE_MOOD_MOOD, upset).
+- define(DEBUG_PLAY_ONLY_ONE_MOOD_MOOD, joy).
 % which scenario number (staring at 1, -1 means random)
-- define(DEBUG_PLAY_ONLY_ONE_MOOD_INDEX, -1).
+- define(DEBUG_PLAY_ONLY_ONE_MOOD_INDEX, 2).
 
 
 
