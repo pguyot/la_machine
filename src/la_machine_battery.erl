@@ -45,15 +45,24 @@ is_charging() ->
 get_level() ->
     {ok, Unit} = esp_adc:init(),
     {ok, Chan} = esp_adc:acquire(?BATTERY_LEVEL_GPIO, Unit),
-    case esp_adc:sample(Chan, Unit) of
+    IntPercent = case esp_adc:sample(Chan, Unit) of
         {ok, {Raw, MilliVolts}} ->
             % Raw: 2970 Voltage: 2093mV -- 100% 4.11V
-            io:format("Raw: ~p Voltage: ~pmV~n", [Raw, MilliVolts]);
+            io:format("Raw: ~p Voltage: ~pmV~n", [Raw, MilliVolts]),
+            Ratio =
+                if
+                    MilliVolts =< ?BATTERY_MV_LOW -> 0.0;
+                    MilliVolts >= ?BATTERY_MV_HIGH -> 1.0;
+                    true -> (MilliVolts - ?BATTERY_MV_LOW)/(?BATTERY_MV_HIGH - ?BATTERY_MV_LOW)
+                end,
+            math:floor(Ratio * 100)
+            ;
         Error ->
-            io:format("Error taking reading: ~p~n", [Error])
+            io:format("Error taking reading: ~p~n", [Error]),
+            0
     end,
     ok = esp_adc:release_channel(Chan),
     ok = esp_adc:deinit(Unit),
-    50.
+    IntPercent.
 
 -endif.

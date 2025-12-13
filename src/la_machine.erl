@@ -202,7 +202,7 @@ run() ->
                 la_machine_servo:reset(),
                 StateX
         end,
-    SleepTimer = compute_sleep_timer(State1),
+    SleepTimer = do_compute_sleep_timer(State1),
     la_machine_state:save_state(State1),
     SleepMS = setup_sleep(SleepTimer),
     unconfigure_watchdog(WatchdogUser),
@@ -619,7 +619,7 @@ setup_sleep(SleepSecs) ->
 %% compute_sleep_timer
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-compute_sleep_timer(State) ->
+do_compute_sleep_timer(State) ->
     Mood = la_machine_state:get_mood(State),
     compute_sleep_timer(State, Mood).
 
@@ -667,13 +667,13 @@ compute_sleep_timer(State, calling) ->
     GestureCount = la_machine_state:get_gestures_count(State),
     <<RandS:56>> = crypto:strong_rand_bytes(7),
     Delay = (?CALLING_MIN_DELAY_S + (RandS rem (?CALLING_MAX_DELAY_S - ?CALLING_MIN_DELAY_S))),
-    io:format("calling : sleep ~ps (GestureCount=~p)\n", [Delay, GestureCount]),
+    io:format("compute_sleep_timer calling : sleep ~ps (GestureCount=~p)\n", [Delay, GestureCount]),
     Delay;
 
 % other cases : delay first calling
 compute_sleep_timer(_State, Mood) ->
     Delay = ?CALLING_START_DELAY_S,
-    io:format("in ~s : sleep default ~ps\n", [Mood, Delay]),
+    io:format("compute_sleep_timer ~s : sleep default ~ps\n", [Mood, Delay]),
     Delay.
 
 

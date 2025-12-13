@@ -147,11 +147,12 @@ deserialize_state(
     };
 deserialize_state(Now, _) ->
     %io:format("deserialize_state : Now=~p=> Reinit State\n", [Now]),
+    WaitingMoodInt = moodint_for_mood(waiting),
     #state{
         boot_time = Now,
         last_play_time = 0,
         last_play_seq = 0,
-        mood = 0,
+        mood = WaitingMoodInt,
         gesture_count = 0,
         total_gesture_count = 0,
         battery_low = 0,
@@ -179,13 +180,33 @@ serialize_state(#state{
 }) ->
     <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8, TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8, PlayPokeIndex:8, PlayHours/binary>>.
 
-%% To set the mood to waiting. Reset total_gesture_count and play_poke_index
-set_mood_waiting(State) ->
-    State#state{
-        mood = 5, % waiting
-        total_gesture_count = 0,
-        play_poke_index = 0
-    }.
+%%%%%%%%%%%% moods
+
+mood_for_moodint(MoodInt) ->
+        case MoodInt of
+        0 -> waiting;
+        1 -> imitation;
+        2 -> dialectic;
+        3 -> upset;
+        4 -> calling;
+        5 -> joy;
+        6 -> tired;
+        7 -> excited;
+        _ -> waiting
+    end.
+
+moodint_for_mood(Mood) ->
+    case Mood of
+        waiting -> 0;
+        imitation -> 1;
+        dialectic -> 2;
+        upset -> 3;
+        calling -> 4;
+        joy -> 5;
+        tired -> 6;
+        excited -> 7;
+        _ -> 0
+    end.
 
 % we just played
 append_play(Mood, GestureCount, PlaySeqIndex, #state{boot_time = BootTime, play_hours = PlayHours0, total_gesture_count = TotalGestureCount} = State) ->
@@ -193,17 +214,7 @@ append_play(Mood, GestureCount, PlaySeqIndex, #state{boot_time = BootTime, play_
     Now = erlang:system_time(second),
     NowHour = ((Now - BootTime) div 3600) rem 24,
     PlayHours1 = append_hour(NowHour, PlayHours0),
-    MoodInt = case Mood of
-        joy -> 0;
-        imitation -> 1;
-        dialectic -> 2;
-        upset -> 3;
-        calling -> 4;
-        waiting -> 5;
-        tired -> 6;
-        excited -> 7;
-        _ -> 0
-    end,
+    MoodInt = moodint_for_mood(Mood),
     State#state{
         last_play_time = Now,
         last_play_seq = PlaySeqIndex,
@@ -214,19 +225,17 @@ append_play(Mood, GestureCount, PlaySeqIndex, #state{boot_time = BootTime, play_
     }.
 
 -spec get_mood(state()) -> atom().
-get_mood(#state{mood = MoodInt}) -> 
-    case MoodInt of
-        0 -> joy;
-        1 -> imitation;
-        2 -> dialectic;
-        3 -> upset;
-        4 -> calling;
-        5 -> waiting;
-        6 -> tired;
-        7 -> excited;
-        _ -> joy
-    end
-    .
+get_mood(#state{mood = MoodInt}) ->
+    mood_for_moodint(MoodInt).
+
+%% To set the mood to waiting. Reset total_gesture_count and play_poke_index
+set_mood_waiting(State) ->
+    WaitingMoodInt = moodint_for_mood(waiting),
+    State#state{
+        mood = WaitingMoodInt,
+        total_gesture_count = 0,
+        play_poke_index = 0
+    }.
 
 append_hour(Hour, Buffer) when byte_size(Buffer) < ?MAX_PLAY_HOURS ->
     <<Hour, Buffer/binary>>;
