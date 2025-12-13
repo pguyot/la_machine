@@ -51,8 +51,8 @@
 
 -define(BATTERY_LEVEL_GPIO, ?XTAL_32K_P_GPIO).
 -define(BATTERY_STAT2_GPIO, ?U0TXD_GPIO).
--define(BATTERY_MV_LOW, 3.65).
--define(BATTERY_MV_HIGH, 4.11).
+-define(BATTERY_MV_LOW, 3650).
+-define(BATTERY_MV_HIGH, 4110).
 
 -define(ACC_IRQ_GPIO, ?MTDI_GPIO).
 -define(I2C_SDA_GPIO, 2).

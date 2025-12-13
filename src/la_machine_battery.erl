@@ -55,7 +55,7 @@ get_level() ->
                     MilliVolts >= ?BATTERY_MV_HIGH -> 1.0;
                     true -> (MilliVolts - ?BATTERY_MV_LOW)/(?BATTERY_MV_HIGH - ?BATTERY_MV_LOW)
                 end,
-            math:floor(Ratio * 100)
+            round(Ratio * 100)
             ;
         Error ->
             io:format("Error taking reading: ~p~n", [Error]),
