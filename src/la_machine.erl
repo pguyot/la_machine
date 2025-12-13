@@ -36,6 +36,8 @@
 -export([start/0]).
 -endif.
 
+-export([prune_workaround/0]).
+
 -type action() ::
     reset
     | {
@@ -79,39 +81,27 @@ unconfigure_watchdog(WatchdogUser) ->
     _ = esp:task_wdt_delete_user(WatchdogUser),
     ok.
 
--ifdef(ACC_IRQ_GPIO).
-
+%% @doc Configure GPIOs on setup.
+%% Button and accelerometer/calibration button GPIOs are configured according
+%% to various prototype versions.
+%% GPIO deep sleep is alway configured to wake up on button and accelerometer
+%% @end
 configure_gpios() ->
     ok = gpio:init(?BUTTON_GPIO),
     ok = gpio:set_pin_mode(?BUTTON_GPIO, input),
     ok = gpio:set_pin_pull(?BUTTON_GPIO, ?BUTTON_GPIO_PULL),
-    ok = ?BUTTON_GPIO_HOLD(hold_dis),
     ok = gpio:init(?ACC_IRQ_GPIO),
     ok = gpio:set_pin_mode(?ACC_IRQ_GPIO, input),
-    ok = gpio:set_pin_pull(?ACC_IRQ_GPIO, down),
+    ok = gpio:set_pin_pull(?ACC_IRQ_GPIO, ?ACC_IRQ_GPIO_PULL),
     ok = esp:deep_sleep_enable_gpio_wakeup(
         (1 bsl ?BUTTON_GPIO) bor (1 bsl ?ACC_IRQ_GPIO), ?BUTTON_GPIO_WAKEUP_LEVEL
     ).
-
--else.
-
-configure_gpios() ->
-    ok = gpio:init(?BUTTON_GPIO),
-    ok = gpio:set_pin_mode(?BUTTON_GPIO, input),
-    ok = gpio:set_pin_pull(?BUTTON_GPIO, ?BUTTON_GPIO_PULL),
-    ok = ?BUTTON_GPIO_HOLD(hold_dis),
-    ok = esp:deep_sleep_enable_gpio_wakeup(1 bsl ?BUTTON_GPIO, ?BUTTON_GPIO_WAKEUP_LEVEL).
-
--endif.
 
 read_button() ->
     case gpio:digital_read(?BUTTON_GPIO) of
         ?BUTTON_GPIO_OFF -> off;
         ?BUTTON_GPIO_ON -> on
     end.
-
-button_sleep() ->
-    ok = ?BUTTON_GPIO_HOLD(hold_en).
 
 -ifdef(BATTERY_LEVEL_GPIO).
 battery_report() ->
@@ -168,6 +158,12 @@ run() ->
 start() ->
     run().
 -endif.
+
+% See https://github.com/atomvm/atomvm_packbeam/issues/58
+-spec prune_workaround() -> ok.
+prune_workaround() ->
+    _ = code_server:module_info(),
+    ok.
 
 -spec action(
     esp:esp_wakeup_cause(), on | off, ok | {play, meuh} | not_resting, la_machine_state:state()
@@ -295,7 +291,6 @@ play(_ElapsedSeconds, LastPlaySeq, _PlayIndex) ->
 
 setup_sleep(SleepSecs) ->
     gpio:deep_sleep_hold_en(),
-    button_sleep(),
     SleepMs = SleepSecs * 1000,
     SleepMs.
 
