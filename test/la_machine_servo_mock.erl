@@ -36,7 +36,7 @@
 ]).
 
 -export([
-    power_on/0,
+    power_on/1,
     set_target/2,
     set_target/3,
     timeout/1,
@@ -45,7 +45,7 @@
 
 -define(MOCK_SERVER_NAME, ?MODULE).
 
-power_on() ->
+power_on(_Config) ->
     mock:call(?MOCK_SERVER_NAME, power_on, []).
 
 set_target(Target, State) ->
