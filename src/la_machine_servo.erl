@@ -32,9 +32,9 @@
 -endif.
 
 -export([
-    power_on/0,
+    power_on/1,
     power_off/0,
-    reset/0,
+    reset/1,
     set_angle/2,
     set_target/2,
     set_target/3,
@@ -49,13 +49,13 @@
     pre_min :: number(),
     pre_max :: number(),
     target = undefined :: undefined | number(),
-    target_ms = undefined :: undefined | pos_integer()
+    config :: la_machine_configuration:config()
 }).
 
 -opaque state() :: #state{}.
 
--spec power_on() -> state().
-power_on() ->
+-spec power_on(la_machine_configuration:config()) -> state().
+power_on(Config) ->
     LEDCTimer = [
         {duty_resolution, ?LEDC_DUTY_RESOLUTION},
         {freq_hz, ?SERVO_FREQ_HZ},
@@ -77,7 +77,14 @@ power_on() ->
 
     ok = ledc:fade_func_install(0),
 
-    #state{pre_min = target_to_duty(0), pre_max = target_to_duty(100)}.
+    Duty0 = target_to_duty(0, Config),
+    Duty100 = target_to_duty(100, Config),
+
+    #state{
+        pre_min = min(Duty0, Duty100),
+        pre_max = max(Duty0, Duty100),
+        config = Config
+    }.
 
 -spec power_off() -> ok.
 power_off() ->
@@ -86,7 +93,6 @@ power_off() ->
     power_off_boost(),
     ok.
 
--ifdef(SERVO_EN_BOOST_GPIO).
 power_on_boost() ->
     ok = gpio:init(?SERVO_EN_BOOST_GPIO),
     ok = gpio:set_pin_mode(?SERVO_EN_BOOST_GPIO, output),
@@ -94,14 +100,10 @@ power_on_boost() ->
 
 power_off_boost() ->
     ok = gpio:digital_write(?SERVO_EN_BOOST_GPIO, 0).
--else.
-power_on_boost() -> ok.
-power_off_boost() -> ok.
--endif.
 
--spec reset() -> ok.
-reset() ->
-    State0 = power_on(),
+-spec reset(la_machine_configuration:config()) -> ok.
+reset(Config) ->
+    State0 = power_on(Config),
     {Sleep, _State1} = set_target(0, State0),
     timer:sleep(Sleep),
     power_off().
@@ -129,8 +131,8 @@ set_angle(Angle, State) ->
 %% @end
 %% -----------------------------------------------------------------------------
 -spec set_target(Target :: number(), State :: state()) -> {non_neg_integer(), state()}.
-set_target(Target, State) ->
-    Duty = target_to_duty(Target),
+set_target(Target, #state{config = Config} = State) ->
+    Duty = target_to_duty(Target, Config),
     ok = ledc:set_duty(?LEDC_MODE, ?LEDC_CHANNEL, Duty),
     ok = ledc:update_duty(?LEDC_MODE, ?LEDC_CHANNEL),
     target_duty_timeout(Duty, 0, State).
@@ -146,8 +148,8 @@ set_target(Target, State) ->
 %% -----------------------------------------------------------------------------
 -spec set_target(Target :: number(), TimeMS :: pos_integer(), State :: state()) ->
     {non_neg_integer(), state()}.
-set_target(Target, TimeMS, State) ->
-    Duty = target_to_duty(Target),
+set_target(Target, TimeMS, #state{config = Config} = State) ->
+    Duty = target_to_duty(Target, Config),
     ok = ledc:set_fade_with_time(?LEDC_MODE, ?LEDC_CHANNEL, Duty, TimeMS),
     ok = ledc:fade_start(?LEDC_MODE, ?LEDC_CHANNEL, ?LEDC_FADE_NO_WAIT),
     target_duty_timeout(Duty, TimeMS, State).
@@ -161,8 +163,10 @@ target_duty_timeout(Duty, MinTimeMS, #state{pre_min = PreMin, pre_max = PreMax} 
         pre_min = min(Duty, PreMin), pre_max = max(Duty, PreMax), target = Duty
     }}.
 
-target_to_duty(Target) ->
-    Angle = Target * (?SERVO_INTERRUPT_ANGLE - ?SERVO_CLOSED_ANGLE) / 100 + ?SERVO_CLOSED_ANGLE,
+target_to_duty(Target, Config) ->
+    InterruptAngle = la_machine_configuration:interrupt_angle(Config),
+    ClosedAngle = la_machine_configuration:closed_angle(Config),
+    Angle = Target * (InterruptAngle - ClosedAngle) / 100 + ClosedAngle,
     angle_to_duty(Angle).
 
 angle_to_duty(Angle) ->
@@ -181,52 +185,112 @@ reset_target(#state{target = Target} = State) ->
     State#state{pre_min = Target, pre_max = Target, target = undefined}.
 
 -ifdef(TEST).
-% Values depend on ?SERVO_INTERRUPT_ANGLE and ?SERVO_CLOSED_ANGLE
+% Values depend on ?DEFAULT_SERVO_INTERRUPT_ANGLE and ?DEFAULT_SERVO_CLOSED_ANGLE
 -if(?HARDWARE_REVISION =:= proto_20241023).
 target_to_duty_test_() ->
     [
-        ?_assertEqual(432, target_to_duty(0)),
-        ?_assertEqual(955, target_to_duty(100))
+        ?_assertEqual(432, target_to_duty(0, la_machine_configuration:default())),
+        ?_assertEqual(955, target_to_duty(100, la_machine_configuration:default()))
     ].
 -elif(?HARDWARE_REVISION =:= proto_20260106).
 target_to_duty_test_() ->
     [
-        ?_assertEqual(841, target_to_duty(0)),
-        ?_assertEqual(341, target_to_duty(100))
+        ?_assertEqual(773, target_to_duty(0, la_machine_configuration:default())),
+        ?_assertEqual(341, target_to_duty(100, la_machine_configuration:default()))
     ].
 -else.
 -error({unsupported_hardware_revision, ?HARDWARE_REVISION}).
 -endif.
 
 target_duty_timeout_test_() ->
-    [
-        ?_assertMatch(
-            {0, #state{pre_min = 318, pre_max = 318, target = 318}},
-            target_duty_timeout(318, 0, #state{pre_min = 318, pre_max = 318})
-        ),
-        ?_assertMatch(
-            {501, #state{pre_min = 318, pre_max = 887, target = 887}},
-            target_duty_timeout(887, 0, #state{pre_min = 318, pre_max = 318})
-        ),
-        ?_assertMatch(
-            {600, #state{pre_min = 318, pre_max = 887, target = 887}},
-            target_duty_timeout(887, 600, #state{pre_min = 318, pre_max = 318})
-        ),
-        ?_assertMatch(
-            {501, #state{pre_min = 318, pre_max = 887, target = 318}},
-            target_duty_timeout(318, 0, #state{pre_min = 887, pre_max = 887})
-        )
-    ].
+    {
+        setup,
+        fun() ->
+            la_machine_configuration:default()
+        end,
+        fun(_) ->
+            ok
+        end,
+        fun(Config) ->
+            [
+                ?_assertMatch(
+                    {0, #state{
+                        pre_min = 318,
+                        pre_max = 318,
+                        target = 318,
+                        config = Config
+                    }},
+                    target_duty_timeout(318, 0, #state{
+                        pre_min = 318, pre_max = 318, config = Config
+                    })
+                ),
+                ?_assertMatch(
+                    {501, #state{
+                        pre_min = 318,
+                        pre_max = 887,
+                        target = 887,
+                        config = Config
+                    }},
+                    target_duty_timeout(887, 0, #state{
+                        pre_min = 318, pre_max = 318, config = Config
+                    })
+                ),
+                ?_assertMatch(
+                    {600, #state{
+                        pre_min = 318,
+                        pre_max = 887,
+                        target = 887,
+                        config = Config
+                    }},
+                    target_duty_timeout(887, 600, #state{
+                        pre_min = 318, pre_max = 318, config = Config
+                    })
+                ),
+                ?_assertMatch(
+                    {501, #state{
+                        pre_min = 318,
+                        pre_max = 887,
+                        target = 318,
+                        config = Config
+                    }},
+                    target_duty_timeout(318, 0, #state{
+                        pre_min = 887, pre_max = 887, config = Config
+                    })
+                )
+            ]
+        end
+    }.
 
 reset_target_test_() ->
-    [
-        ?_assertMatch(
-            #state{pre_min = 887, pre_max = 887, target = undefined},
-            reset_target(#state{pre_min = 318, pre_max = 318, target = 887})
-        ),
-        ?_assertMatch(
-            #state{pre_min = 500, pre_max = 500, target = undefined},
-            reset_target(#state{pre_min = 400, pre_max = 600, target = 500})
-        )
-    ].
+    {
+        setup,
+        fun() ->
+            la_machine_configuration:default()
+        end,
+        fun(_) ->
+            ok
+        end,
+        fun(Config) ->
+            [
+                ?_assertMatch(
+                    #state{
+                        pre_min = 887,
+                        pre_max = 887,
+                        target = undefined,
+                        config = Config
+                    },
+                    reset_target(#state{pre_min = 318, pre_max = 318, target = 887, config = Config})
+                ),
+                ?_assertMatch(
+                    #state{
+                        pre_min = 500,
+                        pre_max = 500,
+                        target = undefined,
+                        config = Config
+                    },
+                    reset_target(#state{pre_min = 400, pre_max = 600, target = 500, config = Config})
+                )
+            ]
+        end
+    }.
 -endif.

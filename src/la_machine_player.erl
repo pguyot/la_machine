@@ -34,7 +34,7 @@
 -endif.
 
 -export([
-    start_link/0,
+    start_link/1,
     stop/1,
     play/2
 ]).
@@ -69,9 +69,9 @@
 %% @doc Start player
 %% @end
 %%-----------------------------------------------------------------------------
--spec start_link() -> {ok, pid()}.
-start_link() ->
-    gen_server:start_link(?MODULE, {la_machine_audio, la_machine_servo}, []).
+-spec start_link(la_machine_configuration:config()) -> {ok, pid()}.
+start_link(Config) ->
+    gen_server:start_link(?MODULE, {la_machine_audio, la_machine_servo, Config}, []).
 
 %%-----------------------------------------------------------------------------
 %% @param Pid reference to player server
@@ -97,10 +97,10 @@ play(Pid, Sequence) ->
 %% @doc gen_server `init' callback
 %% @end
 %%-----------------------------------------------------------------------------
--spec init({atom(), atom()}) -> {ok, #state{}}.
-init({AudioModule, ServoModule}) ->
+-spec init({atom(), atom(), la_machine_configuration:config()}) -> {ok, #state{}}.
+init({AudioModule, ServoModule, Config}) ->
     AudioModule:power_on(),
-    ServoState = ServoModule:power_on(),
+    ServoState = ServoModule:power_on(Config),
     {ok, #state{audio_module = AudioModule, servo_module = ServoModule, servo_state = ServoState}}.
 
 %%-----------------------------------------------------------------------------
@@ -275,7 +275,7 @@ start_stop_test_() ->
                 la_machine_servo_mock:expect(ServoMock, power_on, ok),
                 la_machine_audio_mock:expect(AudioMock, power_on, ok),
                 {ok, Pid} = gen_server:start_link(
-                    ?MODULE, {la_machine_audio_mock, la_machine_servo_mock}, []
+                    ?MODULE, {la_machine_audio_mock, la_machine_servo_mock, mock_config}, []
                 ),
                 la_machine_servo_mock:assert_called(ServoMock, power_on),
                 la_machine_audio_mock:assert_called(AudioMock, power_on),
@@ -305,7 +305,7 @@ play_two_sounds_test_() ->
             la_machine_servo_mock:expect(AudioMock, power_on, ok),
             la_machine_servo_mock:expect(ServoMock, power_on, ok),
             {ok, Pid} = gen_server:start_link(
-                ?MODULE, {la_machine_audio_mock, la_machine_servo_mock}, []
+                ?MODULE, {la_machine_audio_mock, la_machine_servo_mock, mock_config}, []
             ),
             la_machine_audio_mock:assert_called(AudioMock, power_on),
             la_machine_servo_mock:assert_called(ServoMock, power_on),
@@ -393,7 +393,7 @@ play_wait_sound_test_() ->
             la_machine_servo_mock:expect(AudioMock, power_on, ok),
             la_machine_servo_mock:expect(ServoMock, power_on, ok),
             {ok, Pid} = gen_server:start_link(
-                ?MODULE, {la_machine_audio_mock, la_machine_servo_mock}, []
+                ?MODULE, {la_machine_audio_mock, la_machine_servo_mock, mock_config}, []
             ),
             la_machine_audio_mock:assert_called(AudioMock, power_on),
             la_machine_servo_mock:assert_called(ServoMock, power_on),
@@ -457,7 +457,7 @@ play_wait_servo_test_() ->
             la_machine_servo_mock:expect(AudioMock, power_on, ok),
             la_machine_servo_mock:expect(ServoMock, power_on, ok),
             {ok, Pid} = gen_server:start_link(
-                ?MODULE, {la_machine_audio_mock, la_machine_servo_mock}, []
+                ?MODULE, {la_machine_audio_mock, la_machine_servo_mock, mock_config}, []
             ),
             la_machine_audio_mock:assert_called(AudioMock, power_on),
             la_machine_servo_mock:assert_called(ServoMock, power_on),

@@ -103,53 +103,73 @@ read_button() ->
         ?BUTTON_GPIO_ON -> on
     end.
 
--ifdef(BATTERY_LEVEL_GPIO).
-battery_report() ->
-    la_machine_battery:init(),
-    io:format("battery level = ~p\n", [la_machine_battery:get_level()]),
-    io:format("battery is charging = ~p\n", [la_machine_battery:is_charging()]).
--else.
-battery_report() ->
-    ok.
--endif.
-
 -spec run() -> no_return().
 run() ->
     WatchdogUser = configure_watchdog(),
 
-    battery_report(),
-
-    AccelerometerState = la_machine_lis3dh:setup(),
-
-    % Configure accelerometer and button GPIOs
-    configure_gpios(),
-
+    la_machine_battery:init(),
     WakeupCause = esp:sleep_get_wakeup_cause(),
+
+    configure_gpios(),
     ButtonState = read_button(),
 
-    State0 = la_machine_state:load_state(),
+    Config = la_machine_configuration:load(),
+    Charging = la_machine_battery:is_charging(),
+    BatteryLevel = la_machine_battery:get_level(),
 
+    case WakeupCause of
+        undefined ->
+            % Not a regular wake-up, report self-test
+            la_machine_selftest:report(Config, true);
+        sleep_wakeup_timer when ButtonState =:= off ->
+            case {Charging, BatteryLevel} of
+                {true, _} ->
+                    la_machine_selftest:report(Config, true);
+                {false, {ok, 100}} ->
+                    la_machine_selftest:report(Config, true);
+                _ ->
+                    la_machine_selftest:report(Config, false)
+            end;
+        _ ->
+            ok
+    end,
+
+    SleepTimer =
+        case la_machine_configuration:configured(Config) of
+            true ->
+                run_configured(Config, WakeupCause, ButtonState);
+            false ->
+                la_machine_selftest:run(Config, WakeupCause, ButtonState)
+        end,
+    SleepMS = setup_sleep(SleepTimer),
+    unconfigure_watchdog(WatchdogUser),
+    esp:deep_sleep(SleepMS).
+
+-spec run_configured(la_machine_configuration:config(), esp:esp_wakeup_cause(), on | off) ->
+    non_neg_integer().
+run_configured(Config, WakeupCause, ButtonState) ->
+    AccelerometerState = la_machine_lis3dh:setup(),
+
+    State0 = la_machine_state:load_state(),
     State1 =
         case action(WakeupCause, ButtonState, AccelerometerState, State0) of
             {play, meuh} ->
-                play_meuh(),
+                play_meuh(Config),
                 State0;
             {play, SecondsElapsed, LastPlaySeq, PlayIndex} ->
-                {PlayedSeq, NextPlayIndex} = play(SecondsElapsed, LastPlaySeq, PlayIndex),
+                {PlayedSeq, NextPlayIndex} = play(SecondsElapsed, LastPlaySeq, PlayIndex, Config),
                 la_machine_state:append_play(PlayedSeq, NextPlayIndex, State0);
             {poke, PokeIndex} ->
-                poke(PokeIndex),
+                poke(PokeIndex, Config),
                 la_machine_state:set_poke_index(PokeIndex + 1, State0);
             reset ->
                 la_machine_audio:reset(),
-                la_machine_servo:reset(),
+                la_machine_servo:reset(Config),
                 State0
         end,
     SleepTimer = compute_sleep_timer(State1),
     la_machine_state:save_state(State1),
-    SleepMS = setup_sleep(SleepTimer),
-    unconfigure_watchdog(WatchdogUser),
-    esp:deep_sleep(SleepMS).
+    SleepTimer.
 
 -ifndef(TEST).
 %% @doc Entry point
@@ -185,33 +205,32 @@ action(sleep_wakeup_timer, _ButtonState, ok, State) ->
 action(undefined, _ButtonState, _AccelerometerState, _State) ->
     reset.
 
-poke(_PokeIndex) ->
+poke(_PokeIndex, Config) ->
     PokeScenario = la_machine_scenarios:get(poke, 1),
     PokeScenarioPart = hd(PokeScenario),
-    {ok, Pid} = la_machine_player:start_link(),
+    {ok, Pid} = la_machine_player:start_link(Config),
     ok = la_machine_player:play(Pid, PokeScenarioPart),
     ok = la_machine_player:stop(Pid),
     ok.
 
-play_meuh() ->
+play_meuh(Config) ->
     <<RandScenario>> = crypto:strong_rand_bytes(1),
     Count = la_machine_scenarios:count(meuh),
     ScenarioIx = 1 + (RandScenario rem Count),
     MeuhScenario = la_machine_scenarios:get(meuh, ScenarioIx),
     MeuhScenarioPart = hd(MeuhScenario),
-    {ok, Pid} = la_machine_player:start_link(),
+    {ok, Pid} = la_machine_player:start_link(Config),
     ok = la_machine_player:play(Pid, MeuhScenarioPart),
     ok = la_machine_player:stop(Pid),
     ok.
 
--ifdef(DEMO_SEQ_SCENARIO).
-play(ElapsedSeconds, LastPlaySeq, PlayIndex) when
+play(ElapsedSeconds, LastPlaySeq, PlayIndex, Config) when
     PlayIndex > 0 andalso ElapsedSeconds < ?PARTS_MAX_ELAPSE_INTERVAL
 ->
     % play next part of scenario
     ScenarioParts = la_machine_scenarios:get(play, LastPlaySeq),
     ScenarioPart = lists:nth(PlayIndex, ScenarioParts),
-    {ok, Pid} = la_machine_player:start_link(),
+    {ok, Pid} = la_machine_player:start_link(Config),
     ok = la_machine_player:play(Pid, ScenarioPart),
     ok = la_machine_player:stop(Pid),
     if
@@ -220,44 +239,7 @@ play(ElapsedSeconds, LastPlaySeq, PlayIndex) when
         true ->
             {LastPlaySeq, 0}
     end;
-play(_ElapsedSeconds, LastPlaySeq, _PlayIndex) ->
-    % play next scenario
-    ScenarioIx =
-        case LastPlaySeq of
-            undefined ->
-                1;
-            _ ->
-                ScenarioCount = la_machine_scenarios:count(play),
-                1 + (LastPlaySeq rem ScenarioCount)
-        end,
-    ScenarioParts = la_machine_scenarios:get(play, ScenarioIx),
-    ScenarioPart = hd(ScenarioParts),
-    {ok, Pid} = la_machine_player:start_link(),
-    ok = la_machine_player:play(Pid, ScenarioPart),
-    ok = la_machine_player:stop(Pid),
-    if
-        length(ScenarioParts) > 1 ->
-            {ScenarioIx, 2};
-        true ->
-            {ScenarioIx, 0}
-    end.
--else.
-play(ElapsedSeconds, LastPlaySeq, PlayIndex) when
-    PlayIndex > 0 andalso ElapsedSeconds < ?PARTS_MAX_ELAPSE_INTERVAL
-->
-    % play next part of scenario
-    ScenarioParts = la_machine_scenarios:get(play, LastPlaySeq),
-    ScenarioPart = lists:nth(PlayIndex, ScenarioParts),
-    {ok, Pid} = la_machine_player:start_link(),
-    ok = la_machine_player:play(Pid, ScenarioPart),
-    ok = la_machine_player:stop(Pid),
-    if
-        length(ScenarioParts) > PlayIndex ->
-            {LastPlaySeq, PlayIndex + 1};
-        true ->
-            {LastPlaySeq, 0}
-    end;
-play(_ElapsedSeconds, LastPlaySeq, _PlayIndex) ->
+play(_ElapsedSeconds, LastPlaySeq, _PlayIndex, Config) ->
     % play random scenario, but different from LastPlaySeq
     <<RandScenario:56>> = crypto:strong_rand_bytes(7),
     ScenarioCount = la_machine_scenarios:count(play),
@@ -278,7 +260,7 @@ play(_ElapsedSeconds, LastPlaySeq, _PlayIndex) ->
         end,
     ScenarioParts = la_machine_scenarios:get(play, ScenarioIx),
     ScenarioPart = hd(ScenarioParts),
-    {ok, Pid} = la_machine_player:start_link(),
+    {ok, Pid} = la_machine_player:start_link(Config),
     ok = la_machine_player:play(Pid, ScenarioPart),
     ok = la_machine_player:stop(Pid),
     if
@@ -287,7 +269,6 @@ play(_ElapsedSeconds, LastPlaySeq, _PlayIndex) ->
         true ->
             {ScenarioIx, 0}
     end.
--endif.
 
 setup_sleep(SleepSecs) ->
     gpio:deep_sleep_hold_en(),
