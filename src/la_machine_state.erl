@@ -344,52 +344,84 @@ deserialize_state_test_() ->
             #state{boot_time = 42, last_play_time = 0, play_poke_index = 0, play_hours = <<>>},
             deserialize_state(42, <<0:(2048 * 8)>>)
         ),
+        % New format: <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8,
+        %              TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8,
+        %              PlayPokeIndex:8, PlayHours/binary>>
         ?_assertEqual(
             #state{
                 boot_time = 1,
                 last_play_time = 2,
                 last_play_seq = 3,
-                play_poke_index = 4,
+                mood = 4,
+                gesture_count = 5,
+                total_gesture_count = 6,
+                battery_low = 7,
+                last_on = 8,
+                click_count = 9,
+                is_paused = 10,
+                play_poke_index = 11,
                 play_hours = <<>>
             },
-            deserialize_state(42, <<1:64, 2:64, 3:32, 4:16>>)
+            deserialize_state(42, <<1:64, 2:64, 3:32, 4:8, 5:8, 6:16, 7:8, 8:64, 9:8, 10:8, 11:8>>)
         ),
         ?_assertEqual(
             #state{
                 boot_time = 1,
                 last_play_time = 2,
                 last_play_seq = 3,
+                mood = 0,
+                gesture_count = 0,
+                total_gesture_count = 0,
+                battery_low = 0,
+                last_on = 0,
+                click_count = 0,
+                is_paused = 0,
                 play_poke_index = 4,
                 play_hours = <<5>>
             },
-            deserialize_state(42, <<1:64, 2:64, 3:32, 4:16, 5>>)
+            deserialize_state(42, <<1:64, 2:64, 3:32, 0:8, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8, 4:8, 5>>)
         ),
         ?_assertEqual(
             #state{
                 boot_time = 1,
                 last_play_time = 2,
                 last_play_seq = 3,
+                mood = 0,
+                gesture_count = 0,
+                total_gesture_count = 0,
+                battery_low = 0,
+                last_on = 0,
+                click_count = 0,
+                is_paused = 0,
                 play_poke_index = 4,
                 play_hours = <<5, 6>>
             },
-            deserialize_state(42, <<1:64, 2:64, 3:32, 4:16, 5, 6>>)
+            deserialize_state(
+                42, <<1:64, 2:64, 3:32, 0:8, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8, 4:8, 5, 6>>
+            )
         ),
+        % BootTime > Now should fall back to default
         ?_assertEqual(
             #state{boot_time = 42, last_play_time = 0, play_poke_index = 0, play_hours = <<>>},
-            deserialize_state(42, <<142:64, 2:64, 3:32, 4:16, 5>>)
+            deserialize_state(
+                42, <<142:64, 2:64, 3:32, 0:8, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8, 4:8, 5>>
+            )
         )
     ].
 
 serialize_state_test_() ->
     [
+        % New format: <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8,
+        %              TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8,
+        %              PlayPokeIndex:8, PlayHours/binary>>
         ?_assertMatch(
-            <<_:64, 0:64, 0:32, 0:16>>,
+            <<_:64, 0:64, 0:32, 0:8, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8, 0:8>>,
             serialize_state(
                 new()
             )
         ),
         ?_assertEqual(
-            <<1:64, 2:64, 3:32, 4:16>>,
+            <<1:64, 2:64, 3:32, 0:8, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8, 4:8>>,
             serialize_state(
                 #state{
                     boot_time = 1,
@@ -401,7 +433,7 @@ serialize_state_test_() ->
             )
         ),
         ?_assertEqual(
-            <<1:64, 2:64, 3:32, 4:16, 5>>,
+            <<1:64, 2:64, 3:32, 0:8, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8, 4:8, 5>>,
             serialize_state(
                 #state{
                     boot_time = 1,
@@ -413,7 +445,7 @@ serialize_state_test_() ->
             )
         ),
         ?_assertEqual(
-            <<1:64, 2:64, 3:32, 4:16, 5, 6>>,
+            <<1:64, 2:64, 3:32, 0:8, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8, 4:8, 5, 6>>,
             serialize_state(
                 #state{
                     boot_time = 1,

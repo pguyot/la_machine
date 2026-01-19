@@ -1392,14 +1392,15 @@ scenario_upset_silent2() ->
 -ifdef(TEST).
 count_test_() ->
     [
-        ?_assert(count(play) > 0),
-        ?_assertEqual(0, count(poke)),
+        ?_assert(count(calling) > 0),
+        ?_assert(count(joy) > 0),
+        ?_assert(count(poke) > 0),
         ?_assertEqual(0, count(unknown))
     ].
 
 get_test_() ->
     [
-        ?_assert(is_list(get(play, 1))),
-        ?_assertEqual([], get(unknown, 1))
+        ?_assert(is_list(get(calling, 1))),
+        ?_assert(is_list(get(poke, 1)))
     ].
 -endif.
