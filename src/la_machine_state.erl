@@ -43,14 +43,27 @@
     get_last_play_time/1,
     get_last_play_seq/1,
     get_play_hours_count/1,
-    get_play_index/1,
-    get_play_hour/2
+    get_play_hour/2,
+    get_mood/1,
+    get_gestures_count/1,
+    get_total_gestures_count/1,
+    get_battery_low/1,
+    get_ms_since_last_on/1,
+    get_click_count/1,
+    get_is_paused/1,
+    get_play_info/1,
+    get_seconds_since_boot/1
 ]).
 
 % Modifiers
 -export([
-    append_play/3,
-    set_poke_index/2
+    set_poke_index/2,
+    append_play/4,
+    set_mood_waiting/1,
+    set_battery_low/2,
+    set_last_on_now/1,
+    set_click_count/2,
+    set_is_paused/2
 ]).
 
 -export_type([
@@ -74,9 +87,18 @@
     % - avoid playing one twice in a row
     % - or play scenarios sequentially (demo mode)
     last_play_seq = 0 :: non_neg_integer(),
-    % index in play or poke sequence (16 bits)
+    mood = 0 :: non_neg_integer(),
+    gesture_count = 0 :: non_neg_integer(),
+    % number of gestures since last waiting
+    total_gesture_count = 0 :: non_neg_integer(),
+    battery_low = 0 :: non_neg_integer(),
+    last_on = 0 :: non_neg_integer(),
+    click_count = 0 :: non_neg_integer(),
+    is_paused = 0 :: non_neg_integer(),
     play_poke_index = 0 :: non_neg_integer(),
     % buffer with hours, appended to, and then rotated
+
+    % the rest of the memory
     play_hours = <<>> :: binary()
 }).
 
@@ -106,22 +128,41 @@ get_state() ->
 
 -spec deserialize_state(non_neg_integer(), binary() | undefined) -> state().
 deserialize_state(
-    Now, <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, PlayPokeIndex:16, PlayHours/binary>>
+    Now,
+    <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8, TotalGestureCount:16,
+        BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8, PlayPokeIndex:8, PlayHours/binary>>
 ) when
     BootTime =< Now andalso byte_size(PlayHours) =< ?MAX_PLAY_HOURS
 ->
+    %io:format("deserialize_state  : BootTime=~p Now=~p playhours_size=~p => Retrieving State\n", [BootTime, Now, byte_size(PlayHours)]),
     #state{
         boot_time = BootTime,
         last_play_time = LastPlayTime,
         last_play_seq = LastPlaySeq,
+        mood = Mood,
+        gesture_count = GestureCount,
+        total_gesture_count = TotalGestureCount,
+        battery_low = BatteryLow,
+        last_on = LastOn,
+        click_count = ClickCount,
+        is_paused = IsPaused,
         play_poke_index = PlayPokeIndex,
         play_hours = PlayHours
     };
 deserialize_state(Now, _) ->
+    %io:format("deserialize_state : Now=~p=> Reinit State\n", [Now]),
+    WaitingMoodInt = moodint_for_mood(waiting),
     #state{
         boot_time = Now,
         last_play_time = 0,
         last_play_seq = 0,
+        mood = WaitingMoodInt,
+        gesture_count = 0,
+        total_gesture_count = 0,
+        battery_low = 0,
+        last_on = 0,
+        click_count = 0,
+        is_paused = 0,
         play_poke_index = 0,
         play_hours = <<>>
     }.
@@ -131,22 +172,80 @@ serialize_state(#state{
     boot_time = BootTime,
     last_play_time = LastPlayTime,
     last_play_seq = LastPlaySeq,
+    mood = Mood,
+    gesture_count = GestureCount,
+    total_gesture_count = TotalGestureCount,
+    battery_low = BatteryLow,
+    last_on = LastOn,
+    click_count = ClickCount,
+    is_paused = IsPaused,
     play_poke_index = PlayPokeIndex,
     play_hours = PlayHours
 }) ->
-    <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, PlayPokeIndex:16, PlayHours/binary>>.
+    <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8, TotalGestureCount:16,
+        BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8, PlayPokeIndex:8, PlayHours/binary>>.
 
-%% Function called after a sequence has been played
-append_play(PlaySeqIndex, PlayIndex, #state{boot_time = BootTime, play_hours = PlayHours0} = State) ->
+%%%%%%%%%%%% moods
+
+mood_for_moodint(MoodInt) ->
+    case MoodInt of
+        0 -> waiting;
+        1 -> imitation;
+        2 -> dialectic;
+        3 -> upset;
+        4 -> calling;
+        5 -> joy;
+        6 -> tired;
+        7 -> excited;
+        _ -> waiting
+    end.
+
+moodint_for_mood(Mood) ->
+    case Mood of
+        waiting -> 0;
+        imitation -> 1;
+        dialectic -> 2;
+        upset -> 3;
+        calling -> 4;
+        joy -> 5;
+        tired -> 6;
+        excited -> 7;
+        _ -> 0
+    end.
+
+% we just played
+append_play(
+    Mood,
+    GestureCount,
+    PlaySeqIndex,
+    #state{boot_time = BootTime, play_hours = PlayHours0, total_gesture_count = TotalGestureCount} =
+        State
+) ->
     % Add the play hour
     Now = erlang:system_time(second),
     NowHour = ((Now - BootTime) div 3600) rem 24,
     PlayHours1 = append_hour(NowHour, PlayHours0),
+    MoodInt = moodint_for_mood(Mood),
     State#state{
         last_play_time = Now,
         last_play_seq = PlaySeqIndex,
-        play_poke_index = PlayIndex,
-        play_hours = PlayHours1
+        play_hours = PlayHours1,
+        gesture_count = GestureCount,
+        total_gesture_count = TotalGestureCount + 1,
+        mood = MoodInt
+    }.
+
+-spec get_mood(state()) -> atom().
+get_mood(#state{mood = MoodInt}) ->
+    mood_for_moodint(MoodInt).
+
+%% To set the mood to waiting. Reset total_gesture_count and play_poke_index
+set_mood_waiting(State) ->
+    WaitingMoodInt = moodint_for_mood(waiting),
+    State#state{
+        mood = WaitingMoodInt,
+        total_gesture_count = 0,
+        play_poke_index = 0
     }.
 
 append_hour(Hour, Buffer) when byte_size(Buffer) < ?MAX_PLAY_HOURS ->
@@ -155,8 +254,19 @@ append_hour(Hour, Buffer) ->
     SubBuffer = binary:part(Buffer, 0, ?MAX_PLAY_HOURS - 1),
     <<Hour, SubBuffer/binary>>.
 
-set_poke_index(PokeIndex, State) ->
-    State#state{play_poke_index = PokeIndex, last_play_time = 0}.
+-spec get_play_info(state()) ->
+    {
+        Mood :: atom(),
+        LastPlaySeq :: non_neg_integer() | undefined,
+        GestureCount :: non_neg_integer(),
+        LastPlayTime :: non_neg_integer()
+    }.
+get_play_info(
+    #state{last_play_time = LastPlayTime, gesture_count = GestureCount, last_play_seq = LastPlaySeq} =
+        State
+) ->
+    Mood = get_mood(State),
+    {Mood, LastPlaySeq, GestureCount, LastPlayTime}.
 
 -spec get_last_play_time(state()) -> non_neg_integer().
 get_last_play_time(#state{last_play_time = LastPlayTime}) -> LastPlayTime.
@@ -168,10 +278,47 @@ get_last_play_seq(#state{last_play_seq = LastPlaySeq}) -> LastPlaySeq.
 -spec get_poke_index(state()) -> non_neg_integer().
 get_poke_index(#state{last_play_time = 0, play_poke_index = PlayPokeIndex}) -> PlayPokeIndex;
 get_poke_index(#state{last_play_time = _}) -> 0.
+set_poke_index(PokeIndex, State) ->
+    State#state{play_poke_index = PokeIndex, last_play_time = 0}.
 
--spec get_play_index(state()) -> non_neg_integer().
-get_play_index(#state{last_play_time = 0}) -> 0;
-get_play_index(#state{last_play_time = _, play_poke_index = PlayPokeIndex}) -> PlayPokeIndex.
+-spec get_gestures_count(state()) -> non_neg_integer().
+get_gestures_count(#state{gesture_count = GestureCount}) -> GestureCount.
+
+-spec get_total_gestures_count(state()) -> non_neg_integer().
+get_total_gestures_count(#state{total_gesture_count = TotalGestureCount}) -> TotalGestureCount.
+
+-spec get_battery_low(state()) -> non_neg_integer().
+get_battery_low(#state{battery_low = BatteryLow}) -> BatteryLow.
+
+set_battery_low(BatteryLow, State) -> State#state{battery_low = BatteryLow}.
+
+get_seconds_since_boot(#state{boot_time = BootTime}) ->
+    Now_s = erlang:system_time(second),
+    (Now_s - BootTime).
+
+-spec get_ms_since_last_on(state()) -> non_neg_integer().
+get_ms_since_last_on(#state{last_on = LastOn}) ->
+    NowMS = erlang:system_time(millisecond),
+    NowMS - LastOn.
+
+set_last_on_now(State) ->
+    NowMS = erlang:system_time(millisecond),
+    State#state{last_on = NowMS}.
+
+-spec get_click_count(state()) -> non_neg_integer().
+get_click_count(#state{click_count = ClickCount}) -> ClickCount.
+
+set_click_count(ClickCount, State) -> State#state{click_count = ClickCount}.
+
+-spec get_is_paused(state()) -> non_neg_integer().
+-if(?TRAVELMODE == 1).
+% mode where it is in TRAVELMODE => always paused
+get_is_paused(_State) -> 1.
+-else.
+get_is_paused(#state{is_paused = IsPaused}) -> IsPaused.
+-endif.
+
+set_is_paused(IsPaused, State) -> State#state{is_paused = IsPaused}.
 
 -spec get_play_hours_count(state()) -> non_neg_integer().
 get_play_hours_count(#state{play_hours = PlayHours}) -> byte_size(PlayHours).

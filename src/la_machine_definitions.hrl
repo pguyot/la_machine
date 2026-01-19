@@ -56,6 +56,8 @@
 
 -define(BATTERY_LEVEL_GPIO, ?XTAL_32K_P_GPIO).
 -define(BATTERY_STAT2_GPIO, ?U0TXD_GPIO).
+-define(BATTERY_MV_LOW, 3650).
+-define(BATTERY_MV_HIGH, 4110).
 
 -define(ACC_IRQ_GPIO, ?MTDI_GPIO).
 -define(I2C_SDA_GPIO, 2).
@@ -136,7 +138,63 @@
 % La machine panics and state stored in RTC Slow memory is ignored on next boot.
 -define(WATCHDOG_TIMEOUT_MS, 60000).
 
-%% Behavior
+%% Moods
 
-% Maximum number of seconds to play next part of a multi-part scenario
--define(PARTS_MAX_ELAPSE_INTERVAL, 60).
+% Travel Mode = always paused, no action
+-define(TRAVELMODE, 0).
+
+% Should process tripleclick (broken)
+-define(TRIPLECLICK, 0).
+
+% Delay to start calling after interaction
+-define(CALLING_START_DELAY_S, 15).
+% Min delay to continue calling
+-define(CALLING_MIN_DELAY_S, 10).
+% Max delay to continue calling
+-define(CALLING_MAX_DELAY_S, 25).
+
+% MAX number of calling sounds
+-define(MAX_CALLING_SOUNDS, 3).
+
+% MIN number of interactions in joy
+-define(JOY_MIN_GESTURES, 3).
+% Chances to change mood : joy => imitation
+-define(JOY_IMIT_CHANCE, 2).
+
+% MIN number of interactions in imitation
+-define(IMIT_MIN_GESTURES, 3).
+% Chances to change mood : imitation => dialectics
+-define(IMIT_DIAL_CHANCE, 3).
+% Chances to change mood : imitation => upset
+-define(IMIT_UPSET_CHANCE, 5).
+% Chances to change mood : imitation => tired
+-define(IMIT_TIRED_CHANCE, 5).
+% Chances to change mood : imitation => excited
+-define(IMIT_EXCITED_CHANCE, 5).
+
+% MIN number of interactions in dialectics
+-define(DIAL_MIN_GESTURES, 3).
+% Chances to change mood : dialectics => imitation
+-define(DIAL_IMIT_CHANCE, 3).
+% Chances to change mood : dialectics => upset
+-define(DIAL_UPSET_CHANCE, 5).
+% Chances to change mood : dialectics => tired
+-define(DIAL_TIRED_CHANCE, 5).
+% Chances to change mood : dialectics => excited
+-define(DIAL_EXCITED_CHANCE, 5).
+
+% Chances to change mood : upset/tired/excited => imitation
+-define(MOODY_IMIT_CHANCE, 7).
+
+% Max duration of short gestures in games mood
+-define(GAME_SHORT_DUR_S, 2).
+% Max duration of medium gestures in games mood
+-define(GAME_MEDIUM_DUR_S, 4).
+
+%% DEBUG
+% play only one mood (to debug)
+-define(DEBUG_PLAY_ONLY_ONE_MOOD, 0).
+% which mood
+-define(DEBUG_PLAY_ONLY_ONE_MOOD_MOOD, joy).
+% which scenario number (staring at 1, -1 means random)
+-define(DEBUG_PLAY_ONLY_ONE_MOOD_INDEX, 2).
