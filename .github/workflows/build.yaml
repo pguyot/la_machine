@@ -121,7 +121,7 @@ jobs:
     container: erlang:28
     strategy:
       matrix:
-        variant: ["proto_20241023"]
+        variant: ["proto_20241023", "4mb"]
 
     steps:
     - name: Checkout AtomVM
@@ -171,6 +171,15 @@ jobs:
             -e `pwd`/../AtomVM/build/libs/eavmlib/src/eavmlib.avm \
             -e `pwd`/../AtomVM/build/libs/estdlib/src/estdlib.avm
 
+    - name: Upload sounds.bin
+      if: matrix.variant == '4mb'
+      uses: actions/upload-artifact@v4
+      with:
+        name: la_machine-sounds-4mb.bin
+        path: la_machine/_build/generated/sounds.bin
+        if-no-files-found: error
+        retention-days: 1
+
     - name: Upload la_machine.avm
       uses: actions/upload-artifact@v4
       with:
@@ -182,6 +191,14 @@ jobs:
   build_vm:
     runs-on: ubuntu-24.04
     container: espressif/idf:v5.4
+    strategy:
+      matrix:
+        include:
+        - size: "4MB"
+          suffix: "-4mb"
+        - size: "16MB"
+          suffix: ""
+
     steps:
     - name: Checkout La Machine
       uses: actions/checkout@v4
@@ -229,8 +246,8 @@ jobs:
         echo CONFIG_AVM_ENABLE_UART_PORT_DRIVER=n >> sdkconfig
         echo CONFIG_AVM_ENABLE_STORAGE_NIFS=n >> sdkconfig
         echo CONFIG_AVM_ENABLE_SPI_PORT_DRIVER=n >> sdkconfig
-        echo CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y >> sdkconfig
-        echo CONFIG_ESPTOOLPY_FLASHSIZE="16MB" >> sdkconfig
+        echo CONFIG_ESPTOOLPY_FLASHSIZE_${{ matrix.size }}=y >> sdkconfig
+        echo CONFIG_ESPTOOLPY_FLASHSIZE="${{ matrix.size }}" >> sdkconfig
         echo CONFIG_ESP_SLEEP_GPIO_ENABLE_INTERNAL_RESISTORS=n >> sdkconfig
         idf.py build
 
@@ -238,12 +255,12 @@ jobs:
       shell: bash
       working-directory: la_machine/image/
       run: |
-        python $IDF_PATH/components/partition_table/gen_esp32part.py partitions.csv partitions.bin
+        python $IDF_PATH/components/partition_table/gen_esp32part.py partitions${{ matrix.suffix }}.csv partitions.bin
 
     - name: Upload AtomVM built files
       uses: actions/upload-artifact@v4
       with:
-        name: la_machine-atomvm
+        name: la_machine-atomvm${{ matrix.suffix }}
         path: |
             AtomVM/src/platforms/esp32/build/bootloader/bootloader.bin
             AtomVM/src/platforms/esp32/build/mkimage.erl
@@ -255,7 +272,7 @@ jobs:
     - name: Upload partition map
       uses: actions/upload-artifact@v4
       with:
-        name: partitions.bin
+        name: partitions${{ matrix.suffix }}.bin
         path: la_machine/image/partitions.bin
         if-no-files-found: error
         retention-days: 1
@@ -300,7 +317,19 @@ jobs:
     container: erlang:28
     strategy:
       matrix:
-        suffix: ["", "-proto_20241023"]
+        include:
+        - suffix: ""
+          partitions_suffix: ""
+          sounds_suffix: ""
+          vm_suffix: ""
+        - suffix: "-proto_20241023"
+          partitions_suffix: ""
+          sounds_suffix: ""
+          vm_suffix: ""
+        - suffix: "-4mb"
+          partitions_suffix: "-4mb"
+          sounds_suffix: "-4mb"
+          vm_suffix: "-4mb"
 
     steps:
     - name: Checkout
@@ -309,13 +338,13 @@ jobs:
     - name: Download partition map
       uses: actions/download-artifact@v4
       with:
-        name: partitions.bin
+        name: partitions${{ matrix.partitions_suffix }}.bin
         path: image/
 
     - name: Download VM
       uses: actions/download-artifact@v4
       with:
-        name: la_machine-atomvm
+        name: la_machine-atomvm${{ matrix.vm_suffix }}
         path: image/
 
     - name: Download la_machine
@@ -327,7 +356,7 @@ jobs:
     - name: Download la_machine sounds
       uses: actions/download-artifact@v4
       with:
-        name: la_machine-sounds.bin
+        name: la_machine-sounds${{ matrix.sounds_suffix }}.bin
         path: image/
 
     - name: Build image
