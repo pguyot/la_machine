@@ -221,8 +221,8 @@ jobs:
         echo CONFIG_AVM_ENABLE_UART_PORT_DRIVER=n >> sdkconfig
         echo CONFIG_AVM_ENABLE_STORAGE_NIFS=n >> sdkconfig
         echo CONFIG_AVM_ENABLE_SPI_PORT_DRIVER=n >> sdkconfig
-        echo CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y >> sdkconfig
-        echo CONFIG_ESPTOOLPY_FLASHSIZE="16MB" >> sdkconfig
+        echo CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y >> sdkconfig
+        echo CONFIG_ESPTOOLPY_FLASHSIZE="4MB" >> sdkconfig
         echo CONFIG_ESP_SLEEP_GPIO_ENABLE_INTERNAL_RESISTORS=n >> sdkconfig
         idf.py build
 
