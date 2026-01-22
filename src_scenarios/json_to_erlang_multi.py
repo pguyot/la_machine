@@ -235,6 +235,7 @@ def generate_complete_erlang_module(choreographies: Dict[str, str], module_name:
 -type scenario_part() :: [scenario_element()].
 -type scenario_element() ::
     {{servo, non_neg_integer()}}
+    | {{servo, non_neg_integer(), non_neg_integer()}}
     | {{aac, binary()}}
     | {{wait, non_neg_integer() | sound}}.
 

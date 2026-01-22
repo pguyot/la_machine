@@ -12,11 +12,12 @@ class Bitonio {
   }
   
   void Display() {
-    float h100 = w/2;
+    float h100 = w/4;
     float y0 = y + h100*gSERVO_DOOR_VALUE/100.0;
     float buttony = y0 - h100*gSERVO_BUTTON_CONTACT_VALUE/100.0;
-    float buttonw = w/5;
-    float bitoWidth = w/10;
+    float buttonw = 2*h100*(100.0 - gSERVO_BUTTON_CONTACT_VALUE)/100.0;
+    float bitoW = w/20;
+    float bitoH = w*0.666;
 
     // box
     fill(255, 255, 0, 150); noStroke();
@@ -28,7 +29,7 @@ class Bitonio {
 
     // bitonio
     fill(100, 100, 100); noStroke();
-    rect(x + w/2 - bitoWidth/2, y0 - h100*posRat, bitoWidth, h100);
+    rect(x + w/2 - bitoW/2, y0 - h100*posRat, bitoW, bitoH);
     
     // text
     fill(255);
@@ -116,25 +117,36 @@ class ServoEditor extends ScenarElemEditor {
   float dur_ms;
   boolean edited;
   boolean end_edited;
+  float start_play = -1;
   
   ServoEditor(ScenarEditor aeditor, int aanchort, float apercent, float adur_ms, float ax, float ay, float aw, float ah) {
     super(aeditor, aanchort, ax, ay, aw, ah);
     percent = apercent;
     dur_ms = adur_ms;
+    start_play = -1;
     edited = false;
     end_edited = false;
     type = "servo";
   }
-    
+  
+  float min_dur_ms_from(float apercent) {
+    return gSERVO_FULL_DUR_MS*abs(percent - apercent)/100.0;
+  }
+  
+  float min_dur_ms() {
+    float prevpercent = editor.getServoPercentBefore(anchort);
+    return min_dur_ms_from(prevpercent);
+  }
+
   float real_dur_ms_from(float apercent) {
     float min_dur_ms = gSERVO_FULL_DUR_MS*abs(percent - apercent)/100.0;
     if (dur_ms < min_dur_ms) return min_dur_ms;
     return dur_ms;
   }
-  
+    
   float real_dur_ms() {
-    float apercent = editor.getServoPercentBefore(anchort);
-    return real_dur_ms_from(apercent);
+    float prevpercent = editor.getServoPercentBefore(anchort);
+    return real_dur_ms_from(prevpercent);
   }
 
   float percentAtFrom(float tt, float aPercent) {
@@ -149,13 +161,13 @@ class ServoEditor extends ScenarElemEditor {
     float posX = x + ms2pixels(anchort);
     float posXEnd = x + ms2pixels(anchort+real_dur_ms());
     float posY = y + h - h*percent/100;
-    float clickDist2 = 16;
-    if (abs(mx - posXEnd) + abs(my - posY) < clickDist2) {
-      end_edited = true;
+    float clickDist2 = 6;
+    if (pow(mx - posX, 2) + pow(my - posY, 2) < pow(clickDist2, 2)) {
+      edited = true;
       return true;
     }
-    if (abs(mx - posX) + abs(my - posY) < clickDist2) {
-      edited = true;
+    if (pow(mx - posXEnd, 2) + pow(my - posY, 2) < pow(clickDist2, 2)) {
+      end_edited = true;
       return true;
     }
     return false;
@@ -164,17 +176,20 @@ class ServoEditor extends ScenarElemEditor {
   void followMouse(float mx, float my) {
     if (!edited && !end_edited) return;
     
+    // y
     percent = map(my - y, 0.0, h, 100.0, 0.0);
     if (percent < 0) percent = 0;
     if (percent > 100) percent = 100;
     percent = floor(percent);
     
+    // x
     if (edited) {
       anchort = floor(pixels2ms(mx - x));
     }
     if (end_edited) {
       float post = floor(pixels2ms(mx - x));
-      if (post < 0) post = 0;
+      float min_dur = min_dur_ms();
+      if (post < anchort + min_dur) post = anchort + min_dur;
       dur_ms = post - anchort;
     }
   }
@@ -190,35 +205,47 @@ class ServoEditor extends ScenarElemEditor {
     float posXEnd = x + ms2pixels(anchort+real_dur_ms());
     float posY = y + h - h*percent/100;
     float selectSiz = 10;
+    float normalSiz = 6;
+    boolean isAtMin = (min_dur_ms() == real_dur_ms());
     
     stroke(255, 0, 0); noFill();
     line(posX, posY, posXEnd, posY);
-    fill(255, 0, 0); noStroke();
-    ellipse(posX, posY, 3, 3);    
+    
     if (edited) {
-      fill(255, 255, 0);
+      noStroke(); fill(255, 0, 0);
       ellipse(posX, posY, selectSiz, selectSiz);
+    } else {
+      noFill(); stroke(255, 0, 0);
+      ellipse(posX, posY, normalSiz, normalSiz);    
     }
     
-    ellipse(posXEnd, posY, 3, 3);
     if (end_edited) {
-      fill(255, 255, 0);
+      noStroke();
+      if (isAtMin) fill(255, 0, 0); else fill(0, 255, 0);
       ellipse(posXEnd, posY, selectSiz, selectSiz);
+    } else {
+      noFill(); if (isAtMin) stroke(255, 0, 0); else stroke(0, 255, 0);
+      ellipse(posXEnd, posY, normalSiz, normalSiz);
     }
-
+    
+    fill(255); noStroke();
     text(""+percent, posX+5, (percent < 95) ? posY : posY + fontHeight);
   }
   
   void Play() {
     //bitonio.set(percent);
+    start_play = millis();
   }
   
   void Stop() {
     //bitonio.set(0);
+    start_play = -1;
   }
   
   boolean IsPlaying() {
-    return false;
+    if (start_play < 0) return false;
+    if (millis() - start_play > dur_ms) return false;
+    return true;
   }
 }
 
@@ -234,6 +261,8 @@ class ScenarEditor {
   int playNextIndex;
   AudioEditor runningAudioEditor = null;
   ServoEditor runningServoEditor = null;
+  AudioEditor editedAudioEditor = null;
+  ServoEditor editedServoEditor = null;
   float x0 = 0, y0 = 0, w0 = width, h0 = height/2;
   float audioEditorAnchor0;
   AsTextField nameField;
@@ -242,14 +271,13 @@ class ScenarEditor {
     scen = ascen;
     name = scen.name;
     loadScenario(scen);
-    runningAudioEditor = null;
     float hbito = 400;
-    bitonio = new Bitonio(width/2 - hbito/2 + 200, height - hbito, hbito, hbito);
+    bitonio = new Bitonio(width/2 + 200 - hbito/2, height - hbito, hbito, hbito);
     nameField = new AsTextField(name, x0 + w0/2, y0 + h0 + 2, 0, fontHeight+6);
   }
   
   void loadScenario(Scenario scen) {
-    // create display elements
+    // create editors elements
     editors = new ArrayList();
     ArrayList <ScenarElem> elements = scen.getElements();
     
@@ -316,7 +344,8 @@ class ScenarEditor {
       } else if (editor.type.equals("servo")) {
         ServoEditor sEditor = (ServoEditor)editor;
         float dur_ms = sEditor.dur_ms;
-        res = res + "{servo, "+floor(sEditor.percent)+(dur_ms == 0 ? "" : ", "+floor(dur_ms))+"}";
+        float min_dur = sEditor.min_dur_ms();
+        res = res + "{servo, "+floor(sEditor.percent)+(dur_ms <= min_dur ? "" : ", "+floor(dur_ms))+"}";
       }
       
       if (i < editors.size()-1) {
@@ -422,7 +451,6 @@ class ScenarEditor {
       ServoEditor sEditor1 = null;
       for (int i = 0; i < editors.size(); i++) {
         ScenarElemEditor editor = editors.get(i);
-        editor.Display();
         
         if (editor.type == "servo") {
           ServoEditor sEditor2 = (ServoEditor)editor;
@@ -462,6 +490,7 @@ class ScenarEditor {
           
           sEditor1 = sEditor2;
         }
+        editor.Display();
       }
       if (sEditor1 != null) {
         float x1 = ms2pixels(sEditor1.anchort);
@@ -469,6 +498,7 @@ class ScenarEditor {
         float durEnd = sEditor1.real_dur_ms_from(servoPercent1);
         float x2 = ms2pixels(sEditor1.anchort + durEnd);
         float y2 = servoPercentToY(sEditor1.percent);
+        noFill(); stroke(0, 255, 0);
         line(x1, y1, x2, y2);
       }
     }
@@ -545,6 +575,8 @@ class ScenarEditor {
         runningAudioEditor = null;
       }
       
+      runningServoEditor = null;    
+      
       bitonio.set(0);
       
       playNextIndex = 0;
@@ -554,10 +586,15 @@ class ScenarEditor {
     if (playing) {
       Stop();
     } else {
+      // Play
       playing = true;
       playt0 = playlastt = millis();
       playNextIndex = 0;
       playPreviousPercent = playCurrentPercent = 0;
+      runningServoEditor = null;    
+      runningAudioEditor = null;
+      editedServoEditor = null;    
+      editedAudioEditor = null;
     }
   }
   
@@ -590,7 +627,7 @@ class ScenarEditor {
           AudioEditor sEditor = (AudioEditor)editor;
           if (!sEditor.IsMD(mouseX, mouseY)) continue;
           // ok
-          runningAudioEditor = sEditor;
+          editedAudioEditor = sEditor;
           break;
         }
         if (runningAudioEditor != null) {
@@ -601,46 +638,46 @@ class ScenarEditor {
         // servo line
         
         // find servo clicked
-        runningServoEditor = null;
+        editedServoEditor = null;
         for (int i = 0; i < editors.size(); i++) {
           ScenarElemEditor editor = editors.get(i);
           if (!editor.type.equals("servo")) continue;
           ServoEditor sEditor = (ServoEditor)editor;
           if (!sEditor.IsMD(mouseX, mouseY)) continue;
           // ok
-          runningServoEditor = sEditor;
-          runningServoEditor.followMouse(mouseX, mouseY);
+          editedServoEditor = sEditor;
+          editedServoEditor.followMouse(mouseX, mouseY);
           break;
         }
         
-        if (runningServoEditor == null) {
+        if (editedServoEditor == null) {
           // click in background => create new
           float initPercent = map(mouseY - (y0 + h0/2), 0, h0/2, 100, 0);
           if (initPercent < 0) initPercent = 0;
           if (initPercent > 100) initPercent = 100;
-          runningServoEditor = new ServoEditor(this, floor(pixels2ms(mouseX - x0)), initPercent, 0, x0, y0 + h0/2, w0, h0/2);
-          editors.add(runningServoEditor);
-          runningServoEditor.edited = true;
-          runningServoEditor.followMouse(mouseX, mouseY);
+          editedServoEditor = new ServoEditor(this, floor(pixels2ms(mouseX - x0)), initPercent, 0, x0, y0 + h0/2, w0, h0/2);
+          editors.add(editedServoEditor);
+          editedServoEditor.edited = true;
+          editedServoEditor.followMouse(mouseX, mouseY);
         }
       }
     }
   }
   
   void mouseDragged() {
-    if (runningServoEditor != null) {
-      runningServoEditor.followMouse(mouseX, mouseY);
+    if (editedServoEditor != null) {
+      editedServoEditor.followMouse(mouseX, mouseY);
       ResortEditors();
     }
-    if (runningAudioEditor != null) {
-      runningAudioEditor.anchort = max(0, floor(pixels2ms(mouseX) - audioEditorAnchor0));
+    if (editedAudioEditor != null) {
+      editedAudioEditor.anchort = max(0, floor(pixels2ms(mouseX) - audioEditorAnchor0));
     }
   }
   
   void mouseReleased() {
-    if (runningServoEditor != null) {
-      runningServoEditor.edited(false);
-      runningServoEditor = null;
+    if (editedServoEditor != null) {
+      editedServoEditor.edited(false);
+      editedServoEditor = null;
       // modified => resort
       ResortEditors();
     }
@@ -671,17 +708,17 @@ class ScenarEditor {
   }
   
   void Backspace() {
-    if (runningServoEditor != null) {
+    if (editedServoEditor != null) {
       // delete it
-      runningServoEditor.edited(false);
-      editors.remove(runningServoEditor);
-      runningServoEditor = null;
+      editedServoEditor.edited(false);
+      editors.remove(editedServoEditor);
+      editedServoEditor = null;
       // modified => resort
       ResortEditors();
     }
     // ??
-    if (runningAudioEditor != null) {
-      runningAudioEditor = null;
+    if (editedAudioEditor != null) {
+      editedAudioEditor = null;
       // modified => resort
       ResortEditors();
     }
@@ -854,12 +891,14 @@ void ScenariosMouseDragged() {
 }
 
 void ScenariosMouseMoved() {
-  if (gScen_saveBut.IsInside(mouseX, mouseY)
-    || gScen_convertBut.IsInside(mouseX, mouseY)
-    || gScen_parsePriv.IsInside(mouseX, mouseY)
-    || gScen_reloadBut.IsInside(mouseX, mouseY)) {
-    cursor(HAND);
-    return;
+  if (gScen_saveBut != null && gScen_convertBut != null && gScen_parsePriv != null && gScen_reloadBut != null) {
+    if (gScen_saveBut.IsInside(mouseX, mouseY)
+      || gScen_convertBut.IsInside(mouseX, mouseY)
+      || gScen_parsePriv.IsInside(mouseX, mouseY)
+      || gScen_reloadBut.IsInside(mouseX, mouseY)) {
+      cursor(HAND);
+      return;
+    }
   }
   cursor(ARROW);
 }
@@ -882,25 +921,27 @@ void ScenariosMouseWheel(float amount) {
 void ScenariosMousePressed() {
   if (ScenariosListMousePressed()) return;
   
-  if (gScen_saveBut.IsInside(mouseX, mouseY)) {
-    ScenariosSaveAll();
-    AsLog("ALL SAVED");
-    return;
-  }
-  if (gScen_reloadBut.IsInside(mouseX, mouseY)) {
-    ScenariosInit("choreographies.json");
-    AsLog("RELOADED");
-    return;
-  }
-  if (gScen_convertBut.IsInside(mouseX, mouseY)) {
-    ConvertToErl("choreographies.json", "../src/la_machine_scenarios.erl");
-    AsLog("CONVERTED");
-    return;
-  }
-  if (gScen_parsePriv.IsInside(mouseX, mouseY)) {
-    int loaded = ScenariosParseSoundFolder();
-    AsLog("PARSED, and loaded:"+loaded);
-    return;
+  if (gScen_saveBut != null && gScen_convertBut != null && gScen_parsePriv != null && gScen_reloadBut != null) {
+    if (gScen_saveBut.IsInside(mouseX, mouseY)) {
+      ScenariosSaveAll();
+      AsLog("ALL SAVED");
+      return;
+    }
+    if (gScen_reloadBut.IsInside(mouseX, mouseY)) {
+      ScenariosInit("choreographies.json");
+      AsLog("RELOADED");
+      return;
+    }
+    if (gScen_convertBut.IsInside(mouseX, mouseY)) {
+      ConvertToErl("choreographies.json", "../src/la_machine_scenarios.erl");
+      AsLog("CONVERTED");
+      return;
+    }
+    if (gScen_parsePriv.IsInside(mouseX, mouseY)) {
+      int loaded = ScenariosParseSoundFolder();
+      AsLog("PARSED, and loaded:"+loaded);
+      return;
+    }
   }
   
   if (gScenarEditor != null) gScenarEditor.mousePressed();

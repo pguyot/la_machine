@@ -711,15 +711,14 @@ compute_sleep_timer(State, waiting) ->
                         NowS = la_machine_state:get_seconds_since_boot(State),
                         NowHour = ((NowS div 3600) rem 24),
                         % at least 3 hours after now
-                        HourPlus3 = ((NowHour + 3) rem 24),
-                        io:format("First poke, NowHour=~ph, ChosenHour=~ph, HourPlus3=~ph\n", [
-                            NowHour, ChosenHour, HourPlus3
+                        Delay0 = (ChosenHour - NowHour + 24) rem 24,
+                        io:format("First poke, NowHour=~ph, ChosenHour=~ph, Delay0=~ph\n", [
+                            NowHour, ChosenHour, Delay0
                         ]),
-                        Delay = ((ChosenHour - NowHour) rem 24),
                         if
-                            ChosenHour >= HourPlus3 -> Delay;
-                            true -> Delay + 24
-                        end
+                            Delay0 >= 3 -> Delay0;
+                            true -> Delay0 + 24
+                        end                
                 end
         end,
     io:format(" poke in ~ph\n", [HoursToWait]),

@@ -8,8 +8,8 @@ int fontHeight;
 // Servo is 0.3s/60°. 360 = 1800ms
 float gSERVO_FULL_ANGLE_RANGE = (165 - 50);
 float gSERVO_FULL_DUR_MS = 1800*gSERVO_FULL_ANGLE_RANGE/360.0;
-float gSERVO_DOOR_VALUE = 45.0;
-float gSERVO_BUTTON_CONTACT_VALUE = 80.0;
+float gSERVO_DOOR_VALUE = 15.0;
+float gSERVO_BUTTON_CONTACT_VALUE = 85.0;
 float GAME_SHORT_DUR_S = 2;
 float GAME_MEDIUM_DUR_S = 4;
 String PRIV_FOLDER = "../priv/";
