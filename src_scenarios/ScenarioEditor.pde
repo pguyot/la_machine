@@ -184,13 +184,13 @@ class ServoEditor extends ScenarElemEditor {
     
     // x
     if (edited) {
-      anchort = floor(pixels2ms(mx - x));
+      anchort = max(0, floor(pixels2ms(mx - x)));
     }
     if (end_edited) {
-      float post = floor(pixels2ms(mx - x));
+      float post = max(0, floor(pixels2ms(mx - x)));
       float min_dur = min_dur_ms();
       if (post < anchort + min_dur) post = anchort + min_dur;
-      dur_ms = post - anchort;
+      dur_ms = max(0, post - anchort);
     }
   }
   
@@ -378,7 +378,7 @@ class ScenarEditor {
       if (editorIndex < editors.size()) {
         do {
           ScenarElemEditor editor = editors.get(editorIndex);
-          if (editor.type == "servo") {
+          if ("servo".equals(editor.type)) {
             sEditor2 = (ServoEditor)editor;
             break;
           }
@@ -452,7 +452,7 @@ class ScenarEditor {
       for (int i = 0; i < editors.size(); i++) {
         ScenarElemEditor editor = editors.get(i);
         
-        if (editor.type == "servo") {
+        if ("servo".equals(editor.type)) {
           ServoEditor sEditor2 = (ServoEditor)editor;
           float x1, y2;
           float y1 = servoPercentToY(servoPercent1);
@@ -575,7 +575,9 @@ class ScenarEditor {
         runningAudioEditor = null;
       }
       
-      runningServoEditor = null;    
+      runningServoEditor = null;
+      playPreviousPercent = 0;
+      playCurrentPercent = 0;
       
       bitonio.set(0);
       
@@ -628,6 +630,8 @@ class ScenarEditor {
           if (!sEditor.IsMD(mouseX, mouseY)) continue;
           // ok
           editedAudioEditor = sEditor;
+          runningAudioEditor = sEditor;
+          audioEditorAnchor0 = pixels2ms(mouseX) - sEditor.anchort;
           break;
         }
         if (runningAudioEditor != null) {
@@ -800,8 +804,8 @@ int ScenariosParseSoundFolder() {
       if (f.getName().equals(".DS_Store")) continue;
       if (f.isFile()) {
         String ext1 = fileNameGetExtension(f.getName());
-        if (ext1 == "aac") {
-        } else if (ext1 == "mp3") {
+        if ("aac".equals(ext1)) {
+        } else if ("mp3".equals(ext1)) {
         }
       } else if (f.isDirectory()) {
         String folderName = f.getName();

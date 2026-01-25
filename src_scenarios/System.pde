@@ -1,34 +1,39 @@
-
-
-void execShellCommand(String commandToRun) {
+void execCommand(String[] args) {
   try {
-    Process p = Runtime.getRuntime().exec(commandToRun, null, new File(sketchPath("")));
-    p.waitFor();
+    ProcessBuilder pb = new ProcessBuilder(args);
+    pb.directory(new File(sketchPath("")));
+    pb.redirectErrorStream(true);
+    Process p = pb.start();
+    BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+    String line;
+    while ((line = reader.readLine()) != null) {
+      println(line);
+    }
+    int exitCode = p.waitFor();
+    if (exitCode != 0) {
+      println("Command exited with code: " + exitCode);
+    }
   }
   catch (Exception e) {
-    println("Error running command!"); 
+    println("Error running command!");
     println(e);
   }
 }
 
 void FileCopy(String in, String out) {
-  String cmd = "cp "+in+" "+out;
-  execShellCommand(cmd);
+  execCommand(new String[]{"cp", in, out});
 }
 
 void ConvertToErl(String injson, String outErl) {
-  String cmd = "python3 json_to_erlang_multi.py "+injson+" "+outErl;
-  execShellCommand(cmd);
+  execCommand(new String[]{"python3", "json_to_erlang_multi.py", injson, outErl});
 }
 
 void ConvertAAC2MP3(String aacfile, String mp3file) {
-  String cmd = "/opt/homebrew/bin/ffmpeg -y -hide_banner -loglevel error -i "+aacfile+" -c:a libmp3lame -qscale:a 2 "+mp3file;
-  execShellCommand(cmd);
+  execCommand(new String[]{"/opt/homebrew/bin/ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", aacfile, "-c:a", "libmp3lame", "-qscale:a", "2", mp3file});
 }
 
 void MkDir(String dir) {
-  String cmd = "mkdir -p "+dir;
-  execShellCommand(cmd);
+  execCommand(new String[]{"mkdir", "-p", dir});
 }
 
 // file utils

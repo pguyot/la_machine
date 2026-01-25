@@ -718,7 +718,7 @@ compute_sleep_timer(State, waiting) ->
                         if
                             Delay0 >= 3 -> Delay0;
                             true -> Delay0 + 24
-                        end                
+                        end
                 end
         end,
     io:format(" poke in ~ph\n", [HoursToWait]),

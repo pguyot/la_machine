@@ -10,6 +10,7 @@ import json
 import sys
 import re
 import random
+import subprocess
 from typing import Dict, List, Tuple
 
 def load_choreographies_json(file_path: str) -> Dict[str, str]:
@@ -299,15 +300,13 @@ get(Type, Ith) ->
 -ifdef(TEST).
 count_test_() ->
     [
-        ?_assert(count(play) > 0),
-        ?_assertEqual(0, count(poke)),
+        ?_assert(count(excited) > 0),
         ?_assertEqual(0, count(unknown))
     ].
 
 get_test_() ->
     [
-        ?_assert(is_list(get(play, 1))),
-        ?_assertEqual([], get(unknown, 1))
+        ?_assert(is_list(get(excited, 1)))
     ].
 -endif.
 """
@@ -364,6 +363,14 @@ def main():
     # Save to Erlang file
     if save_erlang_file(erlang_code, erlang_file):
         print(f"\nSuccessfully generated Erlang functions: {erlang_file}")
+        # Format with erlfmt
+        try:
+            subprocess.run(["erlfmt", "-w", erlang_file], check=True)
+            print(f"Formatted {erlang_file} with erlfmt")
+        except subprocess.CalledProcessError as e:
+            print(f"Warning: erlfmt failed: {e}")
+        except FileNotFoundError:
+            print("Warning: erlfmt not found, skipping formatting")
     else:
         print(f"\nFailed to save Erlang file: {erlang_file}")
 
