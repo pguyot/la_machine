@@ -288,9 +288,13 @@ get(Type, Ith) ->
         [],
         Exports
     ),
-    Sorted = lists:sort(AllOfType),
-    Selected = lists:nth(Ith, Sorted),
-    ?MODULE:Selected().
+    case AllOfType of
+        [] -> [];
+        _ ->
+            Sorted = lists:sort(AllOfType),
+            Selected = lists:nth(Ith, Sorted),
+            ?MODULE:Selected()
+    end.
 
 """
     

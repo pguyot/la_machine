@@ -61,6 +61,7 @@ class ScenarElemEditor {
   void Display() {}
   void Play() {}
   void Stop() {}
+  float dur_ms() { return 0.0; }
   boolean IsPlaying() {return false;}
   boolean IsMD(float mx, float my) { return false; }
 }
@@ -95,6 +96,10 @@ class AudioEditor extends ScenarElemEditor {
     audioPlayer.Play(0);
   }
   
+  float dur_ms() {
+    return dur_ms;
+  }
+    
   void Stop() {
     audioPlayer.Stop();
   }
@@ -138,19 +143,19 @@ class ServoEditor extends ScenarElemEditor {
     return min_dur_ms_from(prevpercent);
   }
 
-  float real_dur_ms_from(float apercent) {
+  float dur_ms_from(float apercent) {
     float min_dur_ms = gSERVO_FULL_DUR_MS*abs(percent - apercent)/100.0;
     if (dur_ms < min_dur_ms) return min_dur_ms;
     return dur_ms;
   }
     
-  float real_dur_ms() {
+  float dur_ms() {
     float prevpercent = editor.getServoPercentBefore(anchort);
-    return real_dur_ms_from(prevpercent);
+    return dur_ms_from(prevpercent);
   }
 
   float percentAtFrom(float tt, float aPercent) {
-    float real_dur_ms = real_dur_ms_from(aPercent);
+    float real_dur_ms = dur_ms_from(aPercent);
     if (tt > anchort + real_dur_ms) {
       return percent;
     }
@@ -159,7 +164,7 @@ class ServoEditor extends ScenarElemEditor {
 
   boolean IsMD(float mx, float my) {
     float posX = x + ms2pixels(anchort);
-    float posXEnd = x + ms2pixels(anchort+real_dur_ms());
+    float posXEnd = x + ms2pixels(anchort+dur_ms());
     float posY = y + h - h*percent/100;
     float clickDist2 = 6;
     if (pow(mx - posX, 2) + pow(my - posY, 2) < pow(clickDist2, 2)) {
@@ -188,9 +193,8 @@ class ServoEditor extends ScenarElemEditor {
     }
     if (end_edited) {
       float post = max(0, floor(pixels2ms(mx - x)));
-      float min_dur = min_dur_ms();
-      if (post < anchort + min_dur) post = anchort + min_dur;
-      dur_ms = max(0, post - anchort);
+      float min_dur = max(0, min_dur_ms());
+      dur_ms = max(min_dur, post - anchort);
     }
   }
   
@@ -202,11 +206,13 @@ class ServoEditor extends ScenarElemEditor {
   void Display() {
     
     float posX = x + ms2pixels(anchort);
-    float posXEnd = x + ms2pixels(anchort+real_dur_ms());
+    float posXEnd = x + ms2pixels(anchort+dur_ms());
     float posY = y + h - h*percent/100;
     float selectSiz = 10;
     float normalSiz = 6;
-    boolean isAtMin = (min_dur_ms() == real_dur_ms());
+    float min_dur = min_dur_ms();
+    float real_dur = dur_ms();
+    boolean isAtMin = (min_dur == real_dur);
     
     stroke(255, 0, 0); noFill();
     line(posX, posY, posXEnd, posY);
@@ -223,13 +229,14 @@ class ServoEditor extends ScenarElemEditor {
       noStroke();
       if (isAtMin) fill(255, 0, 0); else fill(0, 255, 0);
       ellipse(posXEnd, posY, selectSiz, selectSiz);
+      text(""+real_dur, posXEnd+5, posY - 1);
     } else {
       noFill(); if (isAtMin) stroke(255, 0, 0); else stroke(0, 255, 0);
       ellipse(posXEnd, posY, normalSiz, normalSiz);
     }
     
     fill(255); noStroke();
-    text(""+percent, posX+5, (percent < 95) ? posY : posY + fontHeight);
+    text(""+percent, posX+5, (percent < 95) ? posY - 1 : posY + fontHeight);
   }
   
   void Play() {
@@ -279,7 +286,7 @@ class ScenarEditor {
   void loadScenario(Scenario scen) {
     // create editors elements
     editors = new ArrayList();
-    ArrayList <ScenarElem> elements = scen.getElements();
+    ArrayList <ScenarElem> elements = scen.parseElements();
     
     int cursor_ms = 0;
     int lastAudioDuration = -1;
@@ -361,6 +368,20 @@ class ScenarEditor {
     editors.sort( (a, b) -> { return a.anchort - b.anchort; } );
   }
   
+  float duration() {
+    if (editors == null) return 0.0;
+    if (editors.size() == 0) return 0.0;
+    ResortEditors();
+    
+    float duration = 0.0;
+    for (int i = 0; i < editors.size(); i++) {
+      ScenarElemEditor editor = editors.get(i);
+      float end_ms = editor.anchort + editor.dur_ms();
+      duration = max(duration, end_ms);
+    }
+    return duration;
+  }
+  
   float getServoPercentBefore(float anchort) {
     ResortEditors();
     
@@ -440,7 +461,7 @@ class ScenarEditor {
     stroke(255, 0, 0, 127);
     line(x0, yyy, x0 + w0, yyy);
     // contact
-    yy = gSERVO_BUTTON_CONTACT_VALUE/100.0;
+    yy = gSERVO_BUTTON_CONTACT_VALUE/100.0; //<>//
     yyy = y0+h0-yy*h0/2;
     stroke(255, 0, 0, 127);
     line(x0, yyy, x0 + w0, yyy);
@@ -459,7 +480,7 @@ class ScenarEditor {
           float x2 = ms2pixels(sEditor2.anchort);
           noFill(); stroke(0, 255, 0);
           if (sEditor1 == null) {
-            x1 = 0;
+            x1 = 0; //<>//
             y2 = y1;
             line(x1, y1, x2, y2); //<>//
           } else {
@@ -470,7 +491,7 @@ class ScenarEditor {
               // OK, reached
               
               // first line
-              float durEnd = sEditor1.real_dur_ms_from(servoPercent1);
+              float durEnd = sEditor1.dur_ms_from(servoPercent1);
               x2 = ms2pixels(sEditor1.anchort + durEnd);
               y2 = servoPercentToY(sEditor1.percent);
               line(x1, y1, x2, y2);
@@ -495,7 +516,7 @@ class ScenarEditor {
       if (sEditor1 != null) {
         float x1 = ms2pixels(sEditor1.anchort);
         float y1 = servoPercentToY(servoPercent1);
-        float durEnd = sEditor1.real_dur_ms_from(servoPercent1);
+        float durEnd = sEditor1.dur_ms_from(servoPercent1);
         float x2 = ms2pixels(sEditor1.anchort + durEnd);
         float y2 = servoPercentToY(sEditor1.percent);
         noFill(); stroke(0, 255, 0);
@@ -622,7 +643,7 @@ class ScenarEditor {
         // audio line
         
         // find audio clicked
-        runningAudioEditor = null;
+        editedAudioEditor = null;
         for (int i = 0; i < editors.size(); i++) {
           ScenarElemEditor editor = editors.get(i);
           if (!editor.type.equals("audio")) continue;
@@ -630,13 +651,11 @@ class ScenarEditor {
           if (!sEditor.IsMD(mouseX, mouseY)) continue;
           // ok
           editedAudioEditor = sEditor;
-          runningAudioEditor = sEditor;
-          audioEditorAnchor0 = pixels2ms(mouseX) - sEditor.anchort;
           break;
         }
-        if (runningAudioEditor != null) {
-          audioEditorAnchor0 = pixels2ms(mouseX) - runningAudioEditor.anchort;
-          runningAudioEditor.anchort = floor(pixels2ms(mouseX) - audioEditorAnchor0);
+        if (editedAudioEditor != null) {
+          audioEditorAnchor0 = pixels2ms(mouseX) - editedAudioEditor.anchort;
+          editedAudioEditor.anchort = floor(pixels2ms(mouseX) - audioEditorAnchor0);
         }
       } else {
         // servo line
@@ -684,6 +703,9 @@ class ScenarEditor {
       editedServoEditor = null;
       // modified => resort
       ResortEditors();
+    }
+    if (editedAudioEditor != null) {
+      editedAudioEditor = null;
     }
   }
   
@@ -754,13 +776,21 @@ void ScenariosDisplay() {
   fill(255, 50); stroke(255, 100);
   rect(gScen_x0, gScen_y0, gScen_w0, gScen_h0);
 
-  fill(255); noStroke();
   y0 += dy0;
   if (gScenarios.size() > 0) {
+    // list
     for (int i = gScen_scollIndex; i < gScenarios.size() && y0 < gScen_y0 + gScen_h0; i++) {
       Scenario scenar = gScenarios.get(i);
+      // hilight
+      if (gScen_curScenarIndex >= 0 && i == gScen_curScenarIndex) {
+        fill(255, 255, 0, 50); noStroke();
+        rect(gScen_x0+1, y0-dy0+2, gScen_w0-2, dy0);
+      }
+      // label
+      fill(255); noStroke();
       text(scenar.name, gScen_x0, y0); y0 += dy0;
     }
+    // scrollbar
     int maxLines = floor(gScen_h0/dy0);
     int displayedLines = gScenarios.size() - gScen_scollIndex;
     int visibleLines = displayedLines >= maxLines ? maxLines : displayedLines;
@@ -791,7 +821,6 @@ void ScenariosDisplay() {
   gScen_parsePriv.Display();
   yyy += dyyy;
   
-  
 }
 
 int ScenariosParseSoundFolder() {
@@ -802,12 +831,7 @@ int ScenariosParseSoundFolder() {
     for (int i = 0; i < privFiles.length; i++) {
       File f = privFiles[i];
       if (f.getName().equals(".DS_Store")) continue;
-      if (f.isFile()) {
-        String ext1 = fileNameGetExtension(f.getName());
-        if ("aac".equals(ext1)) {
-        } else if ("mp3".equals(ext1)) {
-        }
-      } else if (f.isDirectory()) {
+      if (f.isDirectory()) {
         String folderName = f.getName();
         File [] folderFiles = f.listFiles();
         for (int j = 0; j < folderFiles.length; j++) {
@@ -836,16 +860,38 @@ int ScenariosParseSoundFolder() {
 }
 
 void ScenariosSaveCurrent() {
-  if (gScenarEditor != null && gScen_curScenarIndex >= 0) {
-    String newDef = gScenarEditor.computeScenarioDef();
-    Scenario scenar = new Scenario(gScenarEditor.name, newDef);
-    
-    // save in data
-    gScenarios.set(gScen_curScenarIndex, scenar);
-    
-    // display
-    gScenarEditor.loadScenario(scenar);
+  if (gScenarEditor == null || gScen_curScenarIndex < 0) return;
+   
+   println("Saving current scenario");
+   
+  // create new scenario from editor
+  String newDef = gScenarEditor.computeScenarioDef();
+  
+  String name = gScenarEditor.name;
+  // if game, change name to reflect duration
+  if (name.startsWith("game")) {
+    // end number
+    String numberstr = name.substring(name.lastIndexOf('_')+1);
+    float dur_ms = gScenarEditor.duration();
+    String prefix = "";
+    if (dur_ms == 0) {
+      // duration unknown
+    } else if (dur_ms < GAME_SHORT_DUR_S*1000) {
+      prefix = "_short";
+    } else if (dur_ms < GAME_MEDIUM_DUR_S*1000) {
+      prefix = "_medium";
+    } else {
+      prefix = "_long";
+    }
+    name = "game"+prefix+"_"+numberstr;
   }
+  
+  Scenario scenar = new Scenario(name, newDef);
+  
+  // save in data
+  gScenarios.set(gScen_curScenarIndex, scenar);
+  
+  println("Saved scenario:"+name);
 }
 
 void ScenariosSaveAll() {
@@ -869,21 +915,18 @@ boolean ScenariosMouseIsInside() {
 boolean ScenariosListMousePressed() {
   if (!ScenariosMouseIsInside()) return false;
 
+  // save and close previous
+  if (gScenarEditor != null) {
+    ScenariosSaveCurrent();
+    gScenarEditor.Stop();
+    gScenarEditor = null;
+  }
+
   int lin = floor((mouseY - gScen_y0 - 4)/float(fontHeight + 2)) + gScen_scollIndex;
   println("clicked lin="+lin);
   if (lin < 0) return false;
   if (lin >= gScenarios.size()) return false;
   Scenario scenar = gScenarios.get(lin);
-  
-  // save and close previous
-  ScenariosSaveCurrent();
-  if (gScenarEditor != null) {
-    gScenarEditor.Stop();
-    gScenarEditor = null;
-  }
-  
-  //String oldDef = scenar.getDef();
-  //println("DEF='"+oldDef+"'");
   
   gScen_curScenarIndex = lin;
   gScenarEditor = new ScenarEditor(scenar);

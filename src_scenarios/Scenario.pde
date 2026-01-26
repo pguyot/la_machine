@@ -101,7 +101,7 @@ class Scenario {
     elements = new ArrayList();
   }
   
-  ArrayList <ScenarElem> getElements() {
+  ArrayList <ScenarElem> parseElements() {
     if (elements.size() == 0) {
       parseDef();
     }
@@ -143,6 +143,10 @@ ArrayList <Scenario> gScenarios;
 ScenarEditor gScenarEditor = null;
 
 void ScenariosInit(String jsonfile) {
+  ScenariosLoadFile(jsonfile);
+}
+
+void ScenariosLoadFile(String jsonfile) {
   String lines[] = loadStrings(jsonfile);
   gJsonFile = jsonfile;
   
@@ -166,8 +170,7 @@ void ScenariosInit(String jsonfile) {
       gScenarios.add(scenar);
     }
   }
-  println("Loaded "+gScenarios.size()+" scenarios");
-}
+  println("Loaded "+gScenarios.size()+" scenarios");}
 
 void ScenariosSaveToFile(String file) {
   String[] strinList = new String[gScenarios.size() + 2];
@@ -188,26 +191,7 @@ void ScenariosSaveToFile(String file) {
 // game_short_aaa
 String ScenarioNameForAudio(String audioFilePath) {
   String folder = folderNameOfFileName(audioFilePath);
-  if (folder.equals("game")) {
-    // {aac, <<\"joy/0426.aac\">>}
-    String audioDef = "{aac, <<\\\""+audioFilePath+"\\\">>}";
-    ScenarElem elem = new ScenarElem(audioDef);
-    int dur_ms = elem.intArg;
-    String prefix = "";
-    if (dur_ms == 0) {
-      // duration unknown
-    } else if (dur_ms < GAME_SHORT_DUR_S*1000) {
-      prefix = "_short";
-    } else if (dur_ms < GAME_MEDIUM_DUR_S*1000) {
-      prefix = "_medium";
-    } else {
-      prefix = "_long";
-    }
-    return folder+prefix+"_"+fileNameRemoveExtension(filePathGetFileName(audioFilePath));
-    
-  } else {
-    return folder+"_"+fileNameRemoveExtension(filePathGetFileName(audioFilePath));
-  }
+  return folder+"_"+fileNameRemoveExtension(filePathGetFileName(audioFilePath));
 }
 
 boolean ScenariosCreateScenarioForAudioIfNeeded(String folderName, String audioFileName) {
