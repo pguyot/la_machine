@@ -63,14 +63,21 @@ class MyAudioPlayer {
     stroke(255, 255, 0); noFill();
     rect(x0, y0, w, h);
     stroke(255, 255, 0, 75); noFill();
+    for (int i = 0; i < w; i += width/100) {
+      line(x0 + i, y0+h, x0 + i, y0);
+    }
+    stroke(255, 255, 0, 120); noFill();
     for (int i = 0; i < w; i += width/10) {
       line(x0 + i, y0+h, x0 + i, y0);
     }
     
     // draw waveform
     if (gAmplitudes != null) {
+      stroke(255, 255, 0, 200); noFill();
+      line(x0, y0 + h/2, x0+w, y0 + h/2);
       for (int i = 0; i < gAmplitudes.length; i++) {
-        line(x0 + i, y0+h, x0 + i, y0+h-gAmplitudes[i]*h);
+        float ampl = gAmplitudes[i]*h;
+        line(x0 + i, y0+h/2-ampl/2, x0 + i, y0+h/2+ampl/2);
       }
     }
   

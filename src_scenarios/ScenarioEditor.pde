@@ -13,9 +13,9 @@ class Bitonio {
   
   void Display() {
     float h100 = w/4;
-    float y0 = y + h100*gSERVO_DOOR_VALUE/100.0;
-    float buttony = y0 - h100*gSERVO_BUTTON_CONTACT_VALUE/100.0;
-    float buttonw = 2*h100*(100.0 - gSERVO_BUTTON_CONTACT_VALUE)/100.0;
+    float y0 = y + h100*gSERVO_DOOR_PERCENT/100.0;
+    float buttony = y0 - h100*gSERVO_BUTTON_CONTACT_PERCENT/100.0;
+    float buttonw = 2*h100*(100.0 - gSERVO_BUTTON_CONTACT_PERCENT)/100.0;
     float bitoW = w/20;
     float bitoH = w*0.666;
 
@@ -135,7 +135,7 @@ class ServoEditor extends ScenarElemEditor {
   }
   
   float min_dur_ms_from(float apercent) {
-    return gSERVO_FULL_DUR_MS*abs(percent - apercent)/100.0;
+    return gSERVO_0_100_DUR_MS*abs(percent - apercent)/100.0;
   }
   
   float min_dur_ms() {
@@ -144,7 +144,7 @@ class ServoEditor extends ScenarElemEditor {
   }
 
   float dur_ms_from(float apercent) {
-    float min_dur_ms = gSERVO_FULL_DUR_MS*abs(percent - apercent)/100.0;
+    float min_dur_ms = gSERVO_0_100_DUR_MS*abs(percent - apercent)/100.0;
     if (dur_ms < min_dur_ms) return min_dur_ms;
     return dur_ms;
   }
@@ -456,12 +456,12 @@ class ScenarEditor {
     }
     
     // door
-    float yy = gSERVO_DOOR_VALUE/100.0;
+    float yy = gSERVO_DOOR_PERCENT/100.0;
     float yyy = y0+h0-yy*h0/2;
     stroke(255, 0, 0, 127);
     line(x0, yyy, x0 + w0, yyy);
     // contact
-    yy = gSERVO_BUTTON_CONTACT_VALUE/100.0; //<>// //<>// //<>// //<>//
+    yy = gSERVO_BUTTON_CONTACT_PERCENT/100.0; //<>// //<>// //<>// //<>//
     yyy = y0+h0-yy*h0/2;
     stroke(255, 0, 0, 127);
     line(x0, yyy, x0 + w0, yyy);
@@ -731,6 +731,16 @@ class ScenarEditor {
       TogglePlay();
       return;
     }
+    
+    println("keyCode="+keyCode);
+    if (keyCode == UP) {
+      ScenariosSelectNext(-1);
+      return;
+    }
+    if (keyCode == DOWN) {
+      ScenariosSelectNext(1);
+      return;
+    }
   }
   
   void Backspace() {
@@ -742,19 +752,12 @@ class ScenarEditor {
       // modified => resort
       ResortEditors();
     }
-    // ??
-    if (editedAudioEditor != null) {
-      editedAudioEditor = null;
-      // modified => resort
-      ResortEditors();
-    }
   }
 }
 
 // ******** ScenariosDisplay
 float gScen_x0, gScen_y0, gScen_w0, gScen_h0;
 AsButton gScen_saveBut;
-AsButton gScen_convertBut;
 AsButton gScen_reloadBut;
 AsButton gScen_parsePriv;
 
@@ -794,11 +797,23 @@ void ScenariosDisplay() {
   fill(255, 50); stroke(255, 100);
   rect(gScen_x0, gScen_y0, gScen_w0, gScen_h0);
 
+  ScenariosResort();
+
   y0 += dy0;
+  String prevPrefix = "";
+  int index = 0;
   if (gScenarios.size() > 0) {
     // list
     for (int i = gScen_scollIndex; i < gScenarios.size() && y0 < gScen_y0 + gScen_h0; i++) {
       Scenario scenar = gScenarios.get(i);
+      String nam = scenar.name;
+      String prefix = nam.substring(0, nam.lastIndexOf('_'));
+      if (!prefix.equals(prevPrefix)) {
+        index = 1;
+        prevPrefix = prefix;
+      } else {
+        index++;
+      }
       // hilight
       if (gScen_curScenarIndex >= 0 && i == gScen_curScenarIndex) {
         fill(255, 255, 0, 50); noStroke();
@@ -806,7 +821,7 @@ void ScenariosDisplay() {
       }
       // label
       fill(255); noStroke();
-      text(scenar.name, gScen_x0, y0); y0 += dy0;
+      text(""+index+":"+nam, gScen_x0, y0); y0 += dy0;
     }
     // scrollbar
     int maxLines = floor(gScen_h0/dy0);
@@ -823,19 +838,17 @@ void ScenariosDisplay() {
   
   float yyy = gScen_y0 + 20;
   float dyyy = fontHeight + 6 + 2;
-  if (gScen_reloadBut == null) gScen_reloadBut  = new AsButton("RELOAD choregraphies.json", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
+  if (gScen_saveBut == null) gScen_saveBut  = new AsButton("SAVE (json+erl)", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
+  gScen_saveBut.Display();
+  yyy += dyyy;
+  yyy += dyyy;
+  yyy += dyyy;
+
+  if (gScen_reloadBut == null) gScen_reloadBut  = new AsButton("RELOAD json", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
   gScen_reloadBut.Display();
   yyy += dyyy;
 
-  if (gScen_saveBut == null) gScen_saveBut  = new AsButton("SAVE choregraphies.json", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
-  gScen_saveBut.Display();
-  yyy += dyyy;
-  
-  if (gScen_convertBut == null) gScen_convertBut  = new AsButton("CONVERT to la_machine_scenarios.erl", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
-  gScen_convertBut.Display();
-  yyy += dyyy;
-
-  if (gScen_parsePriv == null) gScen_parsePriv  = new AsButton("(RE)PARSE priv", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
+  if (gScen_parsePriv == null) gScen_parsePriv  = new AsButton("(RE)PARSE priv/", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
   gScen_parsePriv.Display();
   yyy += dyyy;
   
@@ -954,14 +967,32 @@ boolean ScenariosListMousePressed() {
   return true;
 }
 
+void ScenariosSelectNext(int direction) {
+  // save and close previous
+  if (gScenarEditor != null) {
+    ScenariosSaveCurrent();
+    gScenarEditor.Stop();
+    gScenarEditor = null;
+  }
+
+  if (gScen_curScenarIndex < 0) {
+    gScen_curScenarIndex = 0;
+  } else {
+    gScen_curScenarIndex += direction;
+    if (gScen_curScenarIndex < 0) gScen_curScenarIndex = 0;
+    if (gScen_curScenarIndex >= gScenarios.size()) gScen_curScenarIndex = gScenarios.size()-1;
+  }
+  Scenario scenar = gScenarios.get(gScen_curScenarIndex);
+  gScenarEditor = new ScenarEditor(scenar);
+}
+
 void ScenariosMouseDragged() {
   if (gScenarEditor != null) gScenarEditor.mouseDragged();
 }
 
 void ScenariosMouseMoved() {
-  if (gScen_saveBut != null && gScen_convertBut != null && gScen_parsePriv != null && gScen_reloadBut != null) {
+  if (gScen_saveBut != null && gScen_parsePriv != null && gScen_reloadBut != null) {
     if (gScen_saveBut.IsInside(mouseX, mouseY)
-      || gScen_convertBut.IsInside(mouseX, mouseY)
       || gScen_parsePriv.IsInside(mouseX, mouseY)
       || gScen_reloadBut.IsInside(mouseX, mouseY)) {
       cursor(HAND);
@@ -989,20 +1020,17 @@ void ScenariosMouseWheel(float amount) {
 void ScenariosMousePressed() {
   if (ScenariosListMousePressed()) return;
   
-  if (gScen_saveBut != null && gScen_convertBut != null && gScen_parsePriv != null && gScen_reloadBut != null) {
+  if (gScen_saveBut != null && gScen_parsePriv != null && gScen_reloadBut != null) {
     if (gScen_saveBut.IsInside(mouseX, mouseY)) {
       ScenariosSaveAll();
-      AsLog("ALL SAVED");
+      AsLog("SAVED choreographies.json");
+      ConvertToErl("choreographies.json", "../src/la_machine_scenarios.erl");
+      AsLog("CONVERTED to la_machine_scenarios.erl");
       return;
     }
     if (gScen_reloadBut.IsInside(mouseX, mouseY)) {
       ScenariosInit("choreographies.json");
       AsLog("RELOADED");
-      return;
-    }
-    if (gScen_convertBut.IsInside(mouseX, mouseY)) {
-      ConvertToErl("choreographies.json", "../src/la_machine_scenarios.erl");
-      AsLog("CONVERTED");
       return;
     }
     if (gScen_parsePriv.IsInside(mouseX, mouseY)) {

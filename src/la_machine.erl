@@ -608,7 +608,7 @@ play_random_hit(Pid) ->
     io:format("play_random_hit=~p\n", [ScenarioIx]),
     Scenario = la_machine_scenarios:get(MoodScenar, ScenarioIx),
     % could be adapted to length of hit
-    Scenario_Full = Scenario ++ [{servo, 100}, {wait, 100}, {servo, 0}],
+    Scenario_Full = Scenario ++ [{servo, 100}, {wait, 200}, {servo, 0}],
     ok = la_machine_player:play(Pid, Scenario_Full),
     ScenarioIx.
 

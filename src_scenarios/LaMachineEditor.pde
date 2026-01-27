@@ -6,10 +6,12 @@ MyAudioPlayer curPlayer = null;
 int fontHeight;
 
 // Servo is 0.3s/60°. 360 = 1800ms
-float gSERVO_FULL_ANGLE_RANGE = (165 - 50);
-float gSERVO_FULL_DUR_MS = 1800*gSERVO_FULL_ANGLE_RANGE/360.0;
-float gSERVO_DOOR_VALUE = 15.0;
-float gSERVO_BUTTON_CONTACT_VALUE = 85.0;
+float gSERVO_ANGLE_0 = 125;
+float gSERVO_ANGLE_100 = 30;
+float gSERVO_FULL_ANGLE_RANGE = abs(gSERVO_ANGLE_0 - gSERVO_ANGLE_100);
+float gSERVO_0_100_DUR_MS = 1800*gSERVO_FULL_ANGLE_RANGE/360.0;
+float gSERVO_DOOR_PERCENT = 15.0;
+float gSERVO_BUTTON_CONTACT_PERCENT = 85.0;
 float GAME_SHORT_DUR_S = 2;
 float GAME_MEDIUM_DUR_S = 4;
 String PRIV_FOLDER = "../priv/";
@@ -81,7 +83,7 @@ void AsLogInit() {
   asLogLines = 0;
   asLogX0 = gScen_x0 + gScen_w0 + 2;
   asLogY0 = height*0.666;
-  asLogW0 = 400;
+  asLogW0 = 500;
   asLogH0 = height - asLogY0 - 1;
   asLogMaxLines = floor(asLogH0/float(fontHeight))-1;
 }

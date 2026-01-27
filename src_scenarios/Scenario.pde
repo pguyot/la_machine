@@ -186,23 +186,29 @@ void ScenariosSaveToFile(String file) {
   saveStrings(file, strinList);
 }
 
-// audioFileName = "joy/aaa.aac" "game/aaa.aac"
-// return = joy_aaa
-// game_short_aaa
-String ScenarioNameForAudio(String audioFilePath) {
-  String folder = folderNameOfFileName(audioFilePath);
-  return folder+"_"+fileNameRemoveExtension(filePathGetFileName(audioFilePath));
-}
 
 boolean ScenariosCreateScenarioForAudioIfNeeded(String folderName, String audioFileName) {
-  String scenarName = ScenarioNameForAudio(folderName+"/"+audioFileName); // joy_aaa game_short_aaa
+  String audioFileRadix = fileNameRemoveExtension(audioFileName);
+  String scenarName = folderName+"_"+audioFileRadix; // joy_aaa game_aaa
   
   boolean found = false;
   for (int i = 0; i < gScenarios.size(); i++) {
     Scenario scenar = gScenarios.get(i);
-    if (scenar.name.equals(scenarName)) {
+    String loadedScenarName = scenar.name; // joy_aaa game_short_aaa ...
+    
+    if (loadedScenarName.equals(scenarName)) {
       found = true;
       break;
+    }
+    
+    if (loadedScenarName.startsWith("game")) {
+      // remove _short, _medium, _long
+      String numberstr = loadedScenarName.substring(loadedScenarName.lastIndexOf('_')+1);
+      String miniName = "game_"+numberstr;
+      if (miniName.equals(scenarName)) {
+        found = true;
+        break;
+      }
     }
   }
   if (!found) {
@@ -214,7 +220,8 @@ boolean ScenariosCreateScenarioForAudioIfNeeded(String folderName, String audioF
     AsLog("Created :"+audioFilePath);
     return true;
   }
-   return false;
+  //AsLog("Already present:"+scenarName);
+  return false;
 }
 
 void ScenariosResort() {
