@@ -69,11 +69,13 @@
 -define(CTRL_REG3_CONFIG_ENABLE_IA1, 2#01000000).
 -define(CTRL_REG3_CONFIG_ENABLE_IA2, 2#00100000).
 -define(CTRL_REG5_CONFIG_LATCH_INTERRUPTS, 2#00001010).
+
 -define(INT1_CFG_OR_ZH_YL_XH, 2#00100110).
 -define(INT1_THS_400_MG, (400 div 16)).
 -define(INT1_DURATION_1, 1).
 -define(INT2_CFG_6D_POS_RECOGNITION_RESTING, 2#11011001).
 -define(INT2_THS_300_MG, (300 div 16)).
+
 -define(INT2_DURATION_1, 1).
 
 -export([
@@ -83,7 +85,7 @@
 % resting position :
 % X : low, Y : high, positive, Z : low
 
--spec setup() -> ok | {play, meuh} | not_resting.
+-spec setup() -> ok | {play, meuh} | not_resting | replaced.
 setup() ->
     I2C = i2c:open([{scl, ?I2C_SCL_GPIO}, {sda, ?I2C_SDA_GPIO}, {clock_speed_hz, 400000}]),
     % Read configuration to figure out the state.
@@ -206,6 +208,8 @@ setup_int1_enabled(I2C, _X, _Y, _Z, Int1Src) when Int1Src band 16#40 =/= 0 ->
     case detect_meuh(I2C, start, 30) of
         meuh ->
             {play, meuh};
+        replaced ->
+            replaced;
         timeout ->
             % Use interrupt to detect resting positiong
             i2c:write_bytes(I2C, ?LIS3DH_ADDR, ?CTRL_REG3, <<?CTRL_REG3_CONFIG_ENABLE_IA2>>),
@@ -223,7 +227,8 @@ setup_int2_enabled(I2C, X, Y, Z, Int2Src) when Int2Src band 16#40 =/= 0 ->
         ?LIS3DH_RESTING(X, Y, Z) ->
             % Use interrupt to detect movement
             i2c:write_bytes(I2C, ?LIS3DH_ADDR, ?CTRL_REG3, <<?CTRL_REG3_CONFIG_ENABLE_IA1>>),
-            ok;
+            io:format("Replaced after long move\n"),
+            replaced;
         true ->
             not_resting
     end;
@@ -252,6 +257,12 @@ detect_meuh(I2C, State, Steps) ->
             case NewState of
                 pos_detected ->
                     meuh;
+                start ->
+                    if
+                        % replaced vertically after 10*90ms without having been upside down
+                        Steps < 20 -> replaced;
+                        true -> not_meuh
+                    end;
                 _ ->
                     not_meuh
             end;
