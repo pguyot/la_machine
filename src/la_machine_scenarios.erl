@@ -61,52 +61,52 @@
 	scenario_excited_01062/0,
 	scenario_excited_01067/0,
 	scenario_excited_01088/0,
-	scenario_game_00642/0,
-	scenario_game_00671/0,
-	scenario_game_00696/0,
-	scenario_game_00707/0,
-	scenario_game_00879/0,
-	scenario_game_00880/0,
-	scenario_game_00886/0,
-	scenario_game_00961/0,
-	scenario_game_00992/0,
-	scenario_game_01000/0,
-	scenario_game_01004/0,
-	scenario_game_01065/0,
-	scenario_game_01120/0,
-	scenario_game_01257/0,
-	scenario_game_01258/0,
-	scenario_game_01300/0,
-	scenario_game_01303/0,
-	scenario_game_01408/0,
-	scenario_game_01409/0,
-	scenario_game_01427/0,
-	scenario_game_01439/0,
-	scenario_game_01452/0,
-	scenario_game_01477/0,
-	scenario_game_02388/0,
-	scenario_game_02525/0,
-	scenario_game_02537/0,
-	scenario_game_02686/0,
-	scenario_game_02821/0,
-	scenario_game_02865/0,
-	scenario_game_02907/0,
-	scenario_game_02933/0,
-	scenario_game_03018/0,
-	scenario_game_03063/0,
-	scenario_game_03077/0,
-	scenario_game_03079/0,
-	scenario_game_03130/0,
-	scenario_game_03147/0,
-	scenario_game_03149/0,
-	scenario_game_03223/0,
-	scenario_game_03385/0,
-	scenario_game_03765/0,
-	scenario_game_04086/0,
-	scenario_game_04239/0,
-	scenario_game_04843/0,
-	scenario_game_04933/0,
-	scenario_game_05030/0,
+	scenario_game_short_00642/0,
+	scenario_game_short_00671/0,
+	scenario_game_short_00696/0,
+	scenario_game_short_00707/0,
+	scenario_game_short_00879/0,
+	scenario_game_short_00880/0,
+	scenario_game_short_00886/0,
+	scenario_game_short_00961/0,
+	scenario_game_short_00992/0,
+	scenario_game_short_01000/0,
+	scenario_game_short_01004/0,
+	scenario_game_short_01065/0,
+	scenario_game_short_01120/0,
+	scenario_game_short_01257/0,
+	scenario_game_short_01258/0,
+	scenario_game_short_01300/0,
+	scenario_game_short_01303/0,
+	scenario_game_short_01408/0,
+	scenario_game_short_01409/0,
+	scenario_game_short_01427/0,
+	scenario_game_short_01439/0,
+	scenario_game_short_01452/0,
+	scenario_game_short_01477/0,
+	scenario_game_medium_02388/0,
+	scenario_game_medium_02525/0,
+	scenario_game_medium_02537/0,
+	scenario_game_medium_02686/0,
+	scenario_game_medium_02821/0,
+	scenario_game_medium_02865/0,
+	scenario_game_medium_02907/0,
+	scenario_game_medium_02933/0,
+	scenario_game_medium_03018/0,
+	scenario_game_medium_03063/0,
+	scenario_game_medium_03077/0,
+	scenario_game_medium_03079/0,
+	scenario_game_medium_03130/0,
+	scenario_game_medium_03147/0,
+	scenario_game_medium_03149/0,
+	scenario_game_medium_03223/0,
+	scenario_game_medium_03385/0,
+	scenario_game_long_03765/0,
+	scenario_game_long_04086/0,
+	scenario_game_long_04239/0,
+	scenario_game_long_04843/0,
+	scenario_game_long_04933/0,
+	scenario_game_long_05030/0,
 	scenario_hits_00082/0,
 	scenario_hits_00117/0,
 	scenario_hits_00155/0,
@@ -505,232 +505,232 @@ scenario_excited_01088() ->
 		{aac, <<"excited/01088.aac">>}
 	].
 
-scenario_game_00642() ->
+scenario_game_short_00642() ->
 	[
 		{aac, <<"game/00642.aac">>}
 	].
 
-scenario_game_00671() ->
+scenario_game_short_00671() ->
 	[
 		{aac, <<"game/00671.aac">>}
 	].
 
-scenario_game_00696() ->
+scenario_game_short_00696() ->
 	[
 		{aac, <<"game/00696.aac">>}
 	].
 
-scenario_game_00707() ->
+scenario_game_short_00707() ->
 	[
 		{aac, <<"game/00707.aac">>}
 	].
 
-scenario_game_00879() ->
+scenario_game_short_00879() ->
 	[
 		{aac, <<"game/00879.aac">>}
 	].
 
-scenario_game_00880() ->
+scenario_game_short_00880() ->
 	[
 		{aac, <<"game/00880.aac">>}
 	].
 
-scenario_game_00886() ->
+scenario_game_short_00886() ->
 	[
 		{aac, <<"game/00886.aac">>}
 	].
 
-scenario_game_00961() ->
+scenario_game_short_00961() ->
 	[
 		{aac, <<"game/00961.aac">>}
 	].
 
-scenario_game_00992() ->
+scenario_game_short_00992() ->
 	[
 		{aac, <<"game/00992.aac">>}
 	].
 
-scenario_game_01000() ->
+scenario_game_short_01000() ->
 	[
 		{aac, <<"game/01000.aac">>}
 	].
 
-scenario_game_01004() ->
+scenario_game_short_01004() ->
 	[
 		{aac, <<"game/01004.aac">>}
 	].
 
-scenario_game_01065() ->
+scenario_game_short_01065() ->
 	[
 		{aac, <<"game/01065.aac">>}
 	].
 
-scenario_game_01120() ->
+scenario_game_short_01120() ->
 	[
 		{aac, <<"game/01120.aac">>}
 	].
 
-scenario_game_01257() ->
+scenario_game_short_01257() ->
 	[
 		{aac, <<"game/01257.aac">>}
 	].
 
-scenario_game_01258() ->
+scenario_game_short_01258() ->
 	[
 		{aac, <<"game/01258.aac">>}
 	].
 
-scenario_game_01300() ->
+scenario_game_short_01300() ->
 	[
 		{aac, <<"game/01300.aac">>}
 	].
 
-scenario_game_01303() ->
+scenario_game_short_01303() ->
 	[
 		{aac, <<"game/01303.aac">>}
 	].
 
-scenario_game_01408() ->
+scenario_game_short_01408() ->
 	[
 		{aac, <<"game/01408.aac">>}
 	].
 
-scenario_game_01409() ->
+scenario_game_short_01409() ->
 	[
 		{aac, <<"game/01409.aac">>}
 	].
 
-scenario_game_01427() ->
+scenario_game_short_01427() ->
 	[
 		{aac, <<"game/01427.aac">>}
 	].
 
-scenario_game_01439() ->
+scenario_game_short_01439() ->
 	[
 		{aac, <<"game/01439.aac">>}
 	].
 
-scenario_game_01452() ->
+scenario_game_short_01452() ->
 	[
 		{aac, <<"game/01452.aac">>}
 	].
 
-scenario_game_01477() ->
+scenario_game_short_01477() ->
 	[
 		{aac, <<"game/01477.aac">>}
 	].
 
-scenario_game_02388() ->
+scenario_game_medium_02388() ->
 	[
 		{aac, <<"game/02388.aac">>}
 	].
 
-scenario_game_02525() ->
+scenario_game_medium_02525() ->
 	[
 		{aac, <<"game/02525.aac">>}
 	].
 
-scenario_game_02537() ->
+scenario_game_medium_02537() ->
 	[
 		{aac, <<"game/02537.aac">>}
 	].
 
-scenario_game_02686() ->
+scenario_game_medium_02686() ->
 	[
 		{aac, <<"game/02686.aac">>}
 	].
 
-scenario_game_02821() ->
+scenario_game_medium_02821() ->
 	[
 		{aac, <<"game/02821.aac">>}
 	].
 
-scenario_game_02865() ->
+scenario_game_medium_02865() ->
 	[
 		{aac, <<"game/02865.aac">>}
 	].
 
-scenario_game_02907() ->
+scenario_game_medium_02907() ->
 	[
 		{aac, <<"game/02907.aac">>}
 	].
 
-scenario_game_02933() ->
+scenario_game_medium_02933() ->
 	[
 		{aac, <<"game/02933.aac">>}
 	].
 
-scenario_game_03018() ->
+scenario_game_medium_03018() ->
 	[
 		{aac, <<"game/03018.aac">>}
 	].
 
-scenario_game_03063() ->
+scenario_game_medium_03063() ->
 	[
 		{aac, <<"game/03063.aac">>}
 	].
 
-scenario_game_03077() ->
+scenario_game_medium_03077() ->
 	[
 		{aac, <<"game/03077.aac">>}
 	].
 
-scenario_game_03079() ->
+scenario_game_medium_03079() ->
 	[
 		{aac, <<"game/03079.aac">>}
 	].
 
-scenario_game_03130() ->
+scenario_game_medium_03130() ->
 	[
 		{aac, <<"game/03130.aac">>}
 	].
 
-scenario_game_03147() ->
+scenario_game_medium_03147() ->
 	[
 		{aac, <<"game/03147.aac">>}
 	].
 
-scenario_game_03149() ->
+scenario_game_medium_03149() ->
 	[
 		{aac, <<"game/03149.aac">>}
 	].
 
-scenario_game_03223() ->
+scenario_game_medium_03223() ->
 	[
 		{aac, <<"game/03223.aac">>}
 	].
 
-scenario_game_03385() ->
+scenario_game_medium_03385() ->
 	[
 		{aac, <<"game/03385.aac">>}
 	].
 
-scenario_game_03765() ->
+scenario_game_long_03765() ->
 	[
 		{aac, <<"game/03765.aac">>}
 	].
 
-scenario_game_04086() ->
+scenario_game_long_04086() ->
 	[
 		{aac, <<"game/04086.aac">>}
 	].
 
-scenario_game_04239() ->
+scenario_game_long_04239() ->
 	[
 		{aac, <<"game/04239.aac">>}
 	].
 
-scenario_game_04843() ->
+scenario_game_long_04843() ->
 	[
 		{aac, <<"game/04843.aac">>}
 	].
 
-scenario_game_04933() ->
+scenario_game_long_04933() ->
 	[
 		{aac, <<"game/04933.aac">>}
 	].
 
-scenario_game_05030() ->
+scenario_game_long_05030() ->
 	[
 		{aac, <<"game/05030.aac">>}
 	].
@@ -1301,16 +1301,10 @@ scenario_poke_01134() ->
 	].
 
 scenario_test_1() ->
-    [
-    	{servo, 0},
-        {servo, 60, 1200},
-        {wait, 2000},
-        {servo, 0},
-        {wait, 1000},
-        {servo, 60, 1200},
-        {wait, 2000},
-        {servo, 0}
-    ].
+	[
+		{wait, 451}, {servo, 17}, {wait, 2540}, {servo, 85, 1592}, {wait, 2414}, {servo, 100, 590}, {wait, 1666}, {servo, 0, 1000}
+	].
+
 scenario_tired_01006() ->
 	[
 		{aac, <<"tired/01006.aac">>}

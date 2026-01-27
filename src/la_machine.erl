@@ -247,8 +247,7 @@ compute_action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, State)
 -else.
 -define(DEBUG_PLAY_SCENARIO_CASE(Config, StateX),
     {play_scenario, DebugMood, DebugIndex} ->
-        play_scenario(DebugMood, DebugIndex, Config),
-        play_hit_if_needed(Config),
+        play_scenario_with_hit(DebugMood, DebugIndex, Config),
         StateX;
 ).
 -endif.
@@ -601,31 +600,17 @@ play_poke(Config) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% play_random_hit
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec play_random_hit(la_machine_configuration:config()) -> pos_integer().
-play_random_hit(Config) ->
+-spec play_random_hit(pid()) -> pos_integer().
+play_random_hit(Pid) ->
     MoodScenar = hits,
     ScenarioCount = la_machine_scenarios:count(MoodScenar),
     ScenarioIx = random_num_upto_butnot(ScenarioCount, undefined),
     io:format("play_random_hit=~p\n", [ScenarioIx]),
     Scenario = la_machine_scenarios:get(MoodScenar, ScenarioIx),
     % could be adapted to length of hit
-    Scenario_Full = Scenario ++ [{servo, 100}, {wait, 500}, {servo, 0}],
-    {ok, Pid} = la_machine_player:start_link(Config),
+    Scenario_Full = Scenario ++ [{servo, 100}, {wait, 100}, {servo, 0}],
     ok = la_machine_player:play(Pid, Scenario_Full),
-    ok = la_machine_player:stop(Pid),
     ScenarioIx.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% play_hit_if_needed
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec play_hit_if_needed(la_machine_configuration:config()) -> pos_integer().
-play_hit_if_needed(Config) ->
-    ButtonState = read_button(),
-    io:format("   after play ButtonState=~s\n", [ButtonState]),
-    if
-        ButtonState == on -> play_random_hit(Config);
-        true -> 1
-    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% play_random_scenario : play random scenario of MoodScenar, but not LastPlaySeq if possible
@@ -651,9 +636,13 @@ play_random_scenario(MoodScenar, LastPlaySeq, Config) ->
 ) ->
     pos_integer().
 play_random_scenario_with_hit(MoodScenar, LastPlaySeq, Config) ->
-    ScenarioIx = play_random_scenario(MoodScenar, LastPlaySeq, Config),
-    play_hit_if_needed(Config),
-    ScenarioIx.
+    ScenarioCount = la_machine_scenarios:count(MoodScenar),
+    io:format("play_random_scenario_with_hit MoodScenar=~p ScenarioCount=~p\n", [MoodScenar, ScenarioCount]),
+
+    % play random scenario
+    ScenarioIx = random_num_upto_butnot(ScenarioCount, LastPlaySeq),
+    io:format("     ScenarioIx=~p\n", [ScenarioIx]),
+    play_scenario_with_hit(MoodScenar, ScenarioIx, Config).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% play_scenario : play scenario ScenarioIx of MoodScenar
@@ -663,6 +652,24 @@ play_scenario(MoodScenar, ScenarioIx, Config) ->
     Scenario = la_machine_scenarios:get(MoodScenar, ScenarioIx),
     {ok, Pid} = la_machine_player:start_link(Config),
     ok = la_machine_player:play(Pid, Scenario),
+    ok = la_machine_player:stop(Pid),
+    ScenarioIx.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% play_scenario_with_hit : play scenario ScenarioIx of MoodScenar
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+-spec play_scenario_with_hit(atom(), pos_integer(), la_machine_configuration:config()) -> pos_integer().
+play_scenario_with_hit(MoodScenar, ScenarioIx, Config) ->
+    Scenario = la_machine_scenarios:get(MoodScenar, ScenarioIx),
+    {ok, Pid} = la_machine_player:start_link(Config),
+    ok = la_machine_player:play(Pid, Scenario),
+    % play hit if needed
+    ButtonState = read_button(),
+    io:format("   after play ButtonState=~s\n", [ButtonState]),
+    if
+        ButtonState == on -> play_random_hit(Pid);
+        true -> true
+    end,
     ok = la_machine_player:stop(Pid),
     ScenarioIx.
 

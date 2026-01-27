@@ -461,7 +461,7 @@ class ScenarEditor {
     stroke(255, 0, 0, 127);
     line(x0, yyy, x0 + w0, yyy);
     // contact
-    yy = gSERVO_BUTTON_CONTACT_VALUE/100.0; //<>//
+    yy = gSERVO_BUTTON_CONTACT_VALUE/100.0; //<>// //<>// //<>// //<>//
     yyy = y0+h0-yy*h0/2;
     stroke(255, 0, 0, 127);
     line(x0, yyy, x0 + w0, yyy);
@@ -480,9 +480,9 @@ class ScenarEditor {
           float x2 = ms2pixels(sEditor2.anchort);
           noFill(); stroke(0, 255, 0);
           if (sEditor1 == null) {
-            x1 = 0; //<>//
+            x1 = 0; //<>// //<>// //<>// //<>//
             y2 = y1;
-            line(x1, y1, x2, y2); //<>//
+            line(x1, y1, x2, y2); //<>// //<>// //<>// //<>//
           } else {
             // we have sEditor1
             x1 = ms2pixels(sEditor1.anchort);
@@ -766,6 +766,24 @@ void ScenariosUIInit() {
   gScen_y0 = height/2;
   gScen_w0 = 300;
   gScen_h0 = height - gScen_y0;
+  ScenariosChangeAllGameNames();
+}
+
+void ScenariosChangeAllGameNames() {
+  // change all games names : parse all scenarios and change games names if needed
+  if (gScenarios.size() > 0) {
+    // list
+    for (int i = 0; i < gScenarios.size(); i++) {
+      Scenario scenar = gScenarios.get(i);
+      if (scenar.name.startsWith("game")) {
+        gScen_curScenarIndex = i;
+        gScenarEditor = new ScenarEditor(scenar);
+        ScenariosSaveCurrent();
+      }
+    }
+    gScen_curScenarIndex = -1;
+    gScenarEditor = null;
+  }
 }
 
 void ScenariosDisplay() {
@@ -856,6 +874,9 @@ int ScenariosParseSoundFolder() {
       }
     }
   }
+  
+  ScenariosChangeAllGameNames();
+
   return total;
 }
 
