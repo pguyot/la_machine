@@ -79,7 +79,7 @@ power_on(Config) ->
 
     Duty0 = target_to_duty(0, Config),
     Duty100 = target_to_duty(100, Config),
-    
+
     % force to Duty0 and wait a little
     ok = ledc:set_duty(?LEDC_MODE, ?LEDC_CHANNEL, Duty0),
     ok = ledc:update_duty(?LEDC_MODE, ?LEDC_CHANNEL),

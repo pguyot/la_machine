@@ -637,7 +637,9 @@ play_random_scenario(MoodScenar, LastPlaySeq, Config) ->
     pos_integer().
 play_random_scenario_with_hit(MoodScenar, LastPlaySeq, Config) ->
     ScenarioCount = la_machine_scenarios:count(MoodScenar),
-    io:format("play_random_scenario_with_hit MoodScenar=~p ScenarioCount=~p\n", [MoodScenar, ScenarioCount]),
+    io:format("play_random_scenario_with_hit MoodScenar=~p ScenarioCount=~p\n", [
+        MoodScenar, ScenarioCount
+    ]),
 
     % play random scenario
     ScenarioIx = random_num_upto_butnot(ScenarioCount, LastPlaySeq),
@@ -658,7 +660,8 @@ play_scenario(MoodScenar, ScenarioIx, Config) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% play_scenario_with_hit : play scenario ScenarioIx of MoodScenar
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec play_scenario_with_hit(atom(), pos_integer(), la_machine_configuration:config()) -> pos_integer().
+-spec play_scenario_with_hit(atom(), pos_integer(), la_machine_configuration:config()) ->
+    pos_integer().
 play_scenario_with_hit(MoodScenar, ScenarioIx, Config) ->
     Scenario = la_machine_scenarios:get(MoodScenar, ScenarioIx),
     {ok, Pid} = la_machine_player:start_link(Config),
