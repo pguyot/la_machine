@@ -36,9 +36,10 @@ def create_flash_image():
             "chip": "esp32c3",
             "addr_filename": [
                 (0x0, open("image/build/bootloader/bootloader.bin", "rb")),
-                (0x8000, open("image/partitions.bin", "rb")),
+                (0x8000, open("image/partitions-tests.bin", "rb")),
                 (0x10000, open("image/build/atomvm-esp32.bin", "rb")),
                 (0x130000, open("image/la_machine_tests.avm", "rb")),
+                (0x270000, open("image/sounds.bin", "rb")),
             ],
             "format": "raw",
             "output": path,
