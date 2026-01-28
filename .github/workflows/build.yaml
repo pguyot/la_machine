@@ -108,6 +108,14 @@ jobs:
         if-no-files-found: error
         retention-days: 1
 
+    - name: Upload sounds.bin
+      uses: actions/upload-artifact@v4
+      with:
+        name: la_machine-sounds.bin
+        path: la_machine/_build/generated/sounds.bin
+        if-no-files-found: error
+        retention-days: 1
+
   build_variants:
     runs-on: ubuntu-24.04
     container: erlang:28
@@ -266,22 +274,23 @@ jobs:
         name: la_machine-atomvm
         path: image/
 
-    - name: Download partition map
-      uses: actions/download-artifact@v4
-      with:
-        name: partitions.bin
-        path: image/
-
     - name: Download la_machine_tests.avm
       uses: actions/download-artifact@v4
       with:
         name: la_machine_tests.avm
         path: image/
 
+    - name: Download la_machine sounds
+      uses: actions/download-artifact@v4
+      with:
+        name: la_machine-sounds.bin
+        path: image/
+
     - name: Run tests with qemu
       shell: bash
       run: |
         . $IDF_PATH/export.sh
+        python $IDF_PATH/components/partition_table/gen_esp32part.py image/partitions-tests.csv image/partitions-tests.bin
         pip install -U pytest-embedded pytest-embedded-qemu
         pytest test_qemu.py
 
@@ -313,6 +322,12 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: la_machine${{ matrix.suffix }}.avm
+        path: image/
+
+    - name: Download la_machine sounds
+      uses: actions/download-artifact@v4
+      with:
+        name: la_machine-sounds.bin
         path: image/
 
     - name: Build image
