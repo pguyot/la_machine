@@ -101,7 +101,7 @@ class Scenario {
     elements = new ArrayList();
   }
   
-  ArrayList <ScenarElem> parseElements() {
+  ArrayList <ScenarElem> elements() {
     if (elements.size() == 0) {
       parseDef();
     }
@@ -170,7 +170,9 @@ void ScenariosLoadFile(String jsonfile) {
       gScenarios.add(scenar);
     }
   }
-  println("Loaded "+gScenarios.size()+" scenarios");}
+  ScenariosResort();
+  println("Loaded "+gScenarios.size()+" scenarios");
+}
 
 void ScenariosSaveToFile(String file) {
   String[] strinList = new String[gScenarios.size() + 2];
@@ -222,6 +224,14 @@ boolean ScenariosCreateScenarioForAudioIfNeeded(String folderName, String audioF
   }
   //AsLog("Already present:"+scenarName);
   return false;
+}
+
+Scenario ScenariosCreateEmptyScenario() {
+  String name = "empty_"+gScenarios.size();
+  Scenario scenar = new Scenario(name, "");
+  gScenarios.add(scenar);
+  ScenariosResort();
+  return scenar;
 }
 
 void ScenariosResort() {

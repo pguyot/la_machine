@@ -61,8 +61,45 @@
 	scenario_excited_01062/0,
 	scenario_excited_01067/0,
 	scenario_excited_01088/0,
+	scenario_excited_01100/0,
+	scenario_excited_01135/0,
+	scenario_excited_01147/0,
+	scenario_excited_01186/0,
+	scenario_excited_01194/0,
+	scenario_excited_01201/0,
+	scenario_excited_01221/0,
+	scenario_excited_01230/0,
+	scenario_excited_01238/0,
+	scenario_excited_01280/0,
 	scenario_excited_01318/0,
 	scenario_excited_01327/0,
+	scenario_excited_01340/0,
+	scenario_excited_01356/0,
+	scenario_excited_01406/0,
+	scenario_excited_01413/0,
+	scenario_excited_01462/0,
+	scenario_excited_01494/0,
+	scenario_excited_01502/0,
+	scenario_excited_01511/0,
+	scenario_excited_01537/0,
+	scenario_excited_01552/0,
+	scenario_excited_01572/0,
+	scenario_excited_01574/0,
+	scenario_excited_01580/0,
+	scenario_excited_01650/0,
+	scenario_excited_01652/0,
+	scenario_excited_01698/0,
+	scenario_excited_01744/0,
+	scenario_excited_01789/0,
+	scenario_excited_01795/0,
+	scenario_excited_02044/0,
+	scenario_excited_02137/0,
+	scenario_excited_02334/0,
+	scenario_excited_02397/0,
+	scenario_excited_silent1/0,
+	scenario_excited_silent2/0,
+	scenario_excited_silent3/0,
+	scenario_excited_silent4/0,
 	scenario_game_long_03765/0,
 	scenario_game_long_04086/0,
 	scenario_game_long_04239/0,
@@ -444,17 +481,17 @@ scenario_excited_00603() ->
 
 scenario_excited_00784() ->
 	[
-		{aac, <<"excited/00784.aac">>}, {wait, 40}, {servo, 75}, {wait, 405}, {servo, 12, 533}
+		{aac, <<"excited/00784.aac">>}, {wait, 40}, {servo, 75}, {wait, 382}, {servo, 64}, {wait, 69}, {servo, 75}, {wait, 64}, {servo, 64}, {wait, 75}, {servo, 75}, {wait, 58}, {servo, 64}, {wait, 93}, {servo, 75}, {wait, 75}, {servo, 64}, {wait, 58}, {servo, 75}
 	].
 
 scenario_excited_00806() ->
 	[
-		{wait, 17}, {servo, 18}, {wait, 162}, {servo, 12}, {wait, 127}, {servo, 17}, {wait, 128}, {servo, 11}, {wait, 127}, {servo, 17}, {wait, 139}, {servo, 12}, {wait, 115}, {aac, <<"excited/00806.aac">>}, {wait, 47}, {servo, 19}, {wait, 110}, {servo, 11}, {wait, 127}, {servo, 73}, {wait, 631}, {servo, 10}
+		{wait, 17}, {servo, 18}, {wait, 162}, {servo, 12}, {wait, 127}, {servo, 17}, {wait, 128}, {servo, 11}, {wait, 127}, {servo, 17}, {wait, 139}, {servo, 12}, {wait, 115}, {aac, <<"excited/00806.aac">>}, {wait, 47}, {servo, 19}, {wait, 110}, {servo, 11}, {wait, 127}, {servo, 73}
 	].
 
 scenario_excited_00812() ->
 	[
-		{wait, 23}, {servo, 78}, {wait, 75}, {aac, <<"excited/00812.aac">>}, {wait, 613}, {servo, 78}, {wait, 64}, {servo, 11}
+		{wait, 23}, {servo, 78}, {wait, 75}, {aac, <<"excited/00812.aac">>}, {wait, 741}, {servo, 55}
 	].
 
 scenario_excited_00830() ->
@@ -464,12 +501,12 @@ scenario_excited_00830() ->
 
 scenario_excited_00946() ->
 	[
-		{wait, 23}, {servo, 83}, {wait, 237}, {aac, <<"excited/00946.aac">>}, {wait, 191}, {servo, 73}, {wait, 110}, {servo, 82}, {wait, 81}, {servo, 72}, {wait, 92}, {servo, 83}, {wait, 87}, {servo, 72}, {wait, 87}, {servo, 81}, {wait, 87}, {servo, 71}, {wait, 92}, {servo, 81}, {wait, 70}, {servo, 15}
+		{wait, 23}, {servo, 83}, {wait, 237}, {aac, <<"excited/00946.aac">>}, {wait, 191}, {servo, 73}, {wait, 110}, {servo, 82}, {wait, 81}, {servo, 72}, {wait, 92}, {servo, 83}, {wait, 87}, {servo, 72}, {wait, 87}, {servo, 81}, {wait, 87}, {servo, 71}, {wait, 92}, {servo, 81}, {wait, 122}, {servo, 50}
 	].
 
 scenario_excited_01015() ->
 	[
-		{servo, 39}, {wait, 57}, {aac, <<"excited/01015.aac">>}, {wait, 203}, {servo, 53}, {wait, 145}, {servo, 61}, {wait, 121}, {servo, 72}, {wait, 127}, {servo, 82}, {wait, 278}, {servo, 25}
+		{servo, 39}, {wait, 57}, {aac, <<"excited/01015.aac">>}, {wait, 203}, {servo, 53}, {wait, 145}, {servo, 61}, {wait, 121}, {servo, 72}, {wait, 127}, {servo, 82}, {wait, 151}, {servo, 70}, {wait, 145}, {servo, 82}
 	].
 
 scenario_excited_01021() ->
@@ -479,7 +516,7 @@ scenario_excited_01021() ->
 
 scenario_excited_01029() ->
 	[
-		{wait, 23}, {servo, 17}, {wait, 23}, {aac, <<"excited/01029.aac">>}, {wait, 75}, {servo, 8}, {wait, 75}, {servo, 22}, {wait, 81}, {servo, 7}, {wait, 110}, {servo, 22}, {wait, 99}, {servo, 7}, {wait, 81}, {servo, 82}, {wait, 654}, {servo, 11}
+		{wait, 23}, {servo, 17}, {wait, 23}, {aac, <<"excited/01029.aac">>}, {wait, 75}, {servo, 8}, {wait, 75}, {servo, 22}, {wait, 81}, {servo, 7}, {wait, 110}, {servo, 22}, {wait, 99}, {servo, 7}, {wait, 81}, {servo, 82}, {wait, 411}, {servo, 63, 272}
 	].
 
 scenario_excited_01041() ->
@@ -494,7 +531,7 @@ scenario_excited_01050() ->
 
 scenario_excited_01062() ->
 	[
-		{aac, <<"excited/01062.aac">>}, {wait, 46}, {servo, 23}, {wait, 144}, {servo, 11}, {wait, 99}, {servo, 23}, {wait, 98}, {servo, 11}, {wait, 81}, {servo, 83}, {wait, 388}, {servo, 3}
+		{aac, <<"excited/01062.aac">>}, {wait, 46}, {servo, 23}, {wait, 144}, {servo, 11}, {wait, 99}, {servo, 23}, {wait, 98}, {servo, 11}, {wait, 81}, {servo, 83}, {wait, 376}, {servo, 62, 365}
 	].
 
 scenario_excited_01067() ->
@@ -504,17 +541,202 @@ scenario_excited_01067() ->
 
 scenario_excited_01088() ->
 	[
-		{aac, <<"excited/01088.aac">>}, {wait, 23}, {servo, 36}, {wait, 185}, {servo, 8}, {wait, 145}, {servo, 24}, {wait, 75}, {servo, 8}, {wait, 92}, {servo, 83}, {wait, 446}, {servo, 9}
+		{aac, <<"excited/01088.aac">>}, {wait, 23}, {servo, 36}, {wait, 185}, {servo, 8}, {wait, 145}, {servo, 24}, {wait, 75}, {servo, 8}, {wait, 92}, {servo, 83}, {wait, 486}, {servo, 68}
+	].
+
+scenario_excited_01100() ->
+	[
+		{wait, 17}, {servo, 82}, {wait, 75}, {aac, <<"excited/01100.aac">>}, {wait, 324}, {servo, 61}, {wait, 110}, {servo, 81}, {wait, 110}, {servo, 43, 243}, {wait, 243}, {servo, 80}, {wait, 185}, {servo, 41}
+	].
+
+scenario_excited_01135() ->
+	[
+		{aac, <<"excited/01135.aac">>}, {wait, 17}, {servo, 25}, {wait, 139}, {servo, 3}, {wait, 121}, {servo, 24}, {wait, 110}, {servo, 2}, {wait, 122}, {servo, 70}, {wait, 364}, {servo, 48}
+	].
+
+scenario_excited_01147() ->
+	[
+		{wait, 17}, {servo, 21}, {wait, 116}, {servo, 7}, {wait, 69}, {aac, <<"excited/01147.aac">>}, {wait, 17}, {servo, 49}, {wait, 215}, {servo, 31}, {wait, 104}, {servo, 64}, {wait, 173}, {servo, 41}, {wait, 122}, {servo, 75}, {wait, 173}, {servo, 49}, {wait, 139}, {servo, 84}, {wait, 174}, {servo, 53}
+	].
+
+scenario_excited_01186() ->
+	[
+		{aac, <<"excited/01186.aac">>}, {wait, 11}, {servo, 20}, {wait, 110}, {servo, 7}, {wait, 579}, {servo, 21}, {wait, 81}, {servo, 7}, {wait, 92}, {servo, 21}, {wait, 64}, {servo, 7}, {wait, 64}, {servo, 21}, {wait, 81}, {servo, 7}, {wait, 92}, {servo, 21}, {wait, 76}, {servo, 6}
+	].
+
+scenario_excited_01194() ->
+	[
+		{aac, <<"excited/01194.aac">>}, {wait, 11}, {servo, 24}, {wait, 127}, {servo, 5}, {wait, 110}, {servo, 24}, {wait, 105}, {servo, 5}, {wait, 109}, {servo, 24}, {wait, 105}, {servo, 5}, {wait, 115}, {servo, 24}, {wait, 105}, {servo, 5}, {wait, 109}, {servo, 100}, {wait, 516}, {servo, 0}
+	].
+
+scenario_excited_01201() ->
+	[
+		{wait, 17}, {servo, 21}, {wait, 110}, {aac, <<"excited/01201.aac">>}, {servo, 8}, {wait, 81}, {servo, 17}, {wait, 63}, {servo, 7}, {wait, 93}, {servo, 18}, {wait, 64}, {servo, 6}, {wait, 87}, {servo, 19}, {wait, 75}, {servo, 7}, {wait, 81}, {servo, 24}, {wait, 110}, {servo, 4}, {wait, 139}, {servo, 26}, {wait, 162}, {servo, 83}
+	].
+
+scenario_excited_01221() ->
+	[
+		{aac, <<"excited/01221.aac">>}, {wait, 11}, {servo, 23}, {wait, 127}, {servo, 10}, {wait, 81}, {servo, 37}, {wait, 151}, {servo, 20}, {wait, 110}, {servo, 52}, {wait, 179}, {servo, 30}, {wait, 128}, {servo, 59}, {wait, 156}, {servo, 36}, {wait, 133}, {servo, 67}
+	].
+
+scenario_excited_01230() ->
+	[
+		{aac, <<"excited/01230.aac">>}, {servo, 69}, {wait, 335}, {servo, 61}, {wait, 52}, {servo, 68}, {wait, 58}, {servo, 60}, {wait, 70}, {servo, 68}, {wait, 52}, {servo, 60}, {wait, 63}, {servo, 68}, {wait, 87}, {servo, 60}, {wait, 87}, {servo, 68}, {wait, 75}, {servo, 60}, {wait, 93}, {servo, 69}, {wait, 115}, {servo, 60}, {wait, 70}, {servo, 70}, {wait, 110}, {servo, 59}
+	].
+
+scenario_excited_01238() ->
+	[
+		{aac, <<"excited/01238.aac">>}, {servo, 75}, {wait, 376}, {servo, 58}, {wait, 98}, {servo, 74}, {wait, 93}, {servo, 58}, {wait, 110}, {servo, 75}, {wait, 92}, {servo, 57}, {wait, 110}, {servo, 74}, {wait, 99}, {servo, 56}, {wait, 121}, {servo, 74}
+	].
+
+scenario_excited_01280() ->
+	[
+		{aac, <<"excited/01280.aac">>}, {servo, 68}, {wait, 711}, {servo, 7}, {wait, 307}, {servo, 21}, {wait, 81}, {servo, 5}, {wait, 98}, {servo, 21}, {wait, 105}, {servo, 6}
 	].
 
 scenario_excited_01318() ->
 	[
-		{aac, <<"excited/01318.aac">>}, {wait, 17}, {servo, 25}, {wait, 139}, {servo, 7}, {wait, 104}, {servo, 23}, {wait, 93}, {servo, 6}, {wait, 104}, {servo, 24}, {wait, 110}, {servo, 7}, {wait, 104}, {servo, 83}, {wait, 503}, {servo, 7}
+		{aac, <<"excited/01318.aac">>}, {wait, 17}, {servo, 25}, {wait, 139}, {servo, 7}, {wait, 104}, {servo, 23}, {wait, 93}, {servo, 6}, {wait, 104}, {servo, 24}, {wait, 110}, {servo, 7}, {wait, 104}, {servo, 83}, {wait, 538}, {servo, 68, 260}
 	].
 
 scenario_excited_01327() ->
 	[
-		{aac, <<"excited/01327.aac">>}, {wait, 23}, {servo, 20}, {wait, 110}, {servo, 12}, {wait, 57}, {servo, 19}, {wait, 53}, {servo, 11}, {wait, 63}, {servo, 20}, {wait, 52}, {servo, 9}, {wait, 70}, {servo, 20}, {wait, 75}, {servo, 10}, {wait, 75}, {servo, 18}, {wait, 70}, {servo, 10}, {wait, 86}, {servo, 18}, {wait, 64}, {servo, 9}, {wait, 64}, {servo, 18}, {wait, 69}, {servo, 9}, {wait, 70}, {servo, 82}, {wait, 411}, {servo, 10}
+		{aac, <<"excited/01327.aac">>}, {wait, 23}, {servo, 20}, {wait, 110}, {servo, 12}, {wait, 57}, {servo, 19}, {wait, 53}, {servo, 11}, {wait, 63}, {servo, 20}, {wait, 52}, {servo, 9}, {wait, 70}, {servo, 20}, {wait, 75}, {servo, 10}, {wait, 75}, {servo, 18}, {wait, 70}, {servo, 10}, {wait, 86}, {servo, 18}, {wait, 64}, {servo, 9}, {wait, 64}, {servo, 18}, {wait, 69}, {servo, 9}, {wait, 70}, {servo, 82}
+	].
+
+scenario_excited_01340() ->
+	[
+		{aac, <<"excited/01340.aac">>}, {wait, 17}, {servo, 84}, {wait, 417}, {servo, 55}, {wait, 272}, {servo, 41}, {wait, 219}, {servo, 29}, {wait, 243}, {servo, 17}, {wait, 220}, {servo, 4}
+	].
+
+scenario_excited_01356() ->
+	[
+		{aac, <<"excited/01356.aac">>}, {wait, 17}, {servo, 50}, {wait, 312}, {servo, 43}, {wait, 93}, {servo, 50}, {wait, 93}, {servo, 41}, {wait, 98}, {servo, 49}, {wait, 104}, {servo, 41}, {wait, 75}, {servo, 50}, {wait, 76}, {servo, 41}, {wait, 133}, {servo, 49}, {wait, 127}, {servo, 41, 382}
+	].
+
+scenario_excited_01406() ->
+	[
+		{aac, <<"excited/01406.aac">>}, {wait, 5}, {servo, 20}, {wait, 116}, {servo, 10}, {wait, 87}, {servo, 19}, {wait, 81}, {servo, 9}, {wait, 116}, {servo, 18}, {wait, 75}, {servo, 9}, {wait, 98}, {servo, 17}, {wait, 99}, {servo, 8}, {wait, 75}, {servo, 20}, {wait, 116}, {servo, 10}, {wait, 86}, {servo, 19}, {wait, 151}, {servo, 9}, {wait, 87}, {servo, 50}, {wait, 243}, {servo, 76}
+	].
+
+scenario_excited_01413() ->
+	[
+		{aac, <<"excited/01413.aac">>}, {servo, 71}, {wait, 393}, {servo, 67}, {wait, 35}, {servo, 72}, {wait, 75}, {servo, 67}, {wait, 52}, {servo, 73}, {wait, 75}, {servo, 66}, {wait, 99}, {servo, 73}, {wait, 40}, {servo, 66}, {wait, 70}, {servo, 72}, {wait, 46}, {servo, 67}, {wait, 75}, {servo, 72}, {wait, 70}, {servo, 66}, {wait, 75}, {servo, 73}, {wait, 168}, {servo, 65}
+	].
+
+scenario_excited_01462() ->
+	[
+		{aac, <<"excited/01462.aac">>}, {servo, 67}, {wait, 318}, {servo, 48}, {wait, 98}, {servo, 67}, {wait, 104}, {servo, 48}, {wait, 122}, {servo, 64}, {wait, 92}, {servo, 47}, {wait, 99}, {servo, 66}, {wait, 116}, {servo, 47}, {wait, 115}, {servo, 67}, {wait, 145}, {servo, 49, 370}
+	].
+
+scenario_excited_01494() ->
+	[
+		{aac, <<"excited/01494.aac">>}, {wait, 23}, {servo, 18}, {wait, 179}, {servo, 10}, {wait, 174}, {servo, 19}, {wait, 162}, {servo, 10}, {wait, 104}, {servo, 18}, {wait, 69}, {servo, 11}, {wait, 70}, {servo, 17}, {wait, 46}, {servo, 11}, {wait, 75}, {servo, 18}, {wait, 64}, {servo, 10}, {wait, 75}, {servo, 17}, {wait, 46}, {servo, 10}, {wait, 58}, {servo, 17}, {wait, 128}, {servo, 10}, {wait, 34}, {servo, 18}, {wait, 87}, {servo, 12}, {wait, 75}, {servo, 19}, {wait, 81}, {servo, 10}, {wait, 47}, {servo, 18}, {wait, 52}, {servo, 9}
+	].
+
+scenario_excited_01502() ->
+	[
+		{aac, <<"excited/01502.aac">>}, {servo, 32}, {wait, 196}, {servo, 24}, {wait, 81}, {servo, 61}, {wait, 197}, {servo, 53}, {wait, 69}, {servo, 61}, {wait, 76}, {servo, 53}, {wait, 92}, {servo, 63}, {wait, 87}, {servo, 53}, {wait, 81}, {servo, 63}, {wait, 104}, {servo, 53}, {wait, 87}, {servo, 82}, {wait, 168}, {servo, 76}, {wait, 69}, {servo, 81}, {wait, 64}, {servo, 74}, {wait, 75}, {servo, 82}, {wait, 87}, {servo, 74}, {wait, 75}, {servo, 82}
+	].
+
+scenario_excited_01511() ->
+	[
+		{aac, <<"excited/01511.aac">>}, {wait, 23}, {servo, 20}, {wait, 121}, {servo, 9, 99}, {wait, 122}, {servo, 18}, {wait, 81}, {servo, 9}, {wait, 121}, {servo, 18}, {wait, 110}, {servo, 10}, {wait, 81}, {servo, 17}, {wait, 70}, {servo, 12}, {wait, 115}, {servo, 18}, {wait, 58}, {servo, 10}, {wait, 238}, {servo, 80}
+	].
+
+scenario_excited_01537() ->
+	[
+		{aac, <<"excited/01537.aac">>}, {wait, 40}, {servo, 68}, {wait, 330}, {servo, 60}, {wait, 75}, {servo, 68}, {wait, 93}, {servo, 60}, {wait, 81}, {servo, 68}, {wait, 58}, {servo, 61}, {wait, 75}, {servo, 69}, {wait, 52}, {servo, 48}, {wait, 116}, {servo, 71}, {wait, 127}, {servo, 47}, {wait, 145}, {servo, 71}, {wait, 139}, {servo, 46}
+	].
+
+scenario_excited_01552() ->
+	[
+		{aac, <<"excited/01552.aac">>}, {wait, 28}, {servo, 19}, {wait, 151}, {servo, 11}, {wait, 52}, {servo, 21}, {wait, 69}, {servo, 10}, {wait, 76}, {servo, 20}, {wait, 63}, {servo, 9}, {wait, 93}, {servo, 20}, {wait, 69}, {servo, 10}, {wait, 110}, {servo, 83}, {wait, 382}, {servo, 69, 157}, {wait, 191}, {servo, 83}, {wait, 99}, {servo, 67}, {wait, 121}, {servo, 82}
+	].
+
+scenario_excited_01572() ->
+	[
+		{aac, <<"excited/01572.aac">>}, {wait, 28}, {servo, 67}, {wait, 342}, {servo, 41}, {wait, 208}, {servo, 67}, {wait, 197}, {servo, 11}, {wait, 284}, {servo, 18}, {wait, 46}, {servo, 10}, {wait, 63}, {servo, 18}, {wait, 76}, {servo, 10}, {wait, 58}, {servo, 17}, {wait, 40}, {servo, 10}, {wait, 52}, {servo, 18}, {wait, 52}, {servo, 9}, {wait, 58}, {servo, 18}, {wait, 41}, {servo, 10}, {wait, 63}, {servo, 17}, {wait, 64}, {servo, 11}
+	].
+
+scenario_excited_01574() ->
+	[
+		{aac, <<"excited/01574.aac">>}, {wait, 23}, {servo, 70}, {wait, 434}, {servo, 52}, {wait, 185}, {servo, 69}, {wait, 168}, {servo, 52}, {wait, 185}, {servo, 69}, {wait, 156}, {servo, 52}, {wait, 139}, {servo, 69}, {wait, 174}, {servo, 53}
+	].
+
+scenario_excited_01580() ->
+	[
+		{aac, <<"excited/01580.aac">>}, {wait, 28}, {servo, 84}, {wait, 417}, {servo, 73}, {wait, 98}, {servo, 82}, {wait, 82}, {servo, 73}, {wait, 81}, {servo, 82}, {wait, 98}, {servo, 72}, {wait, 81}, {servo, 81}, {wait, 93}, {servo, 70}, {wait, 81}, {servo, 81}, {wait, 86}, {servo, 69}, {wait, 81}, {servo, 81}, {wait, 93}, {servo, 68}, {wait, 145}, {servo, 100}, {wait, 295}, {servo, 0}
+	].
+
+scenario_excited_01650() ->
+	[
+		{aac, <<"excited/01650.aac">>}, {wait, 17}, {servo, 21}, {wait, 156}, {servo, 10}, {wait, 110}, {servo, 19}, {wait, 122}, {servo, 10}, {wait, 115}, {servo, 19}, {wait, 81}, {servo, 10}, {wait, 116}, {servo, 17}, {wait, 110}, {servo, 8}, {wait, 75}, {servo, 19}, {wait, 93}, {servo, 8}, {wait, 110}, {servo, 19}, {wait, 63}, {servo, 7}, {wait, 64}, {servo, 100}, {wait, 544}, {servo, 0}
+	].
+
+scenario_excited_01652() ->
+	[
+		{aac, <<"excited/01652.aac">>}, {wait, 28}, {servo, 82}, {wait, 614}, {servo, 70}, {wait, 92}, {servo, 80}, {wait, 93}, {servo, 70}, {wait, 75}, {servo, 79}, {wait, 41}, {servo, 70}, {wait, 81}, {servo, 79}, {wait, 58}, {servo, 69}, {wait, 92}, {servo, 79}, {wait, 47}, {servo, 69}, {wait, 98}, {servo, 79}, {wait, 69}, {servo, 69}, {wait, 81}, {servo, 80}, {wait, 76}, {servo, 69}, {wait, 75}, {servo, 79}, {wait, 98}, {servo, 69}
+	].
+
+scenario_excited_01698() ->
+	[
+		{aac, <<"excited/01698.aac">>}, {wait, 23}, {servo, 24}, {wait, 237}, {servo, 48}, {wait, 197}, {servo, 35}, {wait, 156}, {servo, 62}, {wait, 185}, {servo, 49}, {wait, 122}, {servo, 71}, {wait, 191}, {servo, 51}, {wait, 196}, {servo, 81}, {wait, 209}, {servo, 57}, {wait, 249}, {servo, 39}
+	].
+
+scenario_excited_01744() ->
+	[
+		{aac, <<"excited/01744.aac">>}, {wait, 34}, {servo, 52}, {wait, 301}, {servo, 39}, {wait, 116}, {servo, 53}, {wait, 127}, {servo, 37}, {wait, 139}, {servo, 54}, {wait, 127}, {servo, 37}, {wait, 110}, {servo, 54}, {wait, 128}, {servo, 36}, {wait, 162}, {servo, 84}, {wait, 306}, {servo, 75}, {wait, 105}, {servo, 83}, {wait, 173}, {servo, 74}
+	].
+
+scenario_excited_01789() ->
+	[
+		{aac, <<"excited/01789.aac">>}, {wait, 34}, {servo, 21}, {wait, 1042}, {servo, 82}
+	].
+
+scenario_excited_01795() ->
+	[
+		{aac, <<"excited/01795.aac">>}, {wait, 11}, {servo, 18}, {wait, 104}, {servo, 10}, {wait, 64}, {servo, 19}, {wait, 75}, {servo, 8}, {wait, 81}, {servo, 20}, {wait, 87}, {servo, 8}, {wait, 69}, {servo, 18}, {wait, 93}, {servo, 8}, {wait, 81}, {servo, 19}, {wait, 75}, {servo, 7}, {wait, 87}, {servo, 84}, {wait, 498}, {servo, 69}, {wait, 121}, {servo, 83}, {wait, 151}, {servo, 69}
+	].
+
+scenario_excited_02044() ->
+	[
+		{aac, <<"excited/02044.aac">>}, {wait, 98}, {servo, 75, 943}, {wait, 1024}, {servo, 83}, {wait, 87}, {servo, 74}, {wait, 46}, {servo, 83}, {wait, 64}, {servo, 74}, {wait, 69}, {servo, 83}, {wait, 76}, {servo, 73}, {wait, 75}, {servo, 83}, {wait, 81}, {servo, 74}, {wait, 75}, {servo, 82}, {wait, 70}, {servo, 74}, {wait, 63}, {servo, 83}, {wait, 70}, {servo, 73}, {wait, 58}, {servo, 83}, {wait, 127}, {servo, 41}
+	].
+
+scenario_excited_02137() ->
+	[
+		{aac, <<"excited/02137.aac">>}, {wait, 46}, {servo, 82}, {wait, 937}, {servo, 81}, {wait, 18}, {servo, 73}, {wait, 52}, {servo, 81}, {wait, 63}, {servo, 73}, {wait, 58}, {servo, 80}, {wait, 64}, {servo, 72}, {wait, 58}, {servo, 81}, {wait, 69}, {servo, 70}, {wait, 81}, {servo, 81}, {wait, 58}, {servo, 70}, {wait, 70}, {servo, 81}, {wait, 57}, {servo, 69}, {wait, 76}, {servo, 81}, {wait, 81}, {servo, 69}, {wait, 98}, {servo, 82}, {wait, 64}, {servo, 70}, {wait, 63}, {servo, 81}, {wait, 81}, {servo, 70}, {wait, 110}, {servo, 81}
+	].
+
+scenario_excited_02334() ->
+	[
+		{aac, <<"excited/02334.aac">>}, {wait, 11}, {servo, 24}, {wait, 232}, {servo, 7}, {wait, 138}, {servo, 24}, {wait, 220}, {servo, 6}, {wait, 243}, {servo, 24}, {wait, 296}, {servo, 7}, {wait, 127}, {servo, 20}, {wait, 69}, {servo, 11}, {wait, 70}, {servo, 20}, {wait, 58}, {servo, 8}, {wait, 75}, {servo, 19}, {wait, 81}, {servo, 10}, {wait, 69}, {servo, 20}, {wait, 64}, {servo, 9}, {wait, 93}, {servo, 20}, {wait, 63}, {servo, 9}, {wait, 70}, {servo, 20}, {wait, 63}, {servo, 9}, {wait, 64}, {servo, 18}, {wait, 104}, {servo, 9}, {wait, 64}, {servo, 21}, {wait, 92}, {servo, 9}, {wait, 64}, {servo, 21}, {wait, 104}, {servo, 7}
+	].
+
+scenario_excited_02397() ->
+	[
+		{aac, <<"excited/02397.aac">>}, {wait, 28}, {servo, 18}, {wait, 110}, {servo, 11}, {wait, 41}, {servo, 17}, {wait, 52}, {servo, 9}, {wait, 46}, {servo, 19}, {wait, 70}, {servo, 10}, {wait, 69}, {servo, 18}, {wait, 64}, {servo, 10}, {wait, 52}, {servo, 18}, {wait, 64}, {servo, 10}, {wait, 46}, {servo, 18}, {wait, 46}, {servo, 10}, {wait, 70}, {servo, 17}, {wait, 46}, {servo, 9}, {wait, 46}, {servo, 18}, {wait, 52}, {servo, 10}, {wait, 58}, {servo, 18}, {wait, 64}, {servo, 10}, {wait, 63}, {servo, 18}, {wait, 58}, {servo, 9}, {wait, 58}, {servo, 17}, {wait, 41}, {servo, 10}, {wait, 63}, {servo, 18}, {wait, 52}, {servo, 9}, {wait, 110}, {servo, 17}, {wait, 58}, {servo, 11}, {wait, 41}, {servo, 17}, {wait, 75}, {servo, 10}, {wait, 69}, {servo, 17}, {wait, 47}, {servo, 9}, {wait, 63}, {servo, 17}, {wait, 64}, {servo, 10}, {wait, 70}, {servo, 18}, {wait, 92}, {servo, 9}, {wait, 87}, {servo, 40}
+	].
+
+scenario_excited_silent1() ->
+	[
+		{servo, 83}, {wait, 405}, {servo, 6}, {wait, 393}, {servo, 83}, {wait, 388}, {servo, 4}, {wait, 405}, {servo, 83}, {wait, 405}, {servo, 5}, {wait, 411}, {servo, 83}
+	].
+
+scenario_excited_silent2() ->
+	[
+		{wait, 23}, {servo, 21}, {wait, 121}, {servo, 5}, {wait, 116}, {servo, 21}, {wait, 87}, {servo, 5}, {wait, 115}, {servo, 21}, {wait, 93}, {servo, 5}, {wait, 122}, {servo, 21}, {wait, 104}, {servo, 5}, {wait, 127}, {servo, 21}, {wait, 122}, {servo, 5}, {wait, 110}, {servo, 21}, {wait, 98}, {servo, 5}, {wait, 121}, {servo, 21}, {wait, 93}, {servo, 5}, {wait, 110}, {servo, 21}, {wait, 116}, {servo, 5}, {wait, 115}, {servo, 21}, {wait, 99}, {servo, 5}, {wait, 127}, {servo, 21}, {wait, 116}, {servo, 5}, {wait, 116}, {servo, 21}, {wait, 110}, {servo, 5}, {wait, 121}, {servo, 21}, {wait, 104}, {servo, 5}, {wait, 110}, {servo, 21}
+	].
+
+scenario_excited_silent3() ->
+	[
+		{wait, 11}, {servo, 18}, {wait, 1140}, {servo, 83}, {wait, 342}, {servo, 75, 1093}
+	].
+
+scenario_excited_silent4() ->
+	[
+		{wait, 17}, {servo, 20}, {wait, 133}, {servo, 9}, {wait, 87}, {servo, 20}, {wait, 81}, {servo, 9}, {wait, 98}, {servo, 20}, {wait, 70}, {servo, 9}, {wait, 98}, {servo, 20}, {wait, 87}, {servo, 9}, {wait, 98}, {servo, 20}, {wait, 75}, {servo, 9}, {wait, 93}, {servo, 20}, {wait, 81}, {servo, 9}, {wait, 1036}, {servo, 83}, {wait, 376}, {servo, 9}, {wait, 1036}, {servo, 82}, {wait, 428}, {servo, 82}
 	].
 
 scenario_game_long_03765() ->
@@ -1314,7 +1536,7 @@ scenario_poke_01134() ->
 
 scenario_test_1() ->
 	[
-		{servo, 100}, {wait, 100}, {servo, 0}
+		{wait, 451}, {servo, 17}, {wait, 2540}, {servo, 85, 1592}, {wait, 2414}, {servo, 100, 590}, {wait, 1666}, {servo, 0, 1000}
 	].
 
 scenario_tired_01006() ->

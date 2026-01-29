@@ -24,10 +24,12 @@ void setup() {
   textFont(font10, 12);
   fontHeight = 12;
   
-  minim = new Minim(this);  
+  minim = new Minim(this);
+  
+  float x0 = 0, y0 = height/2, w0 = 300, h0 = height - y0;
+  AsLogInit(x0 + w0 + 2, height*0.666, 500, height*0.333 - 1);
   ScenariosInit("choreographies.json");
-  ScenariosUIInit();
-  AsLogInit();
+  ScenariosUIInit(x0, y0, w0, h0);
 }
 
 void draw() {
@@ -78,13 +80,13 @@ ArrayList <String> gAsLogs;
 int asLogMaxLines = 30;
 int asLogLines;
 float asLogX0, asLogY0, asLogW0, asLogH0; 
-void AsLogInit() {
+void AsLogInit(float x, float y, float w, float h) {
   gAsLogs = new ArrayList();
   asLogLines = 0;
-  asLogX0 = gScen_x0 + gScen_w0 + 2;
-  asLogY0 = height*0.666;
-  asLogW0 = 500;
-  asLogH0 = height - asLogY0 - 1;
+  asLogX0 = x;
+  asLogY0 = y;
+  asLogW0 = w;
+  asLogH0 = h;
   asLogMaxLines = floor(asLogH0/float(fontHeight))-1;
 }
 void AsLogDisplay() {

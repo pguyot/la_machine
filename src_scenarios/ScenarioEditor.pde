@@ -1,12 +1,12 @@
 
-/// ************ Bitonio
-Bitonio bitonio;
+/// ************ LaMachine
+LaMachine lamachine;
 
-class Bitonio {
+class LaMachine {
   float x, y, w, h;
   float posRat;
   
-  Bitonio(float ax, float ay, float aw, float ah) {
+  LaMachine(float ax, float ay, float aw, float ah) {
     x = ax; y = ay; w = aw; h = ah;
     posRat = 0;
   }
@@ -20,14 +20,14 @@ class Bitonio {
     float bitoH = w*0.666;
 
     // box
-    fill(255, 255, 0, 150); noStroke();
+    fill(221, 155, 0); noStroke();
     rect(x, y, w, w);
 
     // button
     fill(255, 0, 0);
     ellipse(x + w/2, buttony - buttonw/2, buttonw, buttonw);
 
-    // bitonio
+    // bras
     fill(100, 100, 100); noStroke();
     rect(x + w/2 - bitoW/2, y0 - h100*posRat, bitoW, bitoH);
     
@@ -240,12 +240,10 @@ class ServoEditor extends ScenarElemEditor {
   }
   
   void Play() {
-    //bitonio.set(percent);
     start_play = millis();
   }
   
   void Stop() {
-    //bitonio.set(0);
     start_play = -1;
   }
   
@@ -279,14 +277,14 @@ class ScenarEditor {
     name = scen.name;
     loadScenario(scen);
     float hbito = 400;
-    bitonio = new Bitonio(width/2 + 200 - hbito/2, height - hbito, hbito, hbito);
+    lamachine = new LaMachine(width/2 + 200 - hbito/2, height - hbito, hbito, hbito);
     nameField = new AsTextField(name, x0 + w0/2, y0 + h0 + 2, 0, fontHeight+6);
   }
   
   void loadScenario(Scenario scen) {
     // create editors elements
     editors = new ArrayList();
-    ArrayList <ScenarElem> elements = scen.parseElements();
+    ArrayList <ScenarElem> elements = scen.elements();
     
     int cursor_ms = 0;
     int lastAudioDuration = -1;
@@ -524,8 +522,8 @@ class ScenarEditor {
       }
     }
     
-    // bitonio
-    bitonio.Display();
+    // lamachine
+    lamachine.Display();
     
     // name
     nameField.Display();
@@ -573,7 +571,7 @@ class ScenarEditor {
     } else {
       playCurrentPercent = runningServoEditor.percentAtFrom(elapsed, playPreviousPercent);
     }
-    bitonio.set(playCurrentPercent);
+    lamachine.set(playCurrentPercent);
     
     // at the end wait all finished
     if (playNextIndex >= editors.size()) {
@@ -600,7 +598,7 @@ class ScenarEditor {
       playPreviousPercent = 0;
       playCurrentPercent = 0;
       
-      bitonio.set(0);
+      lamachine.set(0);
       
       playNextIndex = 0;
   }
@@ -716,8 +714,12 @@ class ScenarEditor {
       if (!nameField.editing) {
         // finished editing
         name = nameField.label;
-        scen.name = name;
-        AsLog("new name='"+name+"'");
+        if (!scen.name.equals(name)) {
+          scen.name = name;
+          ScenariosResort();
+          gScen_curScenarIndex = gScenarios.indexOf(scen);
+          AsLog("new name='"+name+"'");
+        }
       }
       return;
     }
@@ -758,17 +760,18 @@ class ScenarEditor {
 // ******** ScenariosDisplay
 float gScen_x0, gScen_y0, gScen_w0, gScen_h0;
 AsButton gScen_saveBut;
+AsButton gScen_newBut;
 AsButton gScen_reloadBut;
 AsButton gScen_parsePriv;
 
 int gScen_curScenarIndex = -1;
 int gScen_scollIndex = 0;
 
-void ScenariosUIInit() {
-  gScen_x0 = 0;
-  gScen_y0 = height/2;
-  gScen_w0 = 300;
-  gScen_h0 = height - gScen_y0;
+void ScenariosUIInit(float x, float y, float w, float h) {
+  gScen_x0 = x;
+  gScen_y0 = y;
+  gScen_w0 = w;
+  gScen_h0 = h;
   ScenariosChangeAllGameNames();
 }
 
@@ -804,9 +807,13 @@ void ScenariosDisplay() {
   int index = 0;
   if (gScenarios.size() > 0) {
     // list
-    for (int i = gScen_scollIndex; i < gScenarios.size() && y0 < gScen_y0 + gScen_h0; i++) {
+    
+    // good index if not first line
+    for (int i = 0; i < gScen_scollIndex; i++) {
       Scenario scenar = gScenarios.get(i);
       String nam = scenar.name;
+      
+      // compute index
       String prefix = nam.substring(0, nam.lastIndexOf('_'));
       if (!prefix.equals(prevPrefix)) {
         index = 1;
@@ -814,13 +821,33 @@ void ScenariosDisplay() {
       } else {
         index++;
       }
+    }
+    
+    for (int i = gScen_scollIndex; i < gScenarios.size() && y0 < gScen_y0 + gScen_h0; i++) {
+      Scenario scenar = gScenarios.get(i);
+      String nam = scenar.name;
+      
+      // compute index
+      String prefix = nam.substring(0, nam.lastIndexOf('_'));
+      if (!prefix.equals(prevPrefix)) {
+        index = 1;
+        prevPrefix = prefix;
+      } else {
+        index++;
+      }
+      
       // hilight
       if (gScen_curScenarIndex >= 0 && i == gScen_curScenarIndex) {
         fill(255, 255, 0, 50); noStroke();
         rect(gScen_x0+1, y0-dy0+2, gScen_w0-2, dy0);
       }
+      
+      // color according to number of elements
+      ArrayList <ScenarElem> elements = scenar.elements();
+      int elemNumber = elements.size();
+
       // label
-      fill(255); noStroke();
+      if (elemNumber <= 1) fill(255); else fill(0, 255, 0); noStroke();
       text(""+index+":"+nam, gScen_x0, y0); y0 += dy0;
     }
     // scrollbar
@@ -836,8 +863,13 @@ void ScenariosDisplay() {
     gScenarEditor.Display();
   }
   
+  // buttons
   float yyy = gScen_y0 + 20;
   float dyyy = fontHeight + 6 + 2;
+  if (gScen_newBut == null) gScen_newBut  = new AsButton("New Scenario", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
+  gScen_newBut.Display();
+  yyy += dyyy;
+
   if (gScen_saveBut == null) gScen_saveBut  = new AsButton("SAVE (json+erl)", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
   gScen_saveBut.Display();
   yyy += dyyy;
@@ -895,9 +927,7 @@ int ScenariosParseSoundFolder() {
 
 void ScenariosSaveCurrent() {
   if (gScenarEditor == null || gScen_curScenarIndex < 0) return;
-   
-   println("Saving current scenario");
-   
+      
   // create new scenario from editor
   String newDef = gScenarEditor.computeScenarioDef();
   
@@ -924,8 +954,7 @@ void ScenariosSaveCurrent() {
   
   // save in data
   gScenarios.set(gScen_curScenarIndex, scenar);
-  
-  println("Saved scenario:"+name);
+  AsLog("SAVED "+name);
 }
 
 void ScenariosSaveAll() {
@@ -934,8 +963,6 @@ void ScenariosSaveAll() {
   
   FileCopy("choreographies.json", "choreographiesSAVE.json");
   ScenariosSaveToFile("choreographies.json");
-  
-  AsLog("SAVED");
 }
 
 boolean ScenariosMouseIsInside() {
@@ -990,9 +1017,10 @@ void ScenariosMouseDragged() {
   if (gScenarEditor != null) gScenarEditor.mouseDragged();
 }
 
-void ScenariosMouseMoved() {
-  if (gScen_saveBut != null && gScen_parsePriv != null && gScen_reloadBut != null) {
+void ScenariosMouseMoved() { 
+  if (gScen_saveBut != null && gScen_parsePriv != null && gScen_reloadBut != null && gScen_newBut != null) {
     if (gScen_saveBut.IsInside(mouseX, mouseY)
+      || gScen_newBut.IsInside(mouseX, mouseY)
       || gScen_parsePriv.IsInside(mouseX, mouseY)
       || gScen_reloadBut.IsInside(mouseX, mouseY)) {
       cursor(HAND);
@@ -1020,7 +1048,7 @@ void ScenariosMouseWheel(float amount) {
 void ScenariosMousePressed() {
   if (ScenariosListMousePressed()) return;
   
-  if (gScen_saveBut != null && gScen_parsePriv != null && gScen_reloadBut != null) {
+  if (gScen_saveBut != null && gScen_parsePriv != null && gScen_reloadBut != null && gScen_newBut != null) {
     if (gScen_saveBut.IsInside(mouseX, mouseY)) {
       ScenariosSaveAll();
       AsLog("SAVED choreographies.json");
@@ -1036,6 +1064,18 @@ void ScenariosMousePressed() {
     if (gScen_parsePriv.IsInside(mouseX, mouseY)) {
       int loaded = ScenariosParseSoundFolder();
       AsLog("PARSED, and loaded:"+loaded);
+      return;
+    }
+    if (gScen_newBut.IsInside(mouseX, mouseY)) {
+      // save current
+      ScenariosSaveCurrent();
+      // create
+      Scenario scenar = ScenariosCreateEmptyScenario();
+      // edit
+      gScen_curScenarIndex = gScenarios.indexOf(scenar);
+      gScenarEditor = new ScenarEditor(scenar);
+      
+      AsLog("Created scenario:"+scenar.name);
       return;
     }
   }
