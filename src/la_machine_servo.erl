@@ -162,7 +162,7 @@ set_target(Target, TimeMS, #state{config = Config} = State) ->
 target_duty_timeout(Duty, MinTimeMS, #state{pre_min = PreMin, pre_max = PreMax} = State) ->
     MaxTime = ceil(
         max(abs(Duty - PreMin), abs(Duty - PreMax)) * ?SERVO_MAX_ANGLE_TIME_MS / ?SERVO_MAX_DUTY *
-            ?SERVO_FREQ_PERIOD_US / ?SERVO_MAX_WIDTH_US
+            ?SERVO_FREQ_PERIOD_US / (?SERVO_MAX_WIDTH_US - ?SERVO_MIN_WIDTH_US)
     ),
     {max(MaxTime, MinTimeMS), State#state{
         pre_min = min(Duty, PreMin), pre_max = max(Duty, PreMax), target = Duty

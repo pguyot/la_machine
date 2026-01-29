@@ -1314,7 +1314,7 @@ scenario_poke_01134() ->
 
 scenario_test_1() ->
 	[
-		{wait, 451}, {servo, 17}, {wait, 2540}, {servo, 85, 1592}, {wait, 2414}, {servo, 100, 590}, {wait, 1666}, {servo, 0, 1000}
+		{servo, 100}, {wait, 100}, {servo, 0}
 	].
 
 scenario_tired_01006() ->
