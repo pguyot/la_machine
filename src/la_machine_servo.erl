@@ -157,7 +157,7 @@ set_target(Target, TimeMS, #state{config = Config} = State) ->
 target_duty_timeout(Duty, MinTimeMS, #state{pre_min = PreMin, pre_max = PreMax} = State) ->
     MaxTime = ceil(
         max(abs(Duty - PreMin), abs(Duty - PreMax)) * ?SERVO_MAX_ANGLE_TIME_MS / ?SERVO_MAX_DUTY *
-            ?SERVO_FREQ_PERIOD_US / ?SERVO_MAX_WIDTH_US
+            ?SERVO_FREQ_PERIOD_US / (?SERVO_MAX_WIDTH_US - ?SERVO_MIN_WIDTH_US)
     ),
     {max(MaxTime, MinTimeMS), State#state{
         pre_min = min(Duty, PreMin), pre_max = max(Duty, PreMax), target = Duty
@@ -225,7 +225,7 @@ target_duty_timeout_test_() ->
                     })
                 ),
                 ?_assertMatch(
-                    {501, #state{
+                    {626, #state{
                         pre_min = 318,
                         pre_max = 887,
                         target = 887,
@@ -236,7 +236,7 @@ target_duty_timeout_test_() ->
                     })
                 ),
                 ?_assertMatch(
-                    {600, #state{
+                    {626, #state{
                         pre_min = 318,
                         pre_max = 887,
                         target = 887,
@@ -247,7 +247,7 @@ target_duty_timeout_test_() ->
                     })
                 ),
                 ?_assertMatch(
-                    {501, #state{
+                    {626, #state{
                         pre_min = 318,
                         pre_max = 887,
                         target = 318,
@@ -255,6 +255,36 @@ target_duty_timeout_test_() ->
                     }},
                     target_duty_timeout(318, 0, #state{
                         pre_min = 887, pre_max = 887, config = Config
+                    })
+                )
+            ]
+        end
+    }.
+
+% A full range movement (0° to 180°) should take SERVO_MAX_ANGLE_TIME_MS
+target_duty_timeout_full_range_test_() ->
+    {
+        setup,
+        fun() ->
+            la_machine_configuration:default()
+        end,
+        fun(_) ->
+            ok
+        end,
+        fun(Config) ->
+            Duty0 = angle_to_duty(0),
+            Duty180 = angle_to_duty(180),
+            [
+                ?_assertMatch(
+                    {?SERVO_MAX_ANGLE_TIME_MS, _},
+                    target_duty_timeout(Duty180, 0, #state{
+                        pre_min = Duty0, pre_max = Duty0, config = Config
+                    })
+                ),
+                ?_assertMatch(
+                    {?SERVO_MAX_ANGLE_TIME_MS, _},
+                    target_duty_timeout(Duty0, 0, #state{
+                        pre_min = Duty180, pre_max = Duty180, config = Config
                     })
                 )
             ]
