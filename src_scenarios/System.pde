@@ -27,10 +27,6 @@ void FileCopy(String in, String out) {
   execCommand(new String[]{"cp", in, out});
 }
 
-void ConvertToErl(String injson, String outErl) {
-  execCommand(new String[]{"python3", "json_to_erlang_multi.py", injson, outErl});
-}
-
 void ConvertAAC2MP3(String aacfile, String mp3file) {
   execCommand(new String[]{"/opt/homebrew/bin/ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", aacfile, "-c:a", "libmp3lame", "-qscale:a", "2", mp3file});
 }

@@ -69,7 +69,7 @@ jobs:
     - name: Run dialyzer using source code
       working-directory: la_machine/
       run: |
-        dialyzer --plt la_machine_deps.plt --src src/
+        dialyzer -I _build/generated/ --plt la_machine_deps.plt --src src/
 
     - name: Run eunit tests with AtomVM
       working-directory: la_machine/

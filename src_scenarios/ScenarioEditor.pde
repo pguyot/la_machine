@@ -1052,8 +1052,6 @@ void ScenariosMousePressed() {
     if (gScen_saveBut.IsInside(mouseX, mouseY)) {
       ScenariosSaveAll();
       AsLog("SAVED choreographies.json");
-      ConvertToErl("choreographies.json", "../src/la_machine_scenarios.erl");
-      AsLog("CONVERTED to la_machine_scenarios.erl");
       return;
     }
     if (gScen_reloadBut.IsInside(mouseX, mouseY)) {
