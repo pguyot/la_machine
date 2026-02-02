@@ -655,6 +655,9 @@ play_scenario(MoodScenar, ScenarioIx, Config) ->
     {ok, Pid} = la_machine_player:start_link(Config),
     ok = la_machine_player:play(Pid, Scenario),
     ok = la_machine_player:stop(Pid),
+    % reset audio and servo
+    la_machine_audio:reset(),
+    la_machine_servo:reset(Config),
     ScenarioIx.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -674,6 +677,9 @@ play_scenario_with_hit(MoodScenar, ScenarioIx, Config) ->
         true -> true
     end,
     ok = la_machine_player:stop(Pid),
+    % reset audio and servo
+    la_machine_audio:reset(),
+    la_machine_servo:reset(Config),
     ScenarioIx.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
