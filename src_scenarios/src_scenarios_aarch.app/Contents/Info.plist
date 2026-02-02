@@ -48,7 +48,7 @@
 
     <key>LSArchitecturePriority</key>
     <array>
-      <string>arm64</string>
+      <string>aarch64</string>
     </array>
 
     <key>LSEnvironment</key>
