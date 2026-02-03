@@ -26,6 +26,10 @@
 
 -include("la_machine_definitions.hrl").
 
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
 -export([
     power_on/0,
     power_off/0,
@@ -56,25 +60,28 @@ power_off() -> ok.
 reset() ->
     power_off().
 
-play(AACFilename) ->
+play(MP3Filename) ->
     AudioPipeline = esp_adf_audio_pipeline:init([]),
+    {ok, MP3File} = la_machine_sounds:get_sound(MP3Filename),
 
-    BeforeGetSound = erlang:system_time(millisecond),
-    {ok, AACFile} = la_machine_sounds:get_sound(AACFilename),
-    AfterGetSound = erlang:system_time(millisecond),
-    io:format("Get sound ~Bms at ~B\n", [AfterGetSound - BeforeGetSound, BeforeGetSound]),
+    SampleRate = get_mp3_sample_rate(MP3File),
+    case SampleRate of
+        44100 -> ok;
+        48000 -> ok;
+        Other -> error({unsupported_sample_rate, Other, MP3Filename})
+    end,
 
-    AACDecoder = esp_adf_aac_decoder:init([]),
-    ok = esp_adf_audio_element:set_read_binary(AACDecoder, AACFile),
-    ok = esp_adf_audio_pipeline:register(AudioPipeline, AACDecoder, <<"aac">>),
+    MP3Decoder = esp_adf_mp3_decoder:init([]),
+    ok = esp_adf_audio_element:set_read_binary(MP3Decoder, MP3File),
+    ok = esp_adf_audio_pipeline:register(AudioPipeline, MP3Decoder, <<"mp3">>),
 
     Filter = esp_adf_rsp_filter:init([
-        {src_rate, 22050}, {src_ch, 1}, {dest_rate, 44100}, {dest_ch, 2}
+        {src_rate, SampleRate}, {src_ch, 1}, {dest_rate, SampleRate}, {dest_ch, 2}
     ]),
     ok = esp_adf_audio_pipeline:register(AudioPipeline, Filter, <<"filter">>),
 
     I2SOutput = esp_adf_i2s_output:init([
-        {rate, 44100},
+        {rate, SampleRate},
         {bits, 16},
         {gpio_bclk, ?MAX_BCLK_GPIO},
         {gpio_lrclk, ?MAX_LRC_GPIO},
@@ -82,7 +89,7 @@ play(AACFilename) ->
     ]),
     ok = esp_adf_audio_pipeline:register(AudioPipeline, I2SOutput, <<"i2s">>),
 
-    ok = esp_adf_audio_pipeline:link(AudioPipeline, [<<"aac">>, <<"filter">>, <<"i2s">>]),
+    ok = esp_adf_audio_pipeline:link(AudioPipeline, [<<"mp3">>, <<"filter">>, <<"i2s">>]),
 
     ok = esp_adf_audio_pipeline:run(AudioPipeline),
 
@@ -95,7 +102,7 @@ play(AACFilename) ->
 
     ok =
         receive
-            {audio_element, AACDecoder, {status, state_stopped}} -> ok
+            {audio_element, MP3Decoder, {status, state_stopped}} -> ok
         after 500 -> timeout
         end,
     ok =
@@ -111,7 +118,65 @@ play(AACFilename) ->
 
     ok = esp_adf_audio_pipeline:wait_for_stop(AudioPipeline),
     ok = esp_adf_audio_pipeline:terminate(AudioPipeline),
-    ok = esp_adf_audio_pipeline:unregister(AudioPipeline, AACDecoder),
+    ok = esp_adf_audio_pipeline:unregister(AudioPipeline, MP3Decoder),
     ok = esp_adf_audio_pipeline:unregister(AudioPipeline, Filter),
     ok = esp_adf_audio_pipeline:unregister(AudioPipeline, I2SOutput),
     ok.
+
+%% @doc Extract sample rate from MP3 binary data
+%% @private
+get_mp3_sample_rate(
+    <<"ID3", _MajorVersion:8, _MinorVersion:8, _Flags:8, S1:8, S2:8, S3:8, S4:8, Rest/binary>>
+) ->
+    % ID3v2 tag present - size is stored as syncsafe integer (7 bits per byte)
+    TagSize =
+        ((S1 band 16#7F) bsl 21) bor ((S2 band 16#7F) bsl 14) bor
+            ((S3 band 16#7F) bsl 7) bor (S4 band 16#7F),
+    <<_TagData:TagSize/binary, FrameData/binary>> = Rest,
+    parse_mp3_frame_header(FrameData);
+get_mp3_sample_rate(Data) ->
+    parse_mp3_frame_header(Data).
+
+parse_mp3_frame_header(
+    <<16#FF, 2#111:3, MPEGVersion:2, _Layer:2, _Protection:1, _Bitrate:4, SampleRateIndex:2,
+        _Rest/bitstring>>
+) ->
+    sample_rate(MPEGVersion, SampleRateIndex);
+parse_mp3_frame_header(<<_:8, Rest/binary>>) ->
+    % Skip bytes until we find frame sync
+    parse_mp3_frame_header(Rest);
+parse_mp3_frame_header(<<>>) ->
+    error(mp3_frame_not_found).
+
+% MPEG Version 1
+sample_rate(2#11, 2#00) -> 44100;
+sample_rate(2#11, 2#01) -> 48000;
+sample_rate(2#11, 2#10) -> 32000;
+% MPEG Version 2
+sample_rate(2#10, 2#00) -> 22050;
+sample_rate(2#10, 2#01) -> 24000;
+sample_rate(2#10, 2#10) -> 16000;
+% MPEG Version 2.5
+sample_rate(2#00, 2#00) -> 11025;
+sample_rate(2#00, 2#01) -> 12000;
+sample_rate(2#00, 2#10) -> 8000;
+% Reserved or invalid
+sample_rate(_, 2#11) -> error(invalid_sample_rate_index);
+sample_rate(2#01, _) -> error(reserved_mpeg_version).
+
+-ifdef(TEST).
+get_mp3_sample_rate_test() ->
+    try atomvm:platform() of
+        esp32 ->
+            {ok, Hit00082} = la_machine_sounds:get_sound("hits/00082.mp3"),
+            44100 = get_mp3_sample_rate(Hit00082),
+            {ok, Hit00117} = la_machine_sounds:get_sound("hits/00117.mp3"),
+            48000 = get_mp3_sample_rate(Hit00117),
+            ok;
+        generic_unix ->
+            ok
+    catch
+        error:undef ->
+            ok
+    end.
+-endif.

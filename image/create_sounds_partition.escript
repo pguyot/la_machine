@@ -23,8 +23,17 @@ main(_Args) ->
                 {error, {not_dir, Dir}} ->
                     io:format(standard_error, "Error: ~s is not a directory\n", [Dir]),
                     erlang:halt(1);
-                {error, {no_aac_found, Dir}} ->
-                    io:format(standard_error, "Error: no .aac sound were found in ~s\n", [Dir]),
+                {error, {no_mp3_found, Dir}} ->
+                    io:format(standard_error, "Error: no .mp3 sounds were found in ~s\n", [Dir]),
+                    erlang:halt(1);
+                {error, {invalid_mp3, File, Reason}} ->
+                    io:format(
+                        standard_error,
+                        "Error: ~s is not a valid 44.1 kHz or 48 kHz mono MP3: ~s\n",
+                        [
+                            File, Reason
+                        ]
+                    ),
                     erlang:halt(1);
                 {error, {zip_create_error, Reason}} ->
                     io:format(standard_error, "Error: zip creation failed (~p)\n", [Reason]),
@@ -54,14 +63,15 @@ create_sounds_zip(SoundsDir) ->
                 true ->
                     ok
             end,
-        Files = find_aac_files(SoundsDir),
+        Files = find_mp3_files(SoundsDir),
         ok ?=
             case Files of
                 [] ->
-                    {error, {no_aac_found, SoundsDir}};
+                    {error, {no_mp3_found, SoundsDir}};
                 _ ->
                     ok
             end,
+        ok ?= validate_mp3_files(Files),
         ZipEntries = lists:map(
             fun(FullPath) ->
                 RelPath = make_relative_path(FullPath, SoundsDir),
@@ -149,14 +159,103 @@ format_index_entries([{Filename, {DataOffset, DataSize}} | Rest], Acc) ->
     format_index_entries(Rest, [list_to_binary([Line]) | Acc]).
 
 %%-----------------------------------------------------------------------------
+%% MP3 validation
+%%-----------------------------------------------------------------------------
+
+%% @doc Validate all MP3 files are 44.1kHz or 48 kHz mono.
+validate_mp3_files([]) ->
+    ok;
+validate_mp3_files([File | Rest]) ->
+    case validate_mp3_file(File) of
+        ok ->
+            validate_mp3_files(Rest);
+        {error, Reason} ->
+            {error, {invalid_mp3, File, Reason}}
+    end.
+
+%% @doc Validate a single MP3 file is 48 kHz mono.
+validate_mp3_file(File) ->
+    case file:read_file(File) of
+        {ok, Content} ->
+            validate_mp3_content(Content);
+        {error, Reason} ->
+            {error, io_lib:format("cannot read file: ~p", [Reason])}
+    end.
+
+%% @doc Validate MP3 content, skipping ID3v2 tag if present.
+validate_mp3_content(
+    <<"ID3", _MajorVersion:8, _MinorVersion:8, _Flags:8, Size0:8, Size1:8, Size2:8, Size3:8,
+        Rest/binary>>
+) ->
+    %% ID3v2 tag size is encoded as syncsafe integer (7 bits per byte)
+    TagSize = (Size0 bsl 21) bor (Size1 bsl 14) bor (Size2 bsl 7) bor Size3,
+    case Rest of
+        <<_:TagSize/binary, FrameData/binary>> ->
+            validate_mp3_frame(FrameData);
+        _ ->
+            {error, "truncated ID3v2 tag"}
+    end;
+validate_mp3_content(Content) ->
+    validate_mp3_frame(Content).
+
+%% @doc Find and validate the MP3 frame header.
+%% Frame sync: 11 bits of 1s (0xFF followed by 0xE0 or higher in high 3 bits)
+%% Header layout (4 bytes):
+%% Byte 0: 0xFF (sync)
+%% Byte 1: 111VVLLP where VV=version, LL=layer, P=protection
+%% Byte 2: BBBBSSPR where BBBB=bitrate, SS=sample rate, P=padding, R=private
+%% Byte 3: CCXXXXXX where CC=channel mode
+validate_mp3_frame(<<16#FF, B1, B2, B3, _Rest/binary>>) when (B1 band 16#E0) =:= 16#E0 ->
+    %% B1: 111VVLLP - VV=version(2 bits), LL=layer(2 bits), P=protection(1 bit)
+    MpegVersion = (B1 bsr 3) band 16#03,
+    %% B2: BBBBSSPR - BBBB=bitrate(4), SS=samplerate(2), P=padding(1), R=private(1)
+    SampleRateIndex = (B2 bsr 2) band 16#03,
+    %% B3: CCXXXXXX - CC=channel mode(2 bits)
+    ChannelMode = (B3 bsr 6) band 16#03,
+
+    %% Channel mode 11 = mono
+    case ChannelMode of
+        2#11 ->
+            %% Check MPEG version is MPEG-1 (binary 11 = 3)
+            case MpegVersion of
+                2#11 ->
+                    %% For MPEG-1:
+                    case SampleRateIndex of
+                        % sample rate index 00 = 44100 Hz
+                        2#00 ->
+                            ok;
+                        % sample rate index 01 = 48000 Hz
+                        2#01 ->
+                            ok;
+                        2#10 ->
+                            {error, "sample rate is 32000 Hz, expected 48kHz or 44.1kHz"};
+                        2#11 ->
+                            {error, "reserved sample rate"}
+                    end;
+                2#10 ->
+                    {error, "MPEG-2, expected MPEG-1 for 48 kHz"};
+                2#00 ->
+                    {error, "MPEG-2.5, expected MPEG-1 for 48 kHz"};
+                2#01 ->
+                    {error, "reserved MPEG version"}
+            end;
+        _ ->
+            {error, "not mono (stereo or dual channel)"}
+    end;
+validate_mp3_frame(<<_, Rest/binary>>) when byte_size(Rest) >= 4 ->
+    validate_mp3_frame(Rest);
+validate_mp3_frame(_) ->
+    {error, "MP3 frame sync not found"}.
+
+%%-----------------------------------------------------------------------------
 %% File utilities
 %%-----------------------------------------------------------------------------
 
-%% @doc Find all .aac files recursively in the given directory.
-find_aac_files(Dir) ->
-    find_aac_files(Dir, []).
+%% @doc Find all .mp3 files recursively in the given directory.
+find_mp3_files(Dir) ->
+    find_mp3_files(Dir, []).
 
-find_aac_files(Dir, Acc) ->
+find_mp3_files(Dir, Acc) ->
     case file:list_dir(Dir) of
         {ok, Entries} ->
             lists:foldl(
@@ -164,10 +263,10 @@ find_aac_files(Dir, Acc) ->
                     FullPath = filename:join(Dir, Entry),
                     case filelib:is_dir(FullPath) of
                         true ->
-                            find_aac_files(FullPath, AccIn);
+                            find_mp3_files(FullPath, AccIn);
                         false ->
                             case filename:extension(Entry) of
-                                ".aac" -> [FullPath | AccIn];
+                                ".mp3" -> [FullPath | AccIn];
                                 _ -> AccIn
                             end
                     end
@@ -180,7 +279,7 @@ find_aac_files(Dir, Acc) ->
     end.
 
 %% @doc Make a path relative to the base directory.
-%% Returns a string like "poke/00202.aac"
+%% Returns a string like "poke/00202.mp3"
 make_relative_path(FullPath, BaseDir) ->
     FullPathNorm = filename:absname(FullPath),
     BaseDirNorm = filename:absname(BaseDir),
