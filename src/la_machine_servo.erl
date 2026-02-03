@@ -78,21 +78,17 @@ power_on(Config) ->
     ok = ledc:fade_func_install(0),
 
     Duty0 = target_to_duty(0, Config),
-    Duty100 = target_to_duty(100, Config),
+    %Duty100 = target_to_duty(100, Config),
 
     % force to Duty0 and wait a little
     ok = ledc:set_duty(?LEDC_MODE, ?LEDC_CHANNEL, Duty0),
     ok = ledc:update_duty(?LEDC_MODE, ?LEDC_CHANNEL),
     timer:sleep(200),
 
-    % force to Duty0 and wait a little
-    ok = ledc:set_duty(?LEDC_MODE, ?LEDC_CHANNEL, Duty0),
-    ok = ledc:update_duty(?LEDC_MODE, ?LEDC_CHANNEL),
-    timer:sleep(200),
-
+    % suppose we are at 0
     #state{
-        pre_min = min(Duty0, Duty100),
-        pre_max = max(Duty0, Duty100),
+        pre_min = Duty0,
+        pre_max = Duty0,
         config = Config
     }.
 
