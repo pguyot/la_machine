@@ -51,12 +51,59 @@ convert(JsonFile, HrlFile) ->
             io:format(standard_error, "No choreographies found~n", []),
             halt(1);
         _ ->
+            SoundsDir = filename:join(filename:dirname(JsonFile), "../sounds"),
+            validate_sounds(Choreographies, SoundsDir),
             Blocks = parse_choreographies(Choreographies),
             io:format("Converted ~b choreography blocks~n", [length(Blocks)]),
             HrlCode = generate_hrl(Blocks, "scenario_"),
             ok = filelib:ensure_dir(HrlFile),
             ok = file:write_file(HrlFile, HrlCode),
             io:format("Generated ~s~n", [HrlFile])
+    end.
+
+%% ---------------------------------------------------------------------------
+%% Sound validation
+%% ---------------------------------------------------------------------------
+
+validate_sounds(Choreographies, SoundsDir) ->
+    SoundPaths = extract_sound_paths(Choreographies),
+    UniquePaths = lists:usort(SoundPaths),
+    io:format("Found ~b unique sound references~n", [length(UniquePaths)]),
+    Missing = lists:filter(
+        fun(SoundPath) ->
+            FullPath = filename:join(SoundsDir, SoundPath),
+            not filelib:is_regular(FullPath)
+        end,
+        UniquePaths
+    ),
+    case Missing of
+        [] ->
+            ok;
+        _ ->
+            io:format(standard_error, "ERROR: ~b missing sound file(s):~n", [length(Missing)]),
+            lists:foreach(
+                fun(Path) ->
+                    io:format(standard_error, "  - ~s~n", [Path])
+                end,
+                Missing
+            ),
+            halt(1)
+    end.
+
+extract_sound_paths(Choreographies) ->
+    lists:flatmap(
+        fun({_Name, Commands}) ->
+            extract_sounds_from_commands(binary_to_list(Commands))
+        end,
+        maps:to_list(Choreographies)
+    ).
+
+extract_sounds_from_commands(Commands) ->
+    case re:run(Commands, "<<\"([^\"]+\\.mp3)\">>", [global, {capture, [1], list}]) of
+        {match, Matches} ->
+            [Path || [Path] <- Matches];
+        nomatch ->
+            []
     end.
 
 %% ---------------------------------------------------------------------------
