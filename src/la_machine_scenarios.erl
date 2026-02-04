@@ -38,7 +38,7 @@
 -type scenario_element() ::
     {servo, non_neg_integer()}
     | {servo, non_neg_integer(), non_neg_integer()}
-    | {aac, binary()}
+    | {mp3, binary()}
     | {wait, non_neg_integer() | sound}.
 
 -compile(inline).

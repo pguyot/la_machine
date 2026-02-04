@@ -317,7 +317,7 @@ class ScenarEditor {
           cursor_ms += elem.intArg;
         }
         
-      } else if (elem.command.equals("aac")) {
+      } else if (elem.command.equals("mp3")) {
         lastAudioStart = cursor_ms;
         lastAudioDuration = elem.intArg;
         AudioEditor editor = new AudioEditor(this, cursor_ms, elem.arg, elem.intArg, x0, y0, w0, h0/2);
@@ -331,7 +331,7 @@ class ScenarEditor {
   }
   
   String computeScenarioDef() {
-    // "{wait, 800}, {aac, <<\"gears/simple2.mp3\">>}, {servo, 35}, ... ,{servo,0}",
+    // "{wait, 800}, {mp3, <<\"gears/simple2.mp3\">>}, {servo, 35}, ... ,{servo,0}",
 
     String res = "";
     int cursor_ms = 0;
@@ -346,7 +346,7 @@ class ScenarEditor {
       
       if (editor.type.equals("audio")) {
         AudioEditor aEditor = (AudioEditor)editor;
-        res = res + "{aac, <<\\\""+aEditor.audioPath+"\\\">>}";
+        res = res + "{mp3, <<\\\""+aEditor.audioPath+"\\\">>}";
         
       } else if (editor.type.equals("servo")) {
         ServoEditor sEditor = (ServoEditor)editor;

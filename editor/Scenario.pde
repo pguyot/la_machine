@@ -20,7 +20,7 @@ class ScenarElem {
   // {wait, 800}
   // {wait,sound}
   // {servo, 35}
-  // {aac, <<\"joy/0426.mp3\">>}
+  // {mp3, <<\"joy/0426.mp3\">>}
   void parseDef() {
     // remove {}
     String inDef = def.substring(1, def.length()-1);
@@ -43,9 +43,9 @@ class ScenarElem {
           intArg2 = -1;
         }
         
-      } else if (command.equals("aac")) {
+      } else if (command.equals("mp3")) {
         // arg = '<<\"joy/0426.mp3\">>'
-        //println("aac arg ='"+arg+"'");
+        //println("mp3 arg ='"+arg+"'");
         // remove quotes
         int index = arg.indexOf('\"');
         int index2 = arg.lastIndexOf('\"');
@@ -86,7 +86,7 @@ class Scenario {
   String def;
   ArrayList <ScenarElem> elements;
  
-  // "{wait, 800}, {aac, <<\"gears/simple2.mp3\">>}, {servo, 35}, ... ,{servo,0}",
+  // "{wait, 800}, {mp3, <<\"gears/simple2.mp3\">>}, {servo, 35}, ... ,{servo,0}",
   Scenario(String aname, String adef) {
     name = aname;
     def = adef;
@@ -103,7 +103,7 @@ class Scenario {
     ArrayList <ScenarElem> elems = elements();
     int nb = 0;
     for (ScenarElem elem : elems) {
-      if (elem.command.equals("aac")) nb++;
+      if (elem.command.equals("mp3")) nb++;
     }
     return nb;
   }
@@ -224,7 +224,7 @@ boolean ScenariosCreateScenarioForAudioIfNeeded(String folderName, String audioF
   if (!found) {
     // create it raw
     String audioFilePath = folderName+"/"+audioFileName;
-    String audioDef = "{aac, <<\\\""+audioFilePath+"\\\">>}";
+    String audioDef = "{mp3, <<\\\""+audioFilePath+"\\\">>}";
     Scenario scenar = new Scenario(scenarName, audioDef);
     gScenarios.add(scenar);
     AsLog("Created :"+audioFilePath);
