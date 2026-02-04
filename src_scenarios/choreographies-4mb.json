@@ -1,14 +1,14 @@
 {
-  "calling_00099": "{aac, <<\"calling/00099.mp3\">>}",
-  "excited_00188": "{servo, 30}, {wait, 173}, {servo, 0}, {wait, 133}, {aac, <<\"excited/00188.mp3\">>}, {wait, 41}, {servo, 30}",
-  "game_long_03765": "{aac, <<\"game/03765.mp3\">>}",
-  "game_medium_02388": "{aac, <<\"game/02388.mp3\">>}",
-  "game_short_00642": "{aac, <<\"game/00642.mp3\">>}",
-  "hits_00082": "{aac, <<\"hits/00082.mp3\">>}",
-  "joy_00958": "{aac, <<\"joy/00958.mp3\">>}",
-  "meuh_03676": "{servo, 60, 2500}, {wait, 1000}, {aac, <<\"meuh/03676.mp3\">>}, {wait, 4754}, {servo, 0, 800}",
-  "poke_00186": "{aac, <<\"poke/00186.mp3\">>}",
+  "calling_00099": "{mp3, <<\"calling/00099.mp3\">>}",
+  "excited_00188": "{servo, 30}, {wait, 173}, {servo, 0}, {wait, 133}, {mp3, <<\"excited/00188.mp3\">>}, {wait, 41}, {servo, 30}",
+  "game_long_03765": "{mp3, <<\"game/03765.mp3\">>}",
+  "game_medium_02388": "{mp3, <<\"game/02388.mp3\">>}",
+  "game_short_00642": "{mp3, <<\"game/00642.mp3\">>}",
+  "hits_00082": "{mp3, <<\"hits/00082.mp3\">>}",
+  "joy_00958": "{mp3, <<\"joy/00958.mp3\">>}",
+  "meuh_03676": "{servo, 60, 2500}, {wait, 1000}, {mp3, <<\"meuh/03676.mp3\">>}, {wait, 4754}, {servo, 0, 800}",
+  "poke_00186": "{mp3, <<\"poke/00186.mp3\">>}",
   "test_1": "{wait, 451}, {servo, 17}, {wait, 2540}, {servo, 85, 1592}, {wait, 2414}, {servo, 100, 590}, {wait, 1666}, {servo, 0, 1000}",
-  "tired_01006": "{aac, <<\"tired/01006.mp3\">>}",
-  "upset_00144": "{aac, <<\"upset/00144.mp3\">>}"
+  "tired_01006": "{mp3, <<\"tired/01006.mp3\">>}",
+  "upset_00144": "{mp3, <<\"upset/00144.mp3\">>}"
 }
