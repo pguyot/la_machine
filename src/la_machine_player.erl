@@ -203,7 +203,7 @@ play_next(#state{sequence = [{wait, WaitMS} | Tail]} = State0) when is_integer(W
     {noreply, State0#state{sequence = Tail, wait_end = WaitEnd}, WaitMS};
 play_next(
     #state{
-        audio_module = AudioModule, sequence = [{aac, Filename} | Tail], audio_monitor = undefined
+        audio_module = AudioModule, sequence = [{mp3, Filename} | Tail], audio_monitor = undefined
     } = State0
 ) ->
     {Pid, Ref} = spawn_opt(
@@ -338,11 +338,11 @@ play_two_sounds_test_() ->
                 end),
                 Before = erlang:system_time(millisecond),
                 play(Pid, [
-                    {aac, <<"filename_1.aac">>},
+                    {mp3, <<"filename_1.mp3">>},
                     {servo, 20},
                     {wait, 200},
                     {servo, 30},
-                    {aac, <<"filename_2.aac">>},
+                    {mp3, <<"filename_2.mp3">>},
                     {wait, 100},
                     {servo, 100},
                     {servo, 0}
@@ -355,8 +355,8 @@ play_two_sounds_test_() ->
                 % play are sent from another process
                 PlayMessages = [Message || Message <- Messages, element(1, Message) =:= play],
                 [
-                    {play, <<"filename_1.aac">>, Filename1Timestamp},
-                    {play, <<"filename_2.aac">>, Filename2Timestamp}
+                    {play, <<"filename_1.mp3">>, Filename1Timestamp},
+                    {play, <<"filename_2.mp3">>, Filename2Timestamp}
                 ] = PlayMessages,
                 ServoMessages = [Message || Message <- Messages, element(1, Message) =/= play],
                 [
@@ -426,7 +426,7 @@ play_wait_sound_test_() ->
                 end),
                 Before = erlang:system_time(millisecond),
                 play(Pid, [
-                    {aac, <<"filename_1.aac">>},
+                    {mp3, <<"filename_1.mp3">>},
                     {wait, sound},
                     {servo, 30}
                 ]),
@@ -435,7 +435,7 @@ play_wait_sound_test_() ->
                 ?assert(After - Before >= 600),
                 Messages = collect_messages(Ref, []),
                 [
-                    {play, <<"filename_1.aac">>, Filename1Timestamp},
+                    {play, <<"filename_1.mp3">>, Filename1Timestamp},
                     {set_target, 30, SetTarget1Timestamp},
                     {timeout, Timeout1Timestamp}
                 ] = Messages,
@@ -492,7 +492,7 @@ play_wait_servo_test_() ->
                 play(Pid, [
                     {servo, 30, 150},
                     {wait, servo},
-                    {aac, <<"filename_1.aac">>}
+                    {mp3, <<"filename_1.mp3">>}
                 ]),
                 After = erlang:system_time(millisecond),
                 la_machine_audio_mock:assert_called(AudioMock, play),
@@ -501,7 +501,7 @@ play_wait_servo_test_() ->
                 [
                     {set_target, 30, SetTarget1Timestamp},
                     {timeout, Timeout1Timestamp},
-                    {play, <<"filename_1.aac">>, Filename1Timestamp}
+                    {play, <<"filename_1.mp3">>, Filename1Timestamp}
                 ] = Messages,
                 % Ensure sounds are played one after the other
                 ?assert(Filename1Timestamp - SetTarget1Timestamp >= 150),
