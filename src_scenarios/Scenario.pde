@@ -20,7 +20,7 @@ class ScenarElem {
   // {wait, 800}
   // {wait,sound}
   // {servo, 35}
-  // {aac, <<\"joy/0426.aac\">>}
+  // {aac, <<\"joy/0426.mp3\">>}
   void parseDef() {
     // remove {}
     String inDef = def.substring(1, def.length()-1);
@@ -44,7 +44,7 @@ class ScenarElem {
         }
         
       } else if (command.equals("aac")) {
-        // arg = '<<\"joy/0426.aac\">>'
+        // arg = '<<\"joy/0426.mp3\">>'
         //println("aac arg ='"+arg+"'");
         // remove quotes
         int index = arg.indexOf('\"');
@@ -52,15 +52,7 @@ class ScenarElem {
         arg = arg.substring(index+1, index2-1);
         
         // intArg contains the duration
-        // if mp3 file does not exist, create it
-        String mp3Path = sketchPath(MP3_FOLDER)+mp3FileNameForAac(arg);
-        if (!fileExists(mp3Path)) {
-          String aacPath = sketchPath(PRIV_FOLDER)+arg;
-          println("Converting "+aacPath+" to "+mp3Path);
-          // first create necessary directories
-          MkDir(MP3_FOLDER+folderNameOfFileName(arg));
-          ConvertAAC2MP3(aacPath, mp3Path);
-        }
+        String mp3Path = sketchPath(SOUNDS_FOLDER)+arg;
         if (!fileExists(mp3Path)) {
           // fatal error
           intArg = 0;
@@ -69,7 +61,7 @@ class ScenarElem {
         }
         
         // now:
-        // arg = "joy/0426.aac"
+        // arg = "joy/0426.mp3"
         // intArg = dur_ms
       }
     }
@@ -94,7 +86,7 @@ class Scenario {
   String def;
   ArrayList <ScenarElem> elements;
  
-  // "{wait, 800}, {aac, <<\"gears/simple2.aac\">>}, {servo, 35}, ... ,{servo,0}",
+  // "{wait, 800}, {aac, <<\"gears/simple2.mp3\">>}, {servo, 35}, ... ,{servo,0}",
   Scenario(String aname, String adef) {
     name = aname;
     def = adef;

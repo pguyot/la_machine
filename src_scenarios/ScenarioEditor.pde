@@ -78,7 +78,7 @@ class AudioEditor extends ScenarElemEditor {
     type = "audio";
     audioPath = aaudioPath;
     dur_ms = adur_ms;
-    audioPlayer = new MyAudioPlayer(MP3_FOLDER+mp3FileNameForAac(audioPath));
+    audioPlayer = new MyAudioPlayer(SOUNDS_FOLDER+audioPath);
     println("AudioEditor audioPath="+audioPath+" dur_ms="+dur_ms);
   }
   
@@ -93,7 +93,7 @@ class AudioEditor extends ScenarElemEditor {
   }
   
   void Play() {
-    audioPlayer.Play(0);
+    audioPlayer.Play();
   }
   
   float dur_ms() {
@@ -329,7 +329,7 @@ class ScenarEditor {
   }
   
   String computeScenarioDef() {
-    // "{wait, 800}, {aac, <<\"gears/simple2.aac\">>}, {servo, 35}, ... ,{servo,0}",
+    // "{wait, 800}, {aac, <<\"gears/simple2.mp3\">>}, {servo, 35}, ... ,{servo,0}",
 
     String res = "";
     int cursor_ms = 0;
@@ -459,7 +459,7 @@ class ScenarEditor {
     stroke(255, 0, 0, 127);
     line(x0, yyy, x0 + w0, yyy);
     // contact
-    yy = gSERVO_BUTTON_CONTACT_PERCENT/100.0; //<>// //<>// //<>// //<>//
+    yy = gSERVO_BUTTON_CONTACT_PERCENT/100.0; //<>// //<>// //<>// //<>// //<>//
     yyy = y0+h0-yy*h0/2;
     stroke(255, 0, 0, 127);
     line(x0, yyy, x0 + w0, yyy);
@@ -478,9 +478,9 @@ class ScenarEditor {
           float x2 = ms2pixels(sEditor2.anchort);
           noFill(); stroke(0, 255, 0);
           if (sEditor1 == null) {
-            x1 = 0; //<>// //<>// //<>// //<>//
+            x1 = 0; //<>// //<>// //<>// //<>// //<>//
             y2 = y1;
-            line(x1, y1, x2, y2); //<>// //<>// //<>// //<>//
+            line(x1, y1, x2, y2); //<>// //<>// //<>// //<>// //<>//
           } else {
             // we have sEditor1
             x1 = ms2pixels(sEditor1.anchort);
@@ -762,7 +762,7 @@ float gScen_x0, gScen_y0, gScen_w0, gScen_h0;
 AsButton gScen_saveBut;
 AsButton gScen_newBut;
 AsButton gScen_reloadBut;
-AsButton gScen_parsePriv;
+AsButton gScen_parseSounds;
 
 int gScen_curScenarIndex = -1;
 int gScen_scollIndex = 0;
@@ -866,11 +866,11 @@ void ScenariosDisplay() {
   // buttons
   float yyy = gScen_y0 + 20;
   float dyyy = fontHeight + 6 + 2;
-  if (gScen_newBut == null) gScen_newBut  = new AsButton("New Scenario", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
+  if (gScen_newBut == null) gScen_newBut  = new AsButton("NEW scenario", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
   gScen_newBut.Display();
   yyy += dyyy;
 
-  if (gScen_saveBut == null) gScen_saveBut  = new AsButton("SAVE (json+erl)", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
+  if (gScen_saveBut == null) gScen_saveBut  = new AsButton("SAVE json", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
   gScen_saveBut.Display();
   yyy += dyyy;
   yyy += dyyy;
@@ -880,44 +880,50 @@ void ScenariosDisplay() {
   gScen_reloadBut.Display();
   yyy += dyyy;
 
-  if (gScen_parsePriv == null) gScen_parsePriv  = new AsButton("(RE)PARSE priv/", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
-  gScen_parsePriv.Display();
+  if (gScen_parseSounds == null) gScen_parseSounds  = new AsButton("(RE)PARSE sounds", gScen_x0 + gScen_w0 + 2, yyy, 0, fontHeight + 6);
+  gScen_parseSounds.Display();
   yyy += dyyy;
   
 }
 
 int ScenariosParseSoundFolder() {
   int total = 0;
-  File privFolder = new File(sketchPath(PRIV_FOLDER));
-  File [] privFiles = privFolder.listFiles();
-  if (privFiles != null) {
-    for (int i = 0; i < privFiles.length; i++) {
-      File f = privFiles[i];
+  File soundsFolder = new File(sketchPath(SOUNDS_FOLDER));
+  File [] soundsFiles = soundsFolder.listFiles();
+  if (soundsFiles != null) {
+    for (int i = 0; i < soundsFiles.length; i++) {
+      File f = soundsFiles[i];
       if (f.getName().equals(".DS_Store")) continue;
-      if (f.isDirectory()) {
-        String folderName = f.getName();
-        File [] folderFiles = f.listFiles();
-        for (int j = 0; j < folderFiles.length; j++) {
-          File ff = folderFiles[j];
-          String ffName = ff.getName();
-          if (ffName.equals(".DS_Store")) continue;
-          String ext = fileNameGetExtension(ffName);
-          if (ext.equals("aac")) {
-            if (ScenariosCreateScenarioForAudioIfNeeded(folderName, ffName)) {
-              total++;
-            }
-          } else {
-            AsLog("E : File not aac:"+folderName+"/"+ffName);
-          }
-        }
-        
-        if (total > 0) {
-          ScenariosResort();
-        }
-
-        //println("Directory " + f.getName());
+      if (!f.isDirectory()) continue;
+      String folderName = f.getName();
+      if (folderName.startsWith("_")) {
+        // skip folders starting with _
+        AsLog("Skipping folder:"+folderName);
+        continue;
       }
+      
+      File [] folderFiles = f.listFiles();
+      for (int j = 0; j < folderFiles.length; j++) {
+        File ff = folderFiles[j];
+        String ffName = ff.getName();
+        if (ffName.equals(".DS_Store")) continue;
+        String ext = fileNameGetExtension(ffName);
+        if (ext.equals("mp3")) {
+          if (ScenariosCreateScenarioForAudioIfNeeded(folderName, ffName)) {
+            total++;
+          }
+        } else {
+          AsLog("Error : File not mp3:"+folderName+"/"+ffName);
+        }
+      }
+      
+      if (total > 0) {
+        ScenariosResort();
+      }
+
+      //println("Directory " + f.getName());
     }
+
   }
   
   ScenariosChangeAllGameNames();
@@ -1018,10 +1024,10 @@ void ScenariosMouseDragged() {
 }
 
 void ScenariosMouseMoved() { 
-  if (gScen_saveBut != null && gScen_parsePriv != null && gScen_reloadBut != null && gScen_newBut != null) {
+  if (gScen_saveBut != null && gScen_parseSounds != null && gScen_reloadBut != null && gScen_newBut != null) {
     if (gScen_saveBut.IsInside(mouseX, mouseY)
       || gScen_newBut.IsInside(mouseX, mouseY)
-      || gScen_parsePriv.IsInside(mouseX, mouseY)
+      || gScen_parseSounds.IsInside(mouseX, mouseY)
       || gScen_reloadBut.IsInside(mouseX, mouseY)) {
       cursor(HAND);
       return;
@@ -1048,7 +1054,7 @@ void ScenariosMouseWheel(float amount) {
 void ScenariosMousePressed() {
   if (ScenariosListMousePressed()) return;
   
-  if (gScen_saveBut != null && gScen_parsePriv != null && gScen_reloadBut != null && gScen_newBut != null) {
+  if (gScen_saveBut != null && gScen_parseSounds != null && gScen_reloadBut != null && gScen_newBut != null) {
     if (gScen_saveBut.IsInside(mouseX, mouseY)) {
       ScenariosSaveAll();
       AsLog("SAVED choreographies.json");
@@ -1059,7 +1065,7 @@ void ScenariosMousePressed() {
       AsLog("RELOADED");
       return;
     }
-    if (gScen_parsePriv.IsInside(mouseX, mouseY)) {
+    if (gScen_parseSounds.IsInside(mouseX, mouseY)) {
       int loaded = ScenariosParseSoundFolder();
       AsLog("PARSED, and loaded:"+loaded);
       return;
