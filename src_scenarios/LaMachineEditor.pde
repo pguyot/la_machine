@@ -14,8 +14,7 @@ float gSERVO_DOOR_PERCENT = 15.0;
 float gSERVO_BUTTON_CONTACT_PERCENT = 85.0;
 float GAME_SHORT_DUR_S = 2;
 float GAME_MEDIUM_DUR_S = 4;
-String PRIV_FOLDER = "../priv/";
-String MP3_FOLDER = "_mp3cache/";
+String SOUNDS_FOLDER = "../sounds/";
 
 void setup() {
   fullScreen();

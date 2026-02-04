@@ -27,10 +27,6 @@ void FileCopy(String in, String out) {
   execCommand(new String[]{"cp", in, out});
 }
 
-void ConvertAAC2MP3(String aacfile, String mp3file) {
-  execCommand(new String[]{"/opt/homebrew/bin/ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", aacfile, "-c:a", "libmp3lame", "-qscale:a", "2", mp3file});
-}
-
 void MkDir(String dir) {
   execCommand(new String[]{"mkdir", "-p", dir});
 }
@@ -62,13 +58,6 @@ String filePathGetFileName(String str) {
 
 
 // strings
-// folder/file.aac -> folder/file.mp3
-String mp3FileNameForAac(String aacFile) {
-  return aacFile+".mp3";
-  //int index = aacFile.lastIndexOf(".");
-  //if (index < 0) return aacFile+".mp3";
-  //return aacFile.substring(0, index)+".mp3";
-}
 
 boolean fileExists(String fullPath) {
   File f = new File(fullPath);

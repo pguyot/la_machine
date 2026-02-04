@@ -13,9 +13,9 @@ while true; do
     if [ -n "$device" ]; then
         echo "Found machine device: $device"
 
-		rebar3 as demo clean
-		rebar3 as demo atomvm packbeam -p -e ./atomvmlib.avm
-		rebar3 as demo atomvm esp32_flash -p $device -e ~/Library/Arduino15/packages/esp32/tools/esptool_py/5.1.0/esptool -o 0x130000
+		rebar3 clean
+		rebar3 atomvm packbeam -p -e ./atomvmlib.avm
+		rebar3 atomvm esp32_flash -p $device -e ~/Library/Arduino15/packages/esp32/tools/esptool_py/5.1.0/esptool -o 0x130000
 
         exit 0
     else
