@@ -137,9 +137,6 @@
 % Travel Mode = always paused, no action
 -define(TRAVELMODE, 0).
 
-% Should process tripleclick (broken)
--define(TRIPLECLICK, 0).
-
 % Delay to start calling after interaction
 -define(CALLING_START_DELAY_S, 15).
 % Min delay to continue calling
