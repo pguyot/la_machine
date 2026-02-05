@@ -424,10 +424,10 @@ change_moodp(waiting, player, _GestureCount, _Total_Gesture_Count, _SecondsElaps
 % joy : mood change ?
 change_moodp(joy, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
     Mood = joy,
-    % if more than JOY_MIN_GESTURES gestures, one chance out of 2 to go to imitation
-    <<RandChange>> = crypto:strong_rand_bytes(1),
+    % if more than JOY_MIN_GESTURES gestures, one chance out of ?JOY_IMIT_CHANCE to go to imitation
     if
         GestureCount > ?JOY_MIN_GESTURES ->
+            <<RandChange:56>> = crypto:strong_rand_bytes(7),
             if
                 (RandChange rem ?JOY_IMIT_CHANCE) == 0 ->
                     TmpMood = imitation,
@@ -442,10 +442,10 @@ change_moodp(joy, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, L
 % imitation : mood change ?
 change_moodp(imitation, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
     Mood = imitation,
-    <<RandChangeDial>> = crypto:strong_rand_bytes(1),
-    <<RandChangeUpset>> = crypto:strong_rand_bytes(1),
-    <<RandChangeTired>> = crypto:strong_rand_bytes(1),
-    <<RandChangeExcited>> = crypto:strong_rand_bytes(1),
+    <<RandChangeDial:56>> = crypto:strong_rand_bytes(7),
+    <<RandChangeUpset:56>> = crypto:strong_rand_bytes(7),
+    <<RandChangeTired:56>> = crypto:strong_rand_bytes(7),
+    <<RandChangeExcited:56>> = crypto:strong_rand_bytes(7),
     if
         GestureCount > ?IMIT_MIN_GESTURES ->
             if
@@ -474,10 +474,10 @@ change_moodp(imitation, player, GestureCount, _Total_Gesture_Count, _SecondsElap
 % dialectic : mood change ?
 change_moodp(dialectic, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
     Mood = dialectic,
-    <<RandChangeImit>> = crypto:strong_rand_bytes(1),
-    <<RandChangeUpset>> = crypto:strong_rand_bytes(1),
-    <<RandChangeTired>> = crypto:strong_rand_bytes(1),
-    <<RandChangeExcited>> = crypto:strong_rand_bytes(1),
+    <<RandChangeImit:56>> = crypto:strong_rand_bytes(7),
+    <<RandChangeUpset:56>> = crypto:strong_rand_bytes(7),
+    <<RandChangeTired:56>> = crypto:strong_rand_bytes(7),
+    <<RandChangeExcited:56>> = crypto:strong_rand_bytes(7),
     if
         GestureCount > ?DIAL_MIN_GESTURES ->
             if
@@ -507,7 +507,7 @@ change_moodp(dialectic, player, GestureCount, _Total_Gesture_Count, _SecondsElap
 change_moodp(Mood, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) when
     Mood == upset orelse Mood == tired orelse Mood == excited
 ->
-    <<RandChange>> = crypto:strong_rand_bytes(1),
+    <<RandChange:56>> = crypto:strong_rand_bytes(7),
     if
         GestureCount > ?DIAL_MIN_GESTURES ->
             if
