@@ -143,39 +143,33 @@
 -define(CALLING_MIN_DELAY_S, 10).
 % Max delay to continue calling
 -define(CALLING_MAX_DELAY_S, 25).
-
-% MAX number of calling sounds
+% MAX number of callings
 -define(MAX_CALLING_SOUNDS, 3).
 
-% MIN number of interactions in joy
--define(JOY_MIN_GESTURES, 3).
+% MIN number of gestures in a mood
+-define(MOOD_MIN_GESTURES, 3).
+
 % Chances to change mood : joy => imitation
+
+% one chance out of 2
 -define(JOY_IMIT_CHANCE, 2).
-
-% MIN number of interactions in imitation
--define(IMIT_MIN_GESTURES, 3).
-% Chances to change mood : imitation => dialectics
--define(IMIT_DIAL_CHANCE, 3).
-% Chances to change mood : imitation => upset
--define(IMIT_UPSET_CHANCE, 5).
-% Chances to change mood : imitation => tired
--define(IMIT_TIRED_CHANCE, 5).
-% Chances to change mood : imitation => excited
--define(IMIT_EXCITED_CHANCE, 5).
-
-% MIN number of interactions in dialectics
--define(DIAL_MIN_GESTURES, 3).
-% Chances to change mood : dialectics => imitation
--define(DIAL_IMIT_CHANCE, 3).
-% Chances to change mood : dialectics => upset
--define(DIAL_UPSET_CHANCE, 5).
-% Chances to change mood : dialectics => tired
--define(DIAL_TIRED_CHANCE, 5).
-% Chances to change mood : dialectics => excited
--define(DIAL_EXCITED_CHANCE, 5).
-
 % Chances to change mood : upset/tired/excited => imitation
+
+% one chance out of 7
 -define(MOODY_IMIT_CHANCE, 7).
+
+% all probabilities are added
+% here 10 possibilities : 5 to stay same game, 2 to change game, 1 to go to upset, 1 to go to tired, 1 to go to excited
+% Probability to change mood : game => same game
+-define(GAME_GAME_PROBA, 5).
+% Probability to change mood : game => other game
+-define(GAME_OTHER_PROBA, 2).
+% Probability to change mood : game => upset
+-define(GAME_UPSET_PROBA, 1).
+% Probability to change mood : game => tired
+-define(GAME_TIRED_PROBA, 1).
+% Probability to change mood : game => excited
+-define(GAME_EXCITED_PROBA, 1).
 
 % Max duration of short gestures in games mood
 -define(GAME_SHORT_DUR_S, 2).
