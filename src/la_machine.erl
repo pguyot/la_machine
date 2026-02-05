@@ -157,60 +157,6 @@ prune_workaround() ->
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% do_process_click(WakeupCause, ButtonState, State)
-%% process_click(WakeupCause, ButtonState, DurMs, ClickCnt, IsPaused, State)
-%% BROKEN
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec do_process_click(esp:esp_wakeup_cause() | undefined, on | off, la_machine_state:state()) ->
-    la_machine_state:state().
-
--if(?TRIPLECLICK == 1).
--spec process_click(
-    esp:esp_wakeup_cause() | undefined,
-    on | off,
-    non_neg_integer(),
-    non_neg_integer(),
-    non_neg_integer(),
-    la_machine_state:state()
-) -> la_machine_state:state().
-
-do_process_click(WakeupCause, ButtonState, State0) ->
-    DurMS = la_machine_state:get_ms_since_last_on(State0),
-    ClickCnt = la_machine_state:get_click_count(State0),
-    IsPaused = la_machine_state:get_is_paused(State0),
-    process_click(WakeupCause, ButtonState, DurMS, ClickCnt, IsPaused, State0).
-
-process_click(sleep_wakeup_gpio, on, _DurMs, _ClickCnt, _IsPaused, State) ->
-    % on : remember time
-    la_machine_state:set_last_on_now(State);
-process_click(sleep_wakeup_gpio, off, DurMs, ClickCnt, IsPaused, State) when
-    DurMs =< 1000 andalso ClickCnt == 2
-->
-    % off : triple click -> inverse paused
-    NewPaused = 1 - IsPaused,
-    io:format("NewPaused=~p\n", [NewPaused]),
-    la_machine_state:set_is_paused(NewPaused, State);
-process_click(sleep_wakeup_gpio, off, DurMs, ClickCnt, _IsPaused, State) when
-    % ClickCnt =< 2
-    DurMs =< 1000
-->
-    % off : click, and < three => increase count
-    la_machine_state:set_click_count(ClickCnt + 1, State);
-process_click(sleep_wakeup_gpio, off, _DurMs, _ClickCnt, _IsPaused, State) ->
-    % DurMs > 1000
-    % off : no click => set count to 0
-    la_machine_state:set_click_count(0, State);
-% all other cases
-process_click(_, _, _, _, _, State) ->
-    State.
-
--else.
-
-do_process_click(_, _, State) -> State.
-
--endif.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% action
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -234,16 +180,16 @@ compute_action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, State)
 
 %% erlfmt:ignore-begin
 -if(?DEBUG_PLAY_ONLY_ONE_MOOD_INDEX < 0).
--define(DEBUG_PLAY_SCENARIO_CASE(Config, StateX),
+-define(DEBUG_PLAY_SCENARIO_CASE(Config, State),
     {play_scenario, DebugMood, _DebugIndex} ->
         play_random_scenario_with_hit(DebugMood, undefined, Config),
-        StateX;
+        State;
 ).
 -else.
--define(DEBUG_PLAY_SCENARIO_CASE(Config, StateX),
+-define(DEBUG_PLAY_SCENARIO_CASE(Config, State),
     {play_scenario, DebugMood, DebugIndex} ->
         play_scenario_with_hit(DebugMood, DebugIndex, Config),
-        StateX;
+        State;
 ).
 -endif.
 %% erlfmt:ignore-end
@@ -254,7 +200,7 @@ compute_action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, State)
     action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, State).
 
 %% erlfmt:ignore-begin
--define(DEBUG_PLAY_SCENARIO_CASE(Config, StateX),).
+-define(DEBUG_PLAY_SCENARIO_CASE(Config, State),).
 %% erlfmt:ignore-end
 
 -endif.
@@ -269,21 +215,19 @@ run_configured(Config, WakeupCause, ButtonState) ->
     State0 = la_machine_state:load_state(),
     AccelerometerState = la_machine_lis3dh:setup(),
 
-    %% process click
-    StateX = do_process_click(WakeupCause, ButtonState, State0),
-    IsPausedNow = la_machine_state:get_is_paused(StateX),
+    IsPausedNow = la_machine_state:get_is_paused(State0),
 
     State1 =
-        case compute_action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, StateX) of
-            ?DEBUG_PLAY_SCENARIO_CASE(Config, StateX)
+        case compute_action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, State0) of
+            ?DEBUG_PLAY_SCENARIO_CASE(Config, State0)
             play_meuh ->
                 play_meuh(Config),
-                StateX;
+                State0;
             play_poke ->
                 % the poke
-                PokeIndex = la_machine_state:get_poke_index(StateX),
+                PokeIndex = la_machine_state:get_poke_index(State0),
                 play_poke(Config),
-                la_machine_state:set_poke_index(PokeIndex + 1, StateX);
+                la_machine_state:set_poke_index(PokeIndex + 1, State0);
             % normal play
             {play, Reason, Mood, SecondsElapsed, LastPlaySeq, GestureCount} ->
                 io:format(
@@ -293,7 +237,7 @@ run_configured(Config, WakeupCause, ButtonState) ->
                 ),
 
                 % change mood ?
-                Total_Gesture_Count = la_machine_state:get_total_gestures_count(StateX),
+                Total_Gesture_Count = la_machine_state:get_total_gestures_count(State0),
                 {Mood1, GestureCount1, LastPlaySeq1} = change_moodp(
                     Mood, Reason, GestureCount, Total_Gesture_Count, SecondsElapsed, LastPlaySeq
                 ),
@@ -302,22 +246,22 @@ run_configured(Config, WakeupCause, ButtonState) ->
                     Mood1 == waiting ->
                         % waiting : don't play anything
                         % Only change the mood
-                        la_machine_state:set_mood_waiting(StateX);
+                        la_machine_state:set_mood_waiting(State0);
                     true ->
                         % else : play and remember
                         PlayedSeq = play_mood(Mood1, SecondsElapsed, LastPlaySeq1, Config),
-                        la_machine_state:append_play(Mood1, GestureCount1 + 1, PlayedSeq, StateX)
+                        la_machine_state:append_play(Mood1, GestureCount1 + 1, PlayedSeq, State0)
                 end;
             reset ->
                 io:format("resetting\n"),
                 la_machine_audio:reset(),
                 la_machine_servo:reset(Config),
-                StateX;
+                State0;
             play_wait_5000 ->
                 play_wait_5000(Config),
                 la_machine_audio:reset(),
                 la_machine_servo:reset(Config),
-                StateX
+                State0
         end,
     la_machine_state:save_state(State1),
     do_compute_sleep_timer(State1).
