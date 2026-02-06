@@ -108,7 +108,7 @@
 -define(LEDC_FADE_WAIT_DONE, 1).
 -define(LEDC_FADE_MAX, 2).
 
--define(LEDC_DUTY_RESOLUTION, 13).
+-define(LEDC_DUTY_RESOLUTION, 14).
 -define(LEDC_TIMER, 0).
 % only value supported by esp32c3
 -define(LEDC_MODE, 0).
