@@ -262,9 +262,12 @@ play_next(
     Now = erlang:system_time(millisecond),
     if
         Now < ServoEnd ->
+            io:format("[~p] waiting for ~Bms\n", [erlang:system_time(millisecond), ServoEnd - Now]),
             {noreply, State, ServoEnd - Now};
         true ->
+            io:format("[~p] calling ServoModule:timeout...\n", [erlang:system_time(millisecond)]),
             ServoState1 = ServoModule:timeout(ServoState0),
+            io:format("[~p] called ServoModule:timeout\n", [erlang:system_time(millisecond)]),
             play_next(State#state{servo_state = ServoState1, servo_end = undefined})
     end.
 
