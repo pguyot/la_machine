@@ -406,7 +406,7 @@ change_moodp(Mood, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, 
 change_moodp(Mood, _Reason, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
     {Mood, GestureCount, LastPlaySeq}.
 
-%% game (imitation | dialectics) mood change
+%% game (imitation | dialectic) mood change
 -spec change_game_mood(
     Mood :: atom(),
     GestureCount :: non_neg_integer(),
@@ -424,10 +424,8 @@ change_game_mood(Mood, GestureCount, LastPlaySeq) ->
         true ->
             OtherGame =
                 case Mood of
-                    imitation -> dialectics;
-                    dialectics -> imitation;
-                    %% should not happen
-                    _ -> imitation
+                    imitation -> dialectic;
+                    dialectic -> imitation
                 end,
             PossibleMoods =
                 add_moods_to_list(
