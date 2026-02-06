@@ -401,7 +401,7 @@
   "poke_01042": "{aac, <<\"poke/01042.mp3\">>}",
   "poke_01134": "{aac, <<\"poke/01134.mp3\">>}",
   "poke_silent": "{servo, 19}, {wait, 109}, {servo, 0}",
-  "test_1": "{wait, 451}, {servo, 17}, {wait, 2540}, {servo, 85, 1592}, {wait, 2414}, {servo, 100, 590}, {wait, 1666}, {servo, 0, 1000}",
+  "test_1": "{servo, 25}, {wait, 283}, {servo, 74}, {servo, 100}, {wait, 200}, {servo, 0}",
   "tired_01006": "{servo, 54, 1429}, {wait, 1364}, {aac, <<\"tired/01006.mp3\">>}, {wait, 19}, {servo, 67, 138}, {wait, 347}, {servo, 73}, {wait, 179}, {servo, 85, 527}",
   "tired_01164": "{servo, 22, 520}, {wait, 856}, {servo, 44, 417}, {wait, 550}, {servo, 62, 283}, {wait, 461}, {aac, <<\"tired/01164.mp3\">>}, {wait, 25}, {servo, 68}, {wait, 445}, {servo, 75}",
   "tired_01247": "{wait, 509}, {servo, 50, 978}, {wait, 908}, {aac, <<\"tired/01247.mp3\">>}, {wait, 319}, {servo, 63, 202}, {wait, 775}, {servo, 72}",
@@ -512,6 +512,6 @@
   "upset_02374": "{wait, 17}, {servo, 84}, {wait, 185}, {aac, <<\"upset/02374.mp3\">>}, {wait, 278}, {servo, 58}, {wait, 370}, {servo, 83}, {wait, 266}, {servo, 57}, {wait, 255}, {servo, 61}, {wait, 104}, {servo, 55}, {wait, 58}, {servo, 60}, {wait, 93}, {servo, 55}, {wait, 75}, {servo, 62}, {wait, 75}, {servo, 54}, {wait, 70}, {servo, 62}, {wait, 115}, {servo, 53}, {wait, 87}, {servo, 62}, {wait, 122}, {servo, 53}, {wait, 75}, {servo, 62}, {wait, 92}, {servo, 54}, {wait, 58}, {servo, 63}, {wait, 128}, {servo, 53}",
   "upset_silent": "{servo, 100}, {wait, 520}, {servo, 83}, {wait, 880}, {servo, 0, 2026}",
   "upset_silent2": "{wait, 10}, {servo, 0}, {wait, 26}, {servo, 100}, {wait, 496}, {servo, 83}, {wait, 556}, {servo, 99}, {wait, 115}, {servo, 84}, {wait, 797}, {servo, 100}, {wait, 152}, {servo, 1}",
-  "upset_silent3": "{servo, 100}, {wait, 509}, {servo, 83}, {wait, 150}, {servo, 100}, {wait, 128}, {servo, 83}, {wait, 144}, {servo, 100}, {wait, 185}, {servo, 0}",
+  "upset_silent3": "{servo, 100}, {wait, 509}, {servo, 83}, {wait, 150}, {servo, 100}, {wait, 128}, {servo, 83}, {wait, 144}, {servo, 100}, {wait, 915}, {servo, 0}",
   "upset_silent4": "{servo, 100}, {wait, 491}, {servo, 45}, {wait, 261}, {servo, 100}, {wait, 266}, {servo, 45}, {wait, 289}, {servo, 100}, {wait, 267}, {servo, 45}, {wait, 283}, {servo, 100}, {wait, 261}, {servo, 45}, {wait, 272}, {servo, 100}, {wait, 283}, {servo, 0}"
 }
