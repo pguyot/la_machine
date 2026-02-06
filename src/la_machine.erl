@@ -119,6 +119,10 @@ run() ->
     Charging = la_machine_battery:is_charging(),
     BatteryLevel = la_machine_battery:get_level(),
 
+%%% DEBUG SCENARIO
+    debug_loop(Config),
+%%% DEBUG SCENARIO
+
     case WakeupCause of
         undefined ->
             % Not a regular wake-up, report self-test
@@ -146,6 +150,17 @@ run() ->
     SleepMS = setup_sleep(SleepTimer),
     unconfigure_watchdog(WatchdogUser),
     esp:deep_sleep(SleepMS).
+
+debug_loop(Config) ->
+    io:format("DEBUG SCENARIO\n"),
+    DebugScenario = [{servo, 81}, {wait, 411}, {servo, 18, 1643}],
+    DebugHit = [{aac, <<"hits/00505.mp3">>}, {servo, 100}, {wait, 200}, {servo, 0}],
+    {ok, Pid} = la_machine_player:start_link(Config),
+    ok = la_machine_player:play(Pid, DebugScenario),
+    ok = la_machine_player:play(Pid, DebugHit),
+    ok = la_machine_player:stop(Pid),
+    timer:sleep(3000),
+    debug_loop(Config).
 
 -ifndef(TEST).
 %% @doc Entry point

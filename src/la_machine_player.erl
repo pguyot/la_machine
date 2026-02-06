@@ -192,12 +192,16 @@ play_next(#state{wait_end = WaitEnd} = State0) when WaitEnd =/= undefined ->
             {noreply, State0, WaitMS}
     end;
 play_next(#state{sequence = [{wait, sound} | Tail], audio_monitor = undefined} = State0) ->
+    io:format("[~p] wait -- sound (1)\n", [erlang:system_time(millisecond)]),
     play_next(State0#state{sequence = Tail});
 play_next(#state{sequence = [{wait, sound} | _]} = State0) ->
+    io:format("[~p] wait -- sound (2)\n", [erlang:system_time(millisecond)]),
     {noreply, State0};
 play_next(#state{sequence = [{wait, servo} | Tail], servo_end = undefined} = State0) ->
+    io:format("[~p] wait -- servo\n", [erlang:system_time(millisecond)]),
     play_next(State0#state{sequence = Tail});
 play_next(#state{sequence = [{wait, WaitMS} | Tail]} = State0) when is_integer(WaitMS) ->
+    io:format("[~p] wait -- time_ms = ~p\n", [erlang:system_time(millisecond), WaitMS]),
     Now = erlang:system_time(millisecond),
     WaitEnd = Now + WaitMS,
     {noreply, State0#state{sequence = Tail, wait_end = WaitEnd}, WaitMS};
@@ -206,6 +210,7 @@ play_next(
         audio_module = AudioModule, sequence = [{aac, Filename} | Tail], audio_monitor = undefined
     } = State0
 ) ->
+    io:format("[~p] audio -- filename = ~s\n", [erlang:system_time(millisecond), Filename]),
     {Pid, Ref} = spawn_opt(
         fun() ->
             AudioModule:play(Filename)
@@ -222,7 +227,9 @@ play_next(
         servo_end = undefined
     } = State0
 ) ->
+    io:format("[~p] servo -- set_target... = ~p\n", [erlang:system_time(millisecond), Target]),
     {TargetMS, ServoState1} = ServoModule:set_target(Target, ServoState0),
+    io:format("[~p] servo -- ...set_target = ~p\n", [erlang:system_time(millisecond), Target]),
     Now = erlang:system_time(millisecond),
     State1 = State0#state{sequence = Tail, servo_state = ServoState1, servo_end = Now + TargetMS},
     play_next(State1);
@@ -234,13 +241,16 @@ play_next(
         servo_end = undefined
     } = State0
 ) ->
+    io:format("[~p] servo -- set_target... = ~p, time_ms = ~p\n", [erlang:system_time(millisecond), Target, TimeMS]),
     {TargetMS, ServoState1} = ServoModule:set_target(Target, TimeMS, ServoState0),
+    io:format("[~p] servo -- ...set_target = ~p, time_ms = ~p\n", [erlang:system_time(millisecond), Target, TimeMS]),
     Now = erlang:system_time(millisecond),
     State1 = State0#state{sequence = Tail, servo_state = ServoState1, servo_end = Now + TargetMS},
     play_next(State1);
 play_next(
     #state{sequence = [], from = From, audio_monitor = undefined, servo_end = undefined} = State0
 ) ->
+    io:format("[~p] sequence = []\n", [erlang:system_time(millisecond)]),
     gen_server:reply(From, ok),
     {noreply, State0};
 play_next(#state{servo_end = undefined} = State) ->
@@ -248,6 +258,7 @@ play_next(#state{servo_end = undefined} = State) ->
 play_next(
     #state{servo_module = ServoModule, servo_state = ServoState0, servo_end = ServoEnd} = State
 ) ->
+    io:format("[~p] servo_end = ~p\n", [erlang:system_time(millisecond), ServoEnd]),
     Now = erlang:system_time(millisecond),
     if
         Now < ServoEnd ->
