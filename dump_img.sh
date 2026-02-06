@@ -13,7 +13,7 @@ while true; do
     if [ -n "$device" ]; then
         echo "Found machine device: $device"
 
-        ~/Library/Arduino15/packages/esp32/tools/esptool_py/5.1.0/esptool --port $device read_flash 0x0 0x800000 image.img
+        ~/Library/Arduino15/packages/esp32/tools/esptool_py/5.1.0/esptool --port $device read_flash 0x0 0x800000 la_machine_moods_as_$(date +"%d-%m-%Y").img
 
         exit 0
     else
