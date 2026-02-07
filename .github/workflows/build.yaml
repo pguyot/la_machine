@@ -249,6 +249,13 @@ jobs:
         echo CONFIG_ESPTOOLPY_FLASHSIZE_${{ matrix.size }}=y >> sdkconfig
         echo CONFIG_ESPTOOLPY_FLASHSIZE="${{ matrix.size }}" >> sdkconfig
         echo CONFIG_ESP_SLEEP_GPIO_ENABLE_INTERNAL_RESISTORS=n >> sdkconfig
+        sed -i '/CONFIG_LOG_DEFAULT_LEVEL_\(INFO\|WARN\|DEBUG\|VERBOSE\|NONE\)/d' sdkconfig
+        sed -i '/CONFIG_LOG_BOOTLOADER_LEVEL_\(INFO\|WARN\|DEBUG\|VERBOSE\|NONE\)/d' sdkconfig
+        echo CONFIG_LOG_DEFAULT_LEVEL_ERROR=y >> sdkconfig
+        echo CONFIG_LOG_DEFAULT_LEVEL=1 >> sdkconfig
+        echo CONFIG_LOG_BOOTLOADER_LEVEL_ERROR=y >> sdkconfig
+        echo CONFIG_LOG_BOOTLOADER_LEVEL=1 >> sdkconfig
+        echo CONFIG_LOG_DYNAMIC_LEVEL_CONTROL=n >> sdkconfig
         idf.py build
 
     - name: Build la machine partitions map
