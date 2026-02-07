@@ -64,11 +64,6 @@
 -define(I2C_SCL_GPIO, ?U0RXD_GPIO).
 
 -if(?HARDWARE_REVISION =:= proto_20260106).
-% Calibration button GPIO is the same as the accelerometer interrupt GPIO
-% On 1.5+, do not set the internal 45kΩ pull down because the
-% accelerometer is protected from the calibration button by a 100 kΩ and
-% we already have a 1 MΩ pull down.
--define(CALIBRATION_BUTTON_GPIO, ?MTDI_GPIO).
 -define(ACC_IRQ_GPIO_PULL, floating).
 -else.
 -define(ACC_IRQ_GPIO_PULL, down).
@@ -116,23 +111,22 @@
 -define(LEDC_CHANNEL, 0).
 
 -if(?HARDWARE_REVISION =:= proto_20241023).
--define(DEFAULT_SERVO_CLOSED_ANGLE, 50).
--define(DEFAULT_SERVO_INTERRUPT_ANGLE, 165).
+-define(DEFAULT_SERVO_CLOSED_DUTY, 864).
+-define(DEFAULT_SERVO_INTERRUPT_DUTY, 1911).
 -elif(?HARDWARE_REVISION =:= proto_20260106).
--define(DEFAULT_SERVO_CLOSED_ANGLE, 125).
--define(DEFAULT_SERVO_INTERRUPT_ANGLE, 30).
+-define(DEFAULT_SERVO_CLOSED_DUTY, 1547).
+-define(DEFAULT_SERVO_INTERRUPT_DUTY, 682).
 -else.
 -error({unsupported_hardware_revision, ?HARDWARE_REVISION}).
 -endif.
 
--define(SERVO_MAX_ANGLE, 180.0).
 -define(SERVO_MAX_WIDTH_US, 2500).
 -define(SERVO_MIN_WIDTH_US, 500).
 -define(SERVO_FREQ_HZ, 50).
 -define(SERVO_FREQ_PERIOD_US, (1000000 / ?SERVO_FREQ_HZ)).
 -define(SERVO_MAX_DUTY, ((1 bsl ?LEDC_DUTY_RESOLUTION) - 1)).
-% Time required to move for MAX_ANGLE in ms. Servo is 0.3s/60°
--define(SERVO_MAX_ANGLE_TIME_MS, 900).
+% Time for full servo range in ms. Servo is 0.3s/60°, full 180° = 900ms.
+-define(SERVO_FULL_RANGE_TIME_MS, 900).
 
 % Maximum run time. If La machine runs in more than this, watchdog is triggered,
 % La machine panics and state stored in RTC Slow memory is ignored on next boot.

@@ -35,7 +35,7 @@
     power_on/1,
     power_off/0,
     reset/1,
-    set_angle/2,
+    set_duty/2,
     set_target/2,
     set_target/3,
     timeout/1
@@ -118,17 +118,16 @@ reset(Config) ->
     power_off().
 
 %% -----------------------------------------------------------------------------
-%% @param Angle angle for the servo (from 0 to 180)
+%% @param Duty duty value for the servo
 %% @param State current state
 %% @return a tuple with the time until the end of the move and the new state
-%% @doc Set the angle and move the servo as fast as possible. Used for
+%% @doc Set the duty and move the servo as fast as possible. Used for
 %% calibration purposes.
 %% Fails with function_clause if a fade is in progress.
 %% @end
 %% -----------------------------------------------------------------------------
--spec set_angle(Angle :: 0..180, State :: state()) -> {non_neg_integer(), state()}.
-set_angle(Angle, #state{current_fade = undefined} = State) ->
-    Duty = angle_to_duty(Angle),
+-spec set_duty(Duty :: non_neg_integer(), State :: state()) -> {non_neg_integer(), state()}.
+set_duty(Duty, #state{current_fade = undefined} = State) ->
     ok = ledc:set_duty(?LEDC_MODE, ?LEDC_CHANNEL, Duty),
     ok = ledc:update_duty(?LEDC_MODE, ?LEDC_CHANNEL),
     target_duty_timeout(Duty, 0, State).
@@ -173,7 +172,7 @@ set_target(
     {non_neg_integer(), state()}.
 target_duty_timeout(Duty, MinTimeMS, #state{pre_min = PreMin, pre_max = PreMax} = State) ->
     MaxTime = ceil(
-        max(abs(Duty - PreMin), abs(Duty - PreMax)) * ?SERVO_MAX_ANGLE_TIME_MS / ?SERVO_MAX_DUTY *
+        max(abs(Duty - PreMin), abs(Duty - PreMax)) * ?SERVO_FULL_RANGE_TIME_MS / ?SERVO_MAX_DUTY *
             ?SERVO_FREQ_PERIOD_US / (?SERVO_MAX_WIDTH_US - ?SERVO_MIN_WIDTH_US)
     ),
     {max(MaxTime, MinTimeMS), State#state{
@@ -182,18 +181,9 @@ target_duty_timeout(Duty, MinTimeMS, #state{pre_min = PreMin, pre_max = PreMax} 
 
 -spec target_to_duty(number(), la_machine_configuration:config()) -> non_neg_integer().
 target_to_duty(Target, Config) ->
-    InterruptAngle = la_machine_configuration:interrupt_angle(Config),
-    ClosedAngle = la_machine_configuration:closed_angle(Config),
-    Angle = Target * (InterruptAngle - ClosedAngle) / 100 + ClosedAngle,
-    angle_to_duty(Angle).
-
--spec angle_to_duty(number()) -> non_neg_integer().
-angle_to_duty(Angle) ->
-    AngleUS =
-        (Angle / ?SERVO_MAX_ANGLE) * (?SERVO_MAX_WIDTH_US - ?SERVO_MIN_WIDTH_US) +
-            ?SERVO_MIN_WIDTH_US,
-    Duty = AngleUS * ?SERVO_MAX_DUTY / ?SERVO_FREQ_PERIOD_US,
-    floor(Duty).
+    InterruptDuty = la_machine_configuration:interrupt_duty(Config),
+    ClosedDuty = la_machine_configuration:closed_duty(Config),
+    ClosedDuty + Target * (InterruptDuty - ClosedDuty) div 100.
 
 -spec compute_fade_params(non_neg_integer(), non_neg_integer()) ->
     {hardware, pos_integer(), pos_integer()} | software.
@@ -302,7 +292,7 @@ reset_target(#state{target = Target} = State) ->
     State#state{pre_min = Target, pre_max = Target, target = undefined}.
 
 -ifdef(TEST).
-% Values depend on ?DEFAULT_SERVO_INTERRUPT_ANGLE and ?DEFAULT_SERVO_CLOSED_ANGLE
+% Values depend on ?DEFAULT_SERVO_INTERRUPT_DUTY and ?DEFAULT_SERVO_CLOSED_DUTY
 -if(?HARDWARE_REVISION =:= proto_20241023).
 target_to_duty_test_() ->
     [
@@ -378,7 +368,7 @@ target_duty_timeout_test_() ->
         end
     }.
 
-% A full range movement (0° to 180°) should take SERVO_MAX_ANGLE_TIME_MS
+% A full servo range movement should take SERVO_FULL_RANGE_TIME_MS
 target_duty_timeout_full_range_test_() ->
     {
         setup,
@@ -389,17 +379,19 @@ target_duty_timeout_full_range_test_() ->
             ok
         end,
         fun(Config) ->
-            Duty0 = angle_to_duty(0),
-            Duty180 = angle_to_duty(180),
+            %% Duty values corresponding to the servo's physical range limits
+            %% (500µs and 2500µs pulse widths)
+            Duty0 = 409,
+            Duty180 = 2047,
             [
                 ?_assertMatch(
-                    {?SERVO_MAX_ANGLE_TIME_MS, _},
+                    {?SERVO_FULL_RANGE_TIME_MS, _},
                     target_duty_timeout(Duty180, 0, #state{
                         pre_min = Duty0, pre_max = Duty0, config = Config
                     })
                 ),
                 ?_assertMatch(
-                    {?SERVO_MAX_ANGLE_TIME_MS, _},
+                    {?SERVO_FULL_RANGE_TIME_MS, _},
                     target_duty_timeout(Duty0, 0, #state{
                         pre_min = Duty180, pre_max = Duty180, config = Config
                     })
