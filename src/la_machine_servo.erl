@@ -50,7 +50,7 @@
     pre_max :: number(),
     target = undefined :: undefined | number(),
     config :: la_machine_configuration:config(),
-    current_fade = undefined :: undefined | hardware | {pid(), reference()}
+    current_fade = undefined :: undefined | hardware | pid()
 }).
 
 -opaque state() :: #state{}.
@@ -235,7 +235,7 @@ compute_fade_params(DutyDelta, TotalCycles) ->
     end.
 
 -spec start_fade(non_neg_integer(), non_neg_integer(), non_neg_integer(), pos_integer()) ->
-    {hardware | {pid(), reference()}, non_neg_integer()}.
+    {hardware | pid(), non_neg_integer()}.
 start_fade(CurrentDuty, CurrentDuty, TargetDuty, TimeMS) ->
     DutyDelta = abs(TargetDuty - CurrentDuty),
     TotalCycles = TimeMS * ?SERVO_FREQ_HZ div 1000,
@@ -254,13 +254,12 @@ start_fade(CurrentDuty, CurrentDuty, TargetDuty, TimeMS) ->
                     true -> 1;
                     false -> -1
                 end,
-            {Pid, MonRef} = spawn_opt(
+            Pid = spawn_link(
                 fun() ->
                     software_fade_loop(1, TotalCycles, CurrentDuty, DutyDelta, Direction, PeriodMS)
-                end,
-                [link, monitor]
+                end
             ),
-            {{Pid, MonRef}, TotalCycles * PeriodMS}
+            {Pid, TotalCycles * PeriodMS}
     end;
 start_fade(_PreMin, _PreMax, TargetDuty, TimeMS) ->
     ok = ledc:set_fade_time_and_start(
@@ -288,7 +287,8 @@ timeout(#state{current_fade = FadePid} = State) ->
             ok;
         hardware ->
             ledc:fade_stop(?LEDC_MODE, ?LEDC_CHANNEL);
-        {Pid, MonRef} ->
+        Pid when is_pid(Pid) ->
+            MonRef = erlang:monitor(process, Pid),
             receive
                 {'DOWN', MonRef, process, Pid, _} -> ok
             end
