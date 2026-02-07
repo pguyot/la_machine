@@ -26,7 +26,7 @@
 %% (and only for button).
 %% Button should be pressed with the USB cable unplugged, and not touched.
 %% La Machine should be in resting position. Then this function is called. It will
-%% compute the proper closed angle and interrupt angle, and eventually
+%% compute the proper closed duty and interrupt duty, and eventually
 %% update configuration. It will also play a sound to signify self test
 %% is correct. If there is any failure, another sound will be played.
 %% @end
@@ -37,54 +37,59 @@
 -include("la_machine_definitions.hrl").
 
 -export([
-    report/2,
+    report/1,
     run/3
 ]).
 
 -define(SELF_TEST_EXIT_WAKEUP_TIMER, 10).
 -define(SELF_TEST_INIT_WAKEUP_TIMER, 60).
--define(SERVO_SELF_TEST_ANGLE,
-    ((?DEFAULT_SERVO_INTERRUPT_ANGLE + ?DEFAULT_SERVO_CLOSED_ANGLE) div 2)
+-define(SERVO_SELF_TEST_DUTY,
+    ((4 * ?DEFAULT_SERVO_INTERRUPT_DUTY + ?DEFAULT_SERVO_CLOSED_DUTY) div 5)
 ).
 
-% When the arm pushes the button, it will switch off the interrupt before the
-% actual end position. This margin is there to allow the arm to move further.
-% Unfortunately we cannot calibrate it better.
--define(INTERRUPT_ANGLE_MARGIN, 5).
+% Total arm course in duty units.
+-define(DUTY_COURSE, 865).
+% Expected range for the 85% target duty (where the arm just touches the
+% button but doesn't push it off).
+-define(MIN_85_DUTY, 700).
+-define(MAX_85_DUTY, 864).
 
-report(Config0, Force) ->
-    {SelfTestResult, _SelfTestBattery, _SelfTestTime} =
-        la_machine_configuration:self_test_result(Config0),
-    if
-        SelfTestResult =/= <<"OK">> -> report0(Config0);
-        Force -> report0(Config0);
-        true -> ok
-    end.
+% Duty units are on 14 bits (16384)
+-define(DUTY_CALIBRATION_STEP, 16).
 
-report0(Config0) ->
+report(Config0) ->
     boot_countdown(5),
-    case la_machine_configuration:configured(Config0) of
-        true ->
-            {SelfTestResult, SelfTestBattery, SelfTestTime} =
-                la_machine_configuration:self_test_result(Config0),
-            ClosedAngle = la_machine_configuration:closed_angle(Config0),
-            InterruptAngle = la_machine_configuration:interrupt_angle(Config0),
-            io:format(
-                "Self-test result: ~s (time: ~B, ~B secs ago), closed = ~B, interrupt = ~B, battery = ~B\n",
+    {SelfTestResult, SelfTestBattery, SelfTestTime} =
+        la_machine_configuration:self_test_result(Config0),
+    ClosedDuty = la_machine_configuration:closed_duty(Config0),
+    InterruptDuty = la_machine_configuration:interrupt_duty(Config0),
+    io:format(
+        "Self-test result: ~s (time: ~B, ~B secs ago), closed_duty = ~B, interrupt_duty = ~B, battery = ~B\n",
+        [
+            SelfTestResult,
+            SelfTestTime,
+            (erlang:system_time(millisecond) - SelfTestTime) div 1000,
+            ClosedDuty,
+            InterruptDuty,
+            SelfTestBattery
+        ]
+    ),
+    {ok, Player} = la_machine_player:start_link(Config0),
+    Scenario =
+        case SelfTestResult of
+            <<"OK">> ->
                 [
-                    SelfTestResult,
-                    SelfTestTime,
-                    (erlang:system_time(millisecond) - SelfTestTime) div 1000,
-                    ClosedAngle,
-                    InterruptAngle,
-                    SelfTestBattery
-                ]
-            );
-        false ->
-            io:format(
-                "Unplug La Machine and switch the interrupt for self test within the next 60 secs\n"
-            )
-    end.
+                    {aac, <<"_selftest/success_44kHz.mp3">>},
+                    {wait, sound},
+                    {aac, <<"_selftest/success_48kHz.mp3">>},
+                    {wait, sound}
+                ];
+            _ ->
+                [{aac, <<"_selftest/failure.mp3">>}, {wait, sound}]
+        end,
+    ok = la_machine_player:play(Player, Scenario),
+    la_machine_player:stop(Player),
+    ?SELF_TEST_EXIT_WAKEUP_TIMER.
 
 boot_countdown(0) ->
     ok;
@@ -100,10 +105,13 @@ run(Config0, sleep_wakeup_timer, _ButtonState) ->
     la_machine_configuration:save(Config1),
     ?SELF_TEST_EXIT_WAKEUP_TIMER;
 run(Config0, undefined, _ButtonState) ->
-    Servo0 = la_machine_servo:power_on(Config0),
-    {WaitTimeMS1, _Servo1} = la_machine_servo:set_angle(?SERVO_SELF_TEST_ANGLE, Servo0),
-    timer:sleep(WaitTimeMS1),
-    la_machine_servo:power_off(),
+    boot_countdown(5),
+    {ok, Player} = la_machine_player:start_link(Config0),
+    ok = la_machine_player:play(Player, [{aac, <<"_selftest/start.mp3">>}, {wait, sound}]),
+    la_machine_player:stop(Player),
+    io:format(
+        "Unplug La Machine and switch the interrupt for self test within the next 60 secs\n"
+    ),
     ?SELF_TEST_INIT_WAKEUP_TIMER;
 run(Config0, sleep_wakeup_gpio, off) ->
     Config1 = la_machine_configuration:set_self_test_result(
@@ -115,7 +123,8 @@ run(Config0, sleep_wakeup_gpio, on) ->
     % Measure battery before calibration
     case la_machine_battery:get_voltage() of
         {ok, BatteryVoltage} ->
-            case la_machine_battery:is_charging() of
+            Charging = la_machine_battery:is_charging(),
+            case Charging of
                 true ->
                     Config1 = la_machine_configuration:set_self_test_result(
                         Config0, <<"USB cable not unplugged, battery is charging">>, BatteryVoltage
@@ -133,8 +142,8 @@ run(Config0, sleep_wakeup_gpio, on) ->
                             la_machine_configuration:save(Config2),
                             ?SELF_TEST_EXIT_WAKEUP_TIMER;
                         {error, Reason} ->
-                            {WaitTimeMS1, _Servo1} = la_machine_servo:set_angle(
-                                ?SERVO_SELF_TEST_ANGLE, Servo0
+                            {WaitTimeMS1, _Servo1} = la_machine_servo:set_duty(
+                                ?SERVO_SELF_TEST_DUTY, Servo0
                             ),
                             timer:sleep(WaitTimeMS1),
                             la_machine_servo:power_off(),
@@ -169,87 +178,42 @@ test_servo(Config0, _Servo0) ->
 -spec test_servo(la_machine_configuration:config(), la_machine_servo:state()) ->
     {ok, la_machine_configuration:config()} | {error, binary()}.
 test_servo(Config0, Servo0) ->
-    test_servo_close(Config0, Servo0).
-
-test_servo_close(Config0, Servo0) ->
-    StartAngle = ?SERVO_SELF_TEST_ANGLE,
-    {WaitTimeMS1, Servo1} = la_machine_servo:set_angle(StartAngle, Servo0),
-    timer:sleep(WaitTimeMS1),
-    case gpio:digital_read(?CALIBRATION_BUTTON_GPIO) of
-        low ->
-            case test_servo_close_loop(Servo1, StartAngle) of
-                {ok, {Servo2, ClosedAngle}} ->
-                    Config1 = la_machine_configuration:set_closed_angle(Config0, ClosedAngle),
-                    test_servo_interrupt(Config1, Servo2);
-                {error, _Reason} = ErrorT ->
-                    ErrorT
-            end;
-        high ->
-            {error, <<"Calibration button failure -- button is initially high">>}
-    end.
-
-test_servo_interrupt(Config0, Servo0) ->
-    ClosedAngle = la_machine_configuration:closed_angle(Config0),
-    StartAngle = (?DEFAULT_SERVO_INTERRUPT_ANGLE + ClosedAngle) div 2,
-    {WaitTimeMS1, Servo1} = la_machine_servo:set_angle(StartAngle, Servo0),
+    StartDuty = ?SERVO_SELF_TEST_DUTY,
+    {WaitTimeMS1, Servo1} = la_machine_servo:set_duty(StartDuty, Servo0),
     timer:sleep(WaitTimeMS1),
     case gpio:digital_read(?BUTTON_GPIO) of
         ?BUTTON_GPIO_ON ->
-            case test_servo_interrupt_loop(Servo1, StartAngle) of
-                {ok, {Servo2, InterruptAngle}} ->
-                    {WaitTimeMS3, Servo3} = la_machine_servo:set_angle(ClosedAngle, Servo2),
-                    timer:sleep(WaitTimeMS3),
-                    {WaitTimeMS4, Servo4} = la_machine_servo:set_angle(InterruptAngle, Servo3),
-                    timer:sleep(WaitTimeMS4),
-                    {WaitTimeMS5, _Servo5} = la_machine_servo:set_angle(ClosedAngle, Servo4),
-                    timer:sleep(WaitTimeMS5),
-                    Config1 = la_machine_configuration:set_interrupt_angle(Config0, InterruptAngle),
-                    {ok, Config1};
-                {error, _Reason} = ErrorT ->
-                    ErrorT
-            end;
+            test_servo_calibrate_loop(Config0, Servo1, StartDuty - ?DUTY_CALIBRATION_STEP);
         ?BUTTON_GPIO_OFF ->
-            {error, <<"Interrupt button failure -- button is initially off">>}
+            {error, <<"Button is initially off">>}
     end.
 
-test_servo_close_loop(Servo0, Angle) when Angle > 0 andalso Angle < 180 ->
-    case gpio:digital_read(?CALIBRATION_BUTTON_GPIO) of
-        high ->
-            ProperAngle = Angle - 1,
-            {WaitTimeMS1, Servo1} = la_machine_servo:set_angle(ProperAngle, Servo0),
-            timer:sleep(WaitTimeMS1),
-            case gpio:digital_read(?CALIBRATION_BUTTON_GPIO) of
-                low ->
-                    {ok, {Servo1, ProperAngle}};
-                high ->
-                    test_servo_close_loop(Servo1, ProperAngle)
-            end;
-        low ->
-            NewAngle = Angle + 1,
-            {WaitTimeMS1, Servo1} = la_machine_servo:set_angle(NewAngle, Servo0),
-            timer:sleep(WaitTimeMS1),
-            test_servo_close_loop(Servo1, NewAngle)
-    end;
-test_servo_close_loop(_Servo0, 180) ->
-    {error, <<"Calibration button failure -- button is always low">>};
-test_servo_close_loop(_Servo0, 0) ->
-    {error, <<"Calibration button failure -- button always remained high">>}.
-
-test_servo_interrupt_loop(Servo0, Angle) when Angle > 0 ->
-    {WaitTimeMS1, Servo1} = la_machine_servo:set_angle(Angle, Servo0),
-    timer:sleep(WaitTimeMS1),
-    {WaitTimeMS2, Servo2} = la_machine_servo:set_angle(min(Angle + 20, 180), Servo1),
-    timer:sleep(WaitTimeMS2),
-    ButtonState = gpio:digital_read(?BUTTON_GPIO),
-    case ButtonState of
-        ?BUTTON_GPIO_OFF ->
-            {ok, {Servo2, max(Angle - ?INTERRUPT_ANGLE_MARGIN, 0)}};
+test_servo_calibrate_loop(_Config0, _Servo0, Duty) when Duty =< 0 ->
+    {error, <<"Button never went off">>};
+test_servo_calibrate_loop(Config0, Servo0, Duty) ->
+    {WaitTimeMS, Servo1} = la_machine_servo:set_duty(Duty, Servo0),
+    timer:sleep(WaitTimeMS),
+    case gpio:digital_read(?BUTTON_GPIO) of
         ?BUTTON_GPIO_ON ->
-            NewAngle = Angle - 1,
-            test_servo_interrupt_loop(Servo2, NewAngle)
-    end;
-test_servo_interrupt_loop(_Servo0, _Angle) ->
-    {error, <<"Interrupt button failure -- button is always off">>}.
+            test_servo_calibrate_loop(Config0, Servo1, Duty - ?DUTY_CALIBRATION_STEP);
+        ?BUTTON_GPIO_OFF ->
+            Duty85 = Duty + ?DUTY_CALIBRATION_STEP,
+            case Duty85 >= ?MIN_85_DUTY andalso Duty85 =< ?MAX_85_DUTY of
+                true ->
+                    ClosedDuty = Duty85 + (85 * ?DUTY_COURSE) div 100,
+                    InterruptDuty = ClosedDuty - ?DUTY_COURSE,
+                    {WaitTimeMS1, Servo2} = la_machine_servo:set_duty(InterruptDuty, Servo1),
+                    timer:sleep(WaitTimeMS1),
+                    {WaitTimeMS2, _Servo3} = la_machine_servo:set_duty(ClosedDuty, Servo2),
+                    timer:sleep(WaitTimeMS2),
+                    Config1 = la_machine_configuration:set_closed_duty(Config0, ClosedDuty),
+                    Config2 = la_machine_configuration:set_interrupt_duty(Config1, InterruptDuty),
+                    {ok, Config2};
+                false ->
+                    Duty85Bin = integer_to_binary(Duty85),
+                    {error, <<"Unexpected 85% duty: ", Duty85Bin/binary>>}
+            end
+    end.
 
 -else.
 -error({unsupported_hardware_revision, ?HARDWARE_REVISION}).

@@ -114,34 +114,20 @@ run() ->
 
     configure_gpios(),
     ButtonState = read_button(),
-
     Config = la_machine_configuration:load(),
-    Charging = la_machine_battery:is_charging(),
-    BatteryLevel = la_machine_battery:get_level(),
-
-    case WakeupCause of
-        undefined ->
-            % Not a regular wake-up, report self-test
-            la_machine_selftest:report(Config, true);
-        sleep_wakeup_timer when ButtonState =:= off ->
-            case {Charging, BatteryLevel} of
-                {true, _} ->
-                    la_machine_selftest:report(Config, true);
-                {false, {ok, 100}} ->
-                    la_machine_selftest:report(Config, true);
-                _ ->
-                    la_machine_selftest:report(Config, false)
-            end;
-        _ ->
-            ok
-    end,
+    SelfTestState = la_machine_configuration:self_test_state(Config),
 
     SleepTimer =
-        case la_machine_configuration:configured(Config) of
-            true ->
-                run_configured(Config, WakeupCause, ButtonState);
-            false ->
-                la_machine_selftest:run(Config, WakeupCause, ButtonState)
+        case SelfTestState of
+            uncalibrated ->
+                la_machine_selftest:run(Config, WakeupCause, ButtonState);
+            unreported ->
+                Timer = la_machine_selftest:report(Config),
+                Config1 = la_machine_configuration:set_self_test_reported(Config),
+                la_machine_configuration:save(Config1),
+                Timer;
+            calibrated ->
+                run_configured(Config, WakeupCause, ButtonState)
         end,
     SleepMS = setup_sleep(SleepTimer),
     unconfigure_watchdog(WatchdogUser),
@@ -265,13 +251,14 @@ compute_action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, State)
 -endif.
 
 -spec run_configured(
-    la_machine_configuration:config(), esp:esp_wakeup_cause() | undefined, on | off
+    la_machine_configuration:config(),
+    esp:esp_wakeup_cause() | undefined,
+    on | off
 ) ->
     non_neg_integer().
 run_configured(Config, WakeupCause, ButtonState) ->
-    AccelerometerState = la_machine_lis3dh:setup(),
-
     State0 = la_machine_state:load_state(),
+    AccelerometerState = la_machine_lis3dh:setup(),
 
     %% process click
     StateX = do_process_click(WakeupCause, ButtonState, State0),
@@ -323,9 +310,8 @@ run_configured(Config, WakeupCause, ButtonState) ->
                 la_machine_servo:reset(Config),
                 StateX
         end,
-    SleepTimer = do_compute_sleep_timer(State1),
     la_machine_state:save_state(State1),
-    SleepTimer.
+    do_compute_sleep_timer(State1).
 
 % action
 -spec action(
