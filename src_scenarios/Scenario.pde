@@ -99,7 +99,23 @@ class Scenario {
     }
     return elements;
   }
-  
+  int nbAudioElements() {
+    ArrayList <ScenarElem> elems = elements();
+    int nb = 0;
+    for (ScenarElem elem : elems) {
+      if (elem.command.equals("aac")) nb++;
+    }
+    return nb;
+  }
+  int nbServoElements() {
+    ArrayList <ScenarElem> elems = elements();
+    int nb = 0;
+    for (ScenarElem elem : elems) {
+      if (elem.command.equals("servo")) nb++;
+    }
+    return nb;
+  }  
+
   String getDef() {
     return def;
   }

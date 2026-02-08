@@ -195,6 +195,8 @@ class ServoEditor extends ScenarElemEditor {
       float post = max(0, floor(pixels2ms(mx - x)));
       float min_dur = max(0, min_dur_ms());
       dur_ms = max(min_dur, post - anchort);
+      // round to nearest 20ms
+      dur_ms = round(dur_ms/20.0)*20;
     }
   }
   
@@ -459,7 +461,7 @@ class ScenarEditor {
     stroke(255, 0, 0, 127);
     line(x0, yyy, x0 + w0, yyy);
     // contact
-    yy = gSERVO_BUTTON_CONTACT_PERCENT/100.0; //<>// //<>// //<>// //<>// //<>//
+    yy = gSERVO_BUTTON_CONTACT_PERCENT/100.0; //<>// //<>// //<>// //<>// //<>// //<>//
     yyy = y0+h0-yy*h0/2;
     stroke(255, 0, 0, 127);
     line(x0, yyy, x0 + w0, yyy);
@@ -478,9 +480,9 @@ class ScenarEditor {
           float x2 = ms2pixels(sEditor2.anchort);
           noFill(); stroke(0, 255, 0);
           if (sEditor1 == null) {
-            x1 = 0; //<>// //<>// //<>// //<>// //<>//
+            x1 = 0; //<>// //<>// //<>// //<>// //<>// //<>//
             y2 = y1;
-            line(x1, y1, x2, y2); //<>// //<>// //<>// //<>// //<>//
+            line(x1, y1, x2, y2); //<>// //<>// //<>// //<>// //<>// //<>//
           } else {
             // we have sEditor1
             x1 = ms2pixels(sEditor1.anchort);
@@ -812,7 +814,11 @@ void ScenariosDisplay() {
     for (int i = 0; i < gScen_scollIndex; i++) {
       Scenario scenar = gScenarios.get(i);
       String nam = scenar.name;
-      
+      if (nam.lastIndexOf('_') == -1) {
+        // add _ if needed
+        scenar.name = nam = nam+"_";
+      }
+
       // compute index
       String prefix = nam.substring(0, nam.lastIndexOf('_'));
       if (!prefix.equals(prevPrefix)) {
@@ -843,11 +849,11 @@ void ScenariosDisplay() {
       }
       
       // color according to number of elements
-      ArrayList <ScenarElem> elements = scenar.elements();
-      int elemNumber = elements.size();
+      // color green if at least one servo
+      int servoCount = scenar.nbServoElements();
 
       // label
-      if (elemNumber <= 1) fill(255); else fill(0, 255, 0); noStroke();
+      if (servoCount == 0) fill(255); else fill(0, 255, 0); noStroke();
       text(""+index+":"+nam, gScen_x0, y0); y0 += dy0;
     }
     // scrollbar
