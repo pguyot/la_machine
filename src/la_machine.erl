@@ -716,12 +716,8 @@ random_num_upto_butnot(MaxNumber, NotNumber) ->
         true -> Trial
     end.
 
-% fib(X) -> fib(X, 0, 1).
-% fib(1, _A, B) -> B;
-% fib(I, A, B) -> fib(I - 1, B, A + B).
-
 %% list util
--spec add_moods_to_list(atom(), pos_integer(), list()) -> list().
+-spec add_moods_to_list(atom(), non_neg_integer(), list()) -> list().
 add_moods_to_list(_Mood, 0, AList) -> AList;
 add_moods_to_list(Mood, N, AList) -> add_moods_to_list(Mood, N - 1, [Mood | AList]).
 
