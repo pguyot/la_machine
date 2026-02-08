@@ -88,6 +88,8 @@
 -spec setup() -> ok | {play, meuh} | not_resting | replaced.
 setup() ->
     I2C = i2c:open([{scl, ?I2C_SCL_GPIO}, {sda, ?I2C_SDA_GPIO}, {clock_speed_hz, 400000}]),
+    % Crash with badmatch if accelerometer doesn't respond. self_test wraps this with try/catch.
+    ok = wait_for_device(I2C, 10),
     % Read configuration to figure out the state.
     {ok, ConfigFirstPart} = i2c:read_bytes(
         I2C, ?LIS3DH_ADDR, ?CTRL_REG1 bor ?AUTO_INCREMENT, ?INT1_CFG - ?CTRL_REG1
@@ -154,9 +156,20 @@ setup() ->
             setup_configure(I2C)
     end.
 
+%% Wait for the LIS3DH to respond to WHO_AM_I. On cold power-on, the device
+%% needs ~5 ms to boot. We retry with 1 ms intervals up to the given limit.
+wait_for_device(_I2C, 0) ->
+    {error, not_responding};
+wait_for_device(I2C, Remaining) ->
+    case i2c:read_bytes(I2C, ?LIS3DH_ADDR, ?WHO_AM_I, 1) of
+        {ok, <<16#33>>} ->
+            ok;
+        _ ->
+            timer:sleep(1),
+            wait_for_device(I2C, Remaining - 1)
+    end.
+
 setup_configure(I2C) ->
-    % Ensure boot is complete
-    timer:sleep(5),
     i2c:write_bytes(
         I2C, ?LIS3DH_ADDR, ?CTRL_REG1 bor ?AUTO_INCREMENT, <<?CTRL_REG1_CONFIG_10HZ_LOW_POWER, 0>>
     ),

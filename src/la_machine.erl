@@ -83,21 +83,27 @@ unconfigure_watchdog(WatchdogUser) ->
     _ = esp:task_wdt_delete_user(WatchdogUser),
     ok.
 
-%% @doc Configure GPIOs on setup.
-%% Button and accelerometer/calibration button GPIOs are configured according
-%% to various prototype versions.
-%% GPIO deep sleep is alway configured to wake up on button and accelerometer
+%% @doc Configure GPIOs and deep sleep wakeup sources.
+%% `button' configures only the button GPIO (used during self-test).
+%% `both' configures button and accelerometer GPIOs (used after calibration).
 %% @end
-configure_gpios() ->
-    ok = gpio:init(?BUTTON_GPIO),
-    ok = gpio:set_pin_mode(?BUTTON_GPIO, input),
-    ok = gpio:set_pin_pull(?BUTTON_GPIO, ?BUTTON_GPIO_PULL),
-    ok = gpio:init(?ACC_IRQ_GPIO),
-    ok = gpio:set_pin_mode(?ACC_IRQ_GPIO, input),
-    ok = gpio:set_pin_pull(?ACC_IRQ_GPIO, ?ACC_IRQ_GPIO_PULL),
+-spec configure_gpios(button | both) -> ok.
+configure_gpios(button) ->
+    configure_gpio(?BUTTON_GPIO, ?BUTTON_GPIO_PULL),
+    ok = esp:deep_sleep_enable_gpio_wakeup(
+        (1 bsl ?BUTTON_GPIO), ?BUTTON_GPIO_WAKEUP_LEVEL
+    );
+configure_gpios(both) ->
+    configure_gpio(?BUTTON_GPIO, ?BUTTON_GPIO_PULL),
+    configure_gpio(?ACC_IRQ_GPIO, ?ACC_IRQ_GPIO_PULL),
     ok = esp:deep_sleep_enable_gpio_wakeup(
         (1 bsl ?BUTTON_GPIO) bor (1 bsl ?ACC_IRQ_GPIO), ?BUTTON_GPIO_WAKEUP_LEVEL
     ).
+
+configure_gpio(GPIO, Pull) ->
+    ok = gpio:init(GPIO),
+    ok = gpio:set_pin_mode(GPIO, input),
+    ok = gpio:set_pin_pull(GPIO, Pull).
 
 read_button() ->
     case gpio:digital_read(?BUTTON_GPIO) of
@@ -112,21 +118,24 @@ run() ->
     la_machine_battery:init(),
     WakeupCause = esp:sleep_get_wakeup_cause(),
 
-    configure_gpios(),
-    ButtonState = read_button(),
     Config = la_machine_configuration:load(),
     SelfTestState = la_machine_configuration:self_test_state(Config),
 
     SleepTimer =
         case SelfTestState of
             uncalibrated ->
+                configure_gpios(button),
+                ButtonState = read_button(),
                 la_machine_selftest:run(Config, WakeupCause, ButtonState);
             unreported ->
+                configure_gpios(both),
                 Timer = la_machine_selftest:report(Config),
                 Config1 = la_machine_configuration:set_self_test_reported(Config),
                 la_machine_configuration:save(Config1),
                 Timer;
             calibrated ->
+                configure_gpios(both),
+                ButtonState = read_button(),
                 run_configured(Config, WakeupCause, ButtonState)
         end,
     SleepMS = setup_sleep(SleepTimer),
