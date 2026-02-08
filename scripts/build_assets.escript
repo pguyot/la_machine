@@ -338,7 +338,9 @@ build_sounds_partition(SoundsDir, BuildDir) ->
 needs_sounds_rebuild(SoundsDir, ScriptFile, OutputBin, OutputHrl) ->
     BinExists = filelib:is_regular(OutputBin),
     HrlExists = filelib:is_regular(OutputHrl),
-    case BinExists andalso HrlExists of
+    ChecksumHrl = filename:join(filename:dirname(OutputHrl), "la_machine_sounds_checksum.hrl"),
+    ChecksumHrlExists = filelib:is_regular(ChecksumHrl),
+    case BinExists andalso HrlExists andalso ChecksumHrlExists of
         false ->
             true;
         true ->
@@ -358,8 +360,24 @@ do_build_sounds_partition(SoundsDir, OutputBin, OutputHrl) ->
     case create_sounds_zip(SoundsDir) of
         {ok, ZipBinary} ->
             Index = build_zip_index(ZipBinary),
-            ok = file:write_file(OutputBin, ZipBinary),
-            write_sounds_index_hrl(OutputHrl, Index, SoundsDir);
+            %% Build and write the index HRL (includes the checksum HRL)
+            IndexContent = build_sounds_index_hrl_content(Index, SoundsDir),
+            write_if_changed(OutputHrl, IndexContent),
+            %% Compute SHA1 of the index HRL content
+            Sha1 = crypto:hash(sha, IndexContent),
+            %% Write sounds.bin with SHA1 appended at the end
+            ChecksumOffset = byte_size(ZipBinary),
+            ok = file:write_file(OutputBin, [ZipBinary, Sha1]),
+            %% Write checksum HRL with SHA1 value and offset
+            ChecksumHrl = filename:join(
+                filename:dirname(OutputHrl), "la_machine_sounds_checksum.hrl"
+            ),
+            ChecksumContent = build_sounds_checksum_hrl_content(Sha1, ChecksumOffset),
+            write_if_changed(ChecksumHrl, ChecksumContent),
+            io:format("Generated ~s (~B bytes, checksum at offset ~B)~n", [
+                OutputBin, byte_size(ZipBinary) + 20, ChecksumOffset
+            ]),
+            ok;
         {error, {not_dir, Dir}} ->
             io:format(standard_error, "Error: ~s is not a directory\n", [Dir]),
             erlang:halt(1);
@@ -432,21 +450,41 @@ compute_data_offset(ZipBinary, LocalHeaderOffset) ->
         binary:part(ZipBinary, LocalHeaderOffset, ?LOCAL_FILE_HEADER_SIZE),
     LocalHeaderOffset + ?LOCAL_FILE_HEADER_SIZE + FilenameLen + ExtraLen.
 
-write_sounds_index_hrl(OutputHrl, Index, SoundsDir) ->
+build_sounds_index_hrl_content(Index, SoundsDir) ->
     Header = list_to_binary([
         "%% Generated file - do not edit\n"
         "%% Source: ",
         SoundsDir,
         "\n"
         "\n"
+        "-include(\"la_machine_sounds_checksum.hrl\").\n"
+        "\n"
         "-define(SOUNDS_INDEX, #{\n"
     ]),
     Entries = format_index_entries(Index),
     Footer = <<"}).\n">>,
-    Content = list_to_binary([Header, Entries, Footer]),
-    case file:read_file(OutputHrl) of
+    list_to_binary([Header, Entries, Footer]).
+
+build_sounds_checksum_hrl_content(Sha1, Offset) ->
+    Bytes = binary_to_list(Sha1),
+    HexParts = [io_lib:format("16#~2.16.0B", [B]) || B <- Bytes],
+    HexBytes = lists:join(", ", HexParts),
+    iolist_to_binary([
+        "%% Generated file - do not edit\n"
+        "\n"
+        "-define(SOUNDS_BIN_CHECKSUM, <<",
+        HexBytes,
+        ">>).\n"
+        "-define(SOUNDS_BIN_CHECKSUM_OFFSET, ",
+        integer_to_list(Offset),
+        ").\n"
+        "-define(SOUNDS_BIN_CHECKSUM_SIZE, 20).\n"
+    ]).
+
+write_if_changed(FilePath, Content) ->
+    case file:read_file(FilePath) of
         {ok, Content} -> ok;
-        _ -> file:write_file(OutputHrl, Content)
+        _ -> ok = file:write_file(FilePath, Content)
     end.
 
 format_index_entries(Index) ->

@@ -32,7 +32,8 @@
 -endif.
 
 -export([
-    get_sound/1
+    get_sound/1,
+    verify_partition/0
 ]).
 
 -define(SOUNDS_PARTITION, <<"sounds">>).
@@ -56,6 +57,29 @@ get_sound(Filename) ->
                 error ->
                     {error, partition_mmap_failed}
             end
+    end.
+
+%%-----------------------------------------------------------------------------
+%% @doc Verify that the sounds partition matches the compiled index.
+%%
+%% Reads the SHA1 checksum appended at the end of sounds.bin and compares it
+%% to the checksum that was compiled from the index HRL. Returns `ok` if they
+%% match, or `{error, Reason}` if they don't.
+%% @end
+%%-----------------------------------------------------------------------------
+-spec verify_partition() -> ok | {error, term()}.
+verify_partition() ->
+    case
+        esp:partition_read(
+            ?SOUNDS_PARTITION, ?SOUNDS_BIN_CHECKSUM_OFFSET, ?SOUNDS_BIN_CHECKSUM_SIZE
+        )
+    of
+        {ok, ?SOUNDS_BIN_CHECKSUM} ->
+            ok;
+        {ok, Other} ->
+            {error, {checksum_mismatch, Other, ?SOUNDS_BIN_CHECKSUM}};
+        error ->
+            {error, partition_read_failed}
     end.
 
 -ifdef(TEST).

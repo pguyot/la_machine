@@ -117,6 +117,12 @@ run() ->
 
     la_machine_battery:init(),
     WakeupCause = esp:sleep_get_wakeup_cause(),
+    case WakeupCause of
+        undefined ->
+            ok = la_machine_sounds:verify_partition();
+        _ ->
+            ok
+    end,
 
     Config = la_machine_configuration:load(),
     SelfTestState = la_machine_configuration:self_test_state(Config),
