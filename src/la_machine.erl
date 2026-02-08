@@ -358,24 +358,25 @@ change_moodp(calling, timer, GestureCount, Total_Gesture_Count, _SecondsElapsed,
 change_moodp(Mood, timer, _GestureCount, _Total_Gesture_Count, _SecondsElapsed, _LastPlaySeq) ->
     io:format("Wakeup while in ~s => calling\n", [Mood]),
     {calling, 0, undefined};
-% player plays while calling -> game imitation
+% player plays while calling -> calm
 change_moodp(calling, player, _GestureCount, _Total_Gesture_Count, _SecondsElapsed, _LastPlaySeq) ->
-    io:format("Was calling => imitation\n"),
-    {imitation, 0, undefined};
+    Mood = calm,
+    io:format("Button while calling => ~p\n", [Mood]),
+    {Mood, 0, undefined};
 % player plays while waiting -> joy
 change_moodp(waiting, player, _GestureCount, _Total_Gesture_Count, _SecondsElapsed, _LastPlaySeq) ->
-    io:format("Long time no see => joy\n"),
+    io:format("Button while waiting : Long time no see => joy\n"),
     {joy, 0, undefined};
 % joy : mood change ?
 change_moodp(joy, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
     Mood = joy,
-    % if more than MOOD_MIN_GESTURES gestures, one chance out of ?JOY_IMIT_CHANCE to go to imitation
+    % if more than MOOD_MIN_GESTURES gestures, one chance out of ?JOY_CALM_CHANCE to go to imitation
     if
         GestureCount > ?MOOD_MIN_GESTURES ->
             <<RandChange:56>> = crypto:strong_rand_bytes(7),
             if
-                (RandChange rem ?JOY_IMIT_CHANCE) == 0 ->
-                    NewMood = imitation,
+                (RandChange rem ?JOY_CALM_CHANCE) == 0 ->
+                    NewMood = calm,
                     io:format("Change mood ~s => ~s\n", [Mood, NewMood]),
                     {NewMood, 0, undefined};
                 true ->
@@ -384,24 +385,39 @@ change_moodp(joy, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, L
         true ->
             {Mood, GestureCount, LastPlaySeq}
     end;
-% imitation : mood change ?
-change_moodp(imitation, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
-    change_game_mood(imitation, GestureCount, LastPlaySeq);
-% dialectic : mood change ?
-change_moodp(dialectic, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
-    change_game_mood(dialectic, GestureCount, LastPlaySeq);
-% upset, tired, excited : mood change ?
-change_moodp(Mood, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) when
-    Mood == upset orelse Mood == tired orelse Mood == excited
-->
+% calm : mood change ?
+change_moodp(calm, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
+    Mood = calm,
     if
-        GestureCount > ?MOOD_MIN_GESTURES ->
+        GestureCount =< ?MOOD_MIN_GESTURES -> {Mood, GestureCount, LastPlaySeq};
+        true ->
+            PossibleMoods =
+                add_moods_to_list(excited, ?CALM_EXCITED_PROBA,
+                    add_moods_to_list(tired, ?CALM_TIRED_PROBA,
+                        add_moods_to_list(upset, ?CALM_UPSET_PROBA,
+                            add_moods_to_list(dialectic, ?CALM_DIAL_PROBA,
+                                add_moods_to_list(imitation, ?CALM_IMIT_PROBA,
+                                    add_moods_to_list(Mood, ?CALM_CALM_PROBA, [])))))),
             <<RandChange:56>> = crypto:strong_rand_bytes(7),
+            NewMood = lists:nth(1 + RandChange rem length(PossibleMoods), PossibleMoods),
             if
-                (RandChange rem ?MOODY_IMIT_CHANCE) == 0 ->
-                    NewMood = imitation,
+                NewMood =:= Mood -> {Mood, GestureCount, LastPlaySeq};
+                true ->
                     io:format("Change mood ~s => ~s\n", [Mood, NewMood]),
-                    {NewMood, 0, undefined};
+                    {NewMood, 0, undefined}
+            end
+    end;
+% all other moods (than calling, wait, joy, calm)
+change_moodp(Mood, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq)
+  ->
+      if
+          GestureCount > ?MOOD_MIN_GESTURES ->
+              <<RandChange:56>> = crypto:strong_rand_bytes(7),
+              if
+                (RandChange rem ?MOODY_CALM_CHANCE) == 0 ->
+                      NewMood = calm,
+                      io:format("Change mood ~s => ~s\n", [Mood, NewMood]),
+                      {NewMood, 0, undefined};
                 true ->
                     {Mood, GestureCount, LastPlaySeq}
             end;
@@ -411,56 +427,6 @@ change_moodp(Mood, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, 
 % catch all : no change
 change_moodp(Mood, _Reason, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
     {Mood, GestureCount, LastPlaySeq}.
-
-%% game (imitation | dialectic) mood change
--spec change_game_mood(
-    Mood :: atom(),
-    GestureCount :: non_neg_integer(),
-    LastPlaySeq :: non_neg_integer() | undefined
-) ->
-    {
-        NewMood :: atom(),
-        NewGestureCount :: non_neg_integer(),
-        NewLastPlaySeq :: non_neg_integer() | undefined
-    }.
-change_game_mood(Mood, GestureCount, LastPlaySeq) ->
-    if
-        GestureCount =< ?MOOD_MIN_GESTURES ->
-            {Mood, GestureCount, LastPlaySeq};
-        true ->
-            OtherGame =
-                case Mood of
-                    imitation -> dialectic;
-                    dialectic -> imitation
-                end,
-            PossibleMoods =
-                add_moods_to_list(
-                    excited,
-                    ?GAME_EXCITED_PROBA,
-                    add_moods_to_list(
-                        tired,
-                        ?GAME_TIRED_PROBA,
-                        add_moods_to_list(
-                            upset,
-                            ?GAME_UPSET_PROBA,
-                            add_moods_to_list(
-                                OtherGame,
-                                ?GAME_OTHER_PROBA,
-                                add_moods_to_list(Mood, ?GAME_GAME_PROBA, [])
-                            )
-                        )
-                    )
-                ),
-            <<RandChange:56>> = crypto:strong_rand_bytes(7),
-            NewMood = lists:nth(1 + RandChange rem length(PossibleMoods), PossibleMoods),
-            if
-                NewMood =:= Mood ->
-                    {Mood, GestureCount, LastPlaySeq};
-                true ->
-                    io:format("Change mood ~s => ~s\n", [Mood, NewMood]),
-                    {NewMood, 0, undefined}
-            end
-    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% play
@@ -558,11 +524,11 @@ play_random_hit(Pid) ->
     pos_integer().
 play_random_scenario(MoodScenar, LastPlaySeq, Config) ->
     ScenarioCount = la_machine_scenarios:count(MoodScenar),
-    io:format("play_random_scenario MoodScenar=~p ScenarioCount=~p\n", [MoodScenar, ScenarioCount]),
-
     % play random scenario
     ScenarioIx = random_num_upto_butnot(ScenarioCount, LastPlaySeq),
-    io:format("     ScenarioIx=~p\n", [ScenarioIx]),
+    io:format("play_random_scenario MoodScenar=~p ScenarioCount=~p ScenarioIx=~p\n", [
+        MoodScenar, ScenarioCount, ScenarioIx
+    ]),
     play_scenario(MoodScenar, ScenarioIx, Config).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -574,13 +540,11 @@ play_random_scenario(MoodScenar, LastPlaySeq, Config) ->
     pos_integer().
 play_random_scenario_with_hit(MoodScenar, LastPlaySeq, Config) ->
     ScenarioCount = la_machine_scenarios:count(MoodScenar),
-    io:format("play_random_scenario_with_hit MoodScenar=~p ScenarioCount=~p\n", [
-        MoodScenar, ScenarioCount
-    ]),
-
     % play random scenario
     ScenarioIx = random_num_upto_butnot(ScenarioCount, LastPlaySeq),
-    io:format("     ScenarioIx=~p\n", [ScenarioIx]),
+    io:format("play_random_scenario_with_hit MoodScenar=~p ScenarioCount=~p ScenarioIx=~p\n", [
+        MoodScenar, ScenarioCount, ScenarioIx
+    ]),
     play_scenario_with_hit(MoodScenar, ScenarioIx, Config).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -758,20 +722,6 @@ fib_test_() ->
         ?_assertEqual(5, fib(5)),
         % 8 days, etc.
         ?_assertEqual(8, fib(6))
-    ].
-
-change_game_mood_test_() ->
-    [
-        {"change_game_mood does not crash (lists:nth off-by-one)",
-            ?_assertEqual(ok, begin
-                lists:foreach(
-                    fun(_) ->
-                        change_game_mood(imitation, ?MOOD_MIN_GESTURES + 1, undefined)
-                    end,
-                    lists:seq(1, 100)
-                ),
-                ok
-            end)}
     ].
 
 compute_sleep_timer_test_() ->
