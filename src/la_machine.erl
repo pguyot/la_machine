@@ -446,7 +446,7 @@ change_game_mood(Mood, GestureCount, LastPlaySeq) ->
                     )
                 ),
             <<RandChange:56>> = crypto:strong_rand_bytes(7),
-            NewMood = lists:nth(RandChange rem length(PossibleMoods), PossibleMoods),
+            NewMood = lists:nth(1 + RandChange rem length(PossibleMoods), PossibleMoods),
             if
                 NewMood =:= Mood ->
                     {Mood, GestureCount, LastPlaySeq};
@@ -756,6 +756,20 @@ fib_test_() ->
         ?_assertEqual(5, fib(5)),
         % 8 days, etc.
         ?_assertEqual(8, fib(6))
+    ].
+
+change_game_mood_test_() ->
+    [
+        {"change_game_mood does not crash (lists:nth off-by-one)",
+            ?_assertEqual(ok, begin
+                lists:foreach(
+                    fun(_) ->
+                        change_game_mood(imitation, ?MOOD_MIN_GESTURES + 1, undefined)
+                    end,
+                    lists:seq(1, 100)
+                ),
+                ok
+            end)}
     ].
 
 compute_sleep_timer_test_() ->
