@@ -7,19 +7,38 @@ https://la-machine.fr/
 
 https://github.com/pguyot/la_machine/assets/168407/cbffb7e5-78fa-400f-a39c-c9f04a7b1360
 
-La Machine software is written in Erlang and runs on [AtomVM](https://atomvm.net/)
+La Machine software is written in Erlang and runs on [AtomVM](https://atomvm.org/)
 virtual machine.
 
-Flashing
---------
+Partition map
+-------------
 
-Please note that La Machine can only be flashed when it is not deep sleeping.
-You can action its button to wake it up. In case of necessity, reboot and reset
-buttons can eventually be used.
+La Machine runs on an ESP32-C3 with 16 MB of external flash. The partition
+layout is:
+
+| Partition  | Offset       | Size         |
+|------------|--------------|--------------|
+| nvs        | `0x009000`   | `0x006000`   |
+| phy_init   | `0x00F000`   | `0x001000`   |
+| factory    | `0x010000`   | `0x120000`   |
+| boot.avm   | `0x130000`   | `0x100000`   |
+| sounds     | `0x230000`   | `0xDD0000`   |
+
+- **factory**: AtomVM virtual machine with necessary codecs.
+- **boot.avm**: La Machine Erlang code packed with AtomVM libraries.
+- **sounds**: sounds archive (`sounds.bin`) with a SHA1 integrity checksum
+  appended. The code verifies at runtime that the sounds partition matches the
+  compiled index.
+
+Flashing the full image
+-----------------------
 
 GitHub action builds an optimized image of La Machine including AtomVM virtual
 machine with necessary codecs. It is artifact named `la_machine.img` of
 [Build workflow](https://github.com/pguyot/la_machine/actions/workflows/build.yaml?query=branch%3Amain).
+
+Please note that La Machine can only be flashed when it is not deep sleeping.
+You can press its button to wake it up.
 
 It can be flashed with ESP-IDF esptool on macOS as follows:
 
@@ -27,36 +46,46 @@ It can be flashed with ESP-IDF esptool on macOS as follows:
 
 The port may vary on your platform.
 
-This image differs from standard AtomVM deployments as Erlang code is in a
-single partition (boot.avm) with only La Machine code. This means that you
-should not use `rebar3 esp32_flash` with default parameters (see below).
+When flashing the whole image, La Machine must go through self-test and
+calibration on first boot. See [FLASHING-AND-CALIBRATION.md](FLASHING-AND-CALIBRATION.md)
+for details.
 
-Building and flashing La Machine with a pristine AtomVM build
--------------------------------------------------------------
+Updating Erlang code
+--------------------
 
-You need to flash AtomVM virtual machine with its libraries and
-[`atomvm_esp_adf`](https://github.com/pguyot/atomvm_esp_adf) driver (the sound
-codecs). You can build AtomVM from source or use the latest esp32c3 build of
-[`atomvm_esp_adf`'s build action on main branch](https://github.com/pguyot/atomvm_esp_adf/actions/workflows/build.yml?query=branch%3Amain).
+Once La Machine is flashed (which should be the case when you got it), you
+can update the code using this repository.
 
-This build can be flashed with the following command on macOS:
-
-    esptool.py --chip esp32c3 --port /dev/cu.usbmodem* write_flash 0 ~/Downloads/atomvm-esp-adf-esp32c3-v5.2.2.img
-
-To compile source code of La Machine, you need Erlang/OTP (a recent version
-will do) and rebar3. With a single line, you can compile, pack and flash
-La Machine code at default offset (`0x210000`):
-
-    rebar3 atomvm esp32_flash -p /dev/cu.usbmodem*
-
-Building and flashing La Machine with optimized AtomVM build
-------------------------------------------------------------
-
-Alternatively, you can use the optimized build of AtomVM above and flash
-La Machine. The partition map differ from standard AtomVM deployments and
-you need to pack La Machine code with AtomVM libraries. You can use either the
-full package [`atomvmlib.avm`](https://github.com/atomvm/AtomVM/releases/download/v0.6.5/atomvmlib-v0.6.5.avm) or
+To compile source code of La Machine, you need Erlang/OTP (for example OTP28)
+and rebar3. The partition map differs from standard AtomVM deployments
+and you need to pack La Machine code with AtomVM libraries. You can use either the
+full package [`atomvmlib.avm`](https://github.com/atomvm/AtomVM/releases/download/v0.6.6/atomvmlib-v0.6.6.avm) or
 only `estdlib.avm` and `eavmlib.avm`.
 
-    rebar3 atomvm packbeam -p -e ~/Downloads/atomvmlib-v0.6.5.avm
+    rebar3 atomvm packbeam -p -e ~/Downloads/atomvmlib-v0.6.6.avm
     rebar3 atomvm esp32_flash -p /dev/cu.usbmodem* -o 0x130000
+
+Updating the sounds
+-------------------
+
+The sounds partition can be reflashed independently:
+
+    esptool.py --chip esp32c3 --port /dev/cu.usbmodem* write_flash 0x230000 _build/generated/sounds.bin
+
+If you change the sound directory (add some, remove some or update any sound),
+the sound index will be rebuilt. The sound index is generated at compile time
+and included into the `la_machine.avm` file. So you need to flash both
+the sounds partition and the Erlang code.
+
+Please note that La Machine code currently expects only MP3 sounds mono at
+44.1kHz or 48kHz. `scripts/build_assets.escript` script will check that. The
+virtual machine can play either MP3 or AAC sounds but you would need to make
+some change in the Erlang code.
+
+Modifying the choreographies
+----------------------------
+
+La Machine comes with a scenario editor that requires Java and runs on macOS.
+Alternatively, you can manually edit `src_scenarios/choreographies.json`. The
+choreographies are then converted to Erlang code using `scripts/build_assets.escript`
+script that is invoked with rebar3.
