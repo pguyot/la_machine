@@ -197,6 +197,7 @@ mood_for_moodint(MoodInt) ->
         5 -> joy;
         6 -> tired;
         7 -> excited;
+        8 -> calm;
         _ -> waiting
     end.
 
@@ -210,6 +211,7 @@ moodint_for_mood(Mood) ->
         joy -> 5;
         tired -> 6;
         excited -> 7;
+        calm -> 8;
         _ -> 0
     end.
 

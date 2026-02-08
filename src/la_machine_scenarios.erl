@@ -64,6 +64,7 @@ get_test_() ->
 %% All known scenario types. Update this list when adding a new type.
 -define(ALL_TYPES, [
     calling,
+    calm,
     excited,
     game_long,
     game_medium,

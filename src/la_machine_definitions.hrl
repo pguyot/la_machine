@@ -146,30 +146,31 @@
 % MAX number of callings
 -define(MAX_CALLING_SOUNDS, 3).
 
-% MIN number of gestures in a mood
+
+% MIN number of gestures in mood joy
+-define(JOY_MIN_GESTURES, 1).
+% Chances to change mood : joy => calm
+-define(JOY_CALM_CHANCE, 2). % one chance out of 2
+% MIN number of gestures in a mood (calm, imitation, dialectic, tired, excited, upset)
 -define(MOOD_MIN_GESTURES, 3).
-
-% Chances to change mood : joy => imitation
-
-% one chance out of 2
--define(JOY_IMIT_CHANCE, 2).
-% Chances to change mood : upset/tired/excited => imitation
-
-% one chance out of 7
--define(MOODY_IMIT_CHANCE, 7).
-
+% Chances to change mood : upset/tired/excited/imitation/dialectic => calm (otherwise stay in same)
+-define(MOODY_CALM_CHANCE, 2). % one chance out of 2
+  
+% Probabilities after calm
 % all probabilities are added
-% here 10 possibilities : 5 to stay same game, 2 to change game, 1 to go to upset, 1 to go to tired, 1 to go to excited
-% Probability to change mood : game => same game
--define(GAME_GAME_PROBA, 5).
-% Probability to change mood : game => other game
--define(GAME_OTHER_PROBA, 2).
-% Probability to change mood : game => upset
--define(GAME_UPSET_PROBA, 1).
-% Probability to change mood : game => tired
--define(GAME_TIRED_PROBA, 1).
-% Probability to change mood : game => excited
--define(GAME_EXCITED_PROBA, 1).
+% here 10 possibilities : 5 to stay calm, 1 to go to imitation, 1 to go to dialectic, 1 to go to upset, 1 to go to tired, 1 to go to excited
+% Probability to change mood : calm => calm
+-define(CALM_CALM_PROBA, 5).
+% Probability to change mood : calm => imitation
+-define(CALM_IMIT_PROBA, 1).
+% Probability to change mood : calm => dialectic
+-define(CALM_DIAL_PROBA, 1).
+% Probability to change mood : calm => upset
+-define(CALM_UPSET_PROBA, 1).
+% Probability to change mood : calm => tired
+-define(CALM_TIRED_PROBA, 1).
+% Probability to change mood : calm => excited
+-define(CALM_EXCITED_PROBA, 1).
 
 % Max duration of short gestures in games mood
 -define(GAME_SHORT_DUR_S, 2).
