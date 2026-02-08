@@ -41,7 +41,7 @@
     run/3
 ]).
 
--define(SELF_TEST_EXIT_WAKEUP_TIMER, 10).
+-define(SELF_TEST_EXIT_WAKEUP_TIMER, 5).
 -define(SELF_TEST_INIT_WAKEUP_TIMER, 60).
 -define(SERVO_SELF_TEST_DUTY,
     ((4 * ?DEFAULT_SERVO_INTERRUPT_DUTY + ?DEFAULT_SERVO_CLOSED_DUTY) div 5)
@@ -58,22 +58,10 @@
 -define(DUTY_CALIBRATION_STEP, 16).
 
 report(Config0) ->
-    boot_countdown(5),
     {SelfTestResult, SelfTestBattery, SelfTestTime} =
         la_machine_configuration:self_test_result(Config0),
     ClosedDuty = la_machine_configuration:closed_duty(Config0),
     InterruptDuty = la_machine_configuration:interrupt_duty(Config0),
-    io:format(
-        "Self-test result: ~s (time: ~B, ~B secs ago), closed_duty = ~B, interrupt_duty = ~B, battery = ~B\n",
-        [
-            SelfTestResult,
-            SelfTestTime,
-            (erlang:system_time(millisecond) - SelfTestTime) div 1000,
-            ClosedDuty,
-            InterruptDuty,
-            SelfTestBattery
-        ]
-    ),
     {ok, Player} = la_machine_player:start_link(Config0),
     Scenario =
         case SelfTestResult of
@@ -89,14 +77,29 @@ report(Config0) ->
         end,
     ok = la_machine_player:play(Player, Scenario),
     la_machine_player:stop(Player),
+    case SelfTestResult of
+        <<"OK">> -> ok;
+        _ -> report_countdown(SelfTestResult, 10, 10)
+    end,
+    io:format(
+        "Self-test result: ~s (time: ~B, ~B secs ago), closed_duty = ~B, interrupt_duty = ~B, battery = ~B\n",
+        [
+            SelfTestResult,
+            SelfTestTime,
+            (erlang:system_time(millisecond) - SelfTestTime) div 1000,
+            ClosedDuty,
+            InterruptDuty,
+            SelfTestBattery
+        ]
+    ),
     ?SELF_TEST_EXIT_WAKEUP_TIMER.
 
-boot_countdown(0) ->
+report_countdown(_Cause, 0, _Total) ->
     ok;
-boot_countdown(N) ->
-    io:format("Booting in ~B secs\n", [N]),
+report_countdown(Cause, N, Total) ->
+    io:format("Self-test failure: ~s (~B/~B)\n", [Cause, N, Total]),
     timer:sleep(1000),
-    boot_countdown(N - 1).
+    report_countdown(Cause, N - 1, Total).
 
 run(Config0, sleep_wakeup_timer, _ButtonState) ->
     Config1 = la_machine_configuration:set_self_test_result(
@@ -105,14 +108,36 @@ run(Config0, sleep_wakeup_timer, _ButtonState) ->
     la_machine_configuration:save(Config1),
     ?SELF_TEST_EXIT_WAKEUP_TIMER;
 run(Config0, undefined, _ButtonState) ->
-    boot_countdown(5),
-    {ok, Player} = la_machine_player:start_link(Config0),
-    ok = la_machine_player:play(Player, [{aac, <<"_selftest/start.mp3">>}, {wait, sound}]),
-    la_machine_player:stop(Player),
-    io:format(
-        "Unplug La Machine and switch the interrupt for self test within the next 60 secs\n"
-    ),
-    ?SELF_TEST_INIT_WAKEUP_TIMER;
+    % First part of test is to make sure the battery is charging or 100%
+    % (cable should be plugged)
+    BatteryTest =
+        case la_machine_battery:get_voltage() of
+            {ok, 100} ->
+                ok;
+            {ok, _} ->
+                case la_machine_battery:is_charging() of
+                    true -> ok;
+                    false -> {error, <<"Battery not charging (unplugged ?)">>}
+                end;
+            {error, _} ->
+                {error, <<"Failed to read battery voltage">>}
+        end,
+    case BatteryTest of
+        ok ->
+            {ok, Player} = la_machine_player:start_link(Config0),
+            ok = la_machine_player:play(Player, [{aac, <<"_selftest/start.mp3">>}, {wait, sound}]),
+            la_machine_player:stop(Player),
+            io:format(
+                "Unplug La Machine, put it in normal resting position and switch the interrupt for self test within the next 60 secs\n"
+            ),
+            ?SELF_TEST_INIT_WAKEUP_TIMER;
+        {error, Reason} ->
+            Config1 = la_machine_configuration:set_self_test_result(
+                Config0, Reason, 0
+            ),
+            la_machine_configuration:save(Config1),
+            ?SELF_TEST_EXIT_WAKEUP_TIMER
+    end;
 run(Config0, sleep_wakeup_gpio, off) ->
     Config1 = la_machine_configuration:set_self_test_result(
         Config0, <<"Button OFF on initial wakeup">>, 0
@@ -123,15 +148,8 @@ run(Config0, sleep_wakeup_gpio, on) ->
     % Measure battery before calibration
     case la_machine_battery:get_voltage() of
         {ok, BatteryVoltage} ->
-            Charging = la_machine_battery:is_charging(),
-            case Charging of
-                true ->
-                    Config1 = la_machine_configuration:set_self_test_result(
-                        Config0, <<"USB cable not unplugged, battery is charging">>, BatteryVoltage
-                    ),
-                    la_machine_configuration:save(Config1),
-                    ?SELF_TEST_EXIT_WAKEUP_TIMER;
-                false ->
+            case test_lis3dh() of
+                ok ->
                     Servo0 = la_machine_servo:power_on(Config0),
                     case test_servo(Config0, Servo0) of
                         {ok, Config1} ->
@@ -152,7 +170,13 @@ run(Config0, sleep_wakeup_gpio, on) ->
                             ),
                             la_machine_configuration:save(Config1),
                             ?SELF_TEST_EXIT_WAKEUP_TIMER
-                    end
+                    end;
+                {error, AccReason} ->
+                    Config1 = la_machine_configuration:set_self_test_result(
+                        Config0, AccReason, BatteryVoltage
+                    ),
+                    la_machine_configuration:save(Config1),
+                    ?SELF_TEST_EXIT_WAKEUP_TIMER
             end;
         {error, _} ->
             Config1 = la_machine_configuration:set_self_test_result(
@@ -168,6 +192,24 @@ run(Config0, Other, _ButtonState) ->
     ),
     la_machine_configuration:save(Config1),
     ?SELF_TEST_EXIT_WAKEUP_TIMER.
+
+test_lis3dh() ->
+    try la_machine_lis3dh:setup() of
+        ok -> ok;
+        not_resting -> {error, <<"Accelerometer: not in resting position">>};
+        {play, meuh} -> {error, <<"Accelerometer: unexpected meuh detection">>};
+        replaced -> {error, <<"Accelerometer: unexpected replaced detection">>}
+    catch
+        Class:Reason ->
+            ReasonBin = atom_to_binary(Class),
+            DetailBin0 = iolist_to_binary(io_lib:format("~p", [Reason])),
+            DetailBin =
+                case DetailBin0 of
+                    <<Short:128/binary, _/binary>> -> <<Short/binary, "...">>;
+                    _ -> DetailBin0
+                end,
+            {error, <<"Accelerometer error: ", ReasonBin/binary, " ", DetailBin/binary>>}
+    end.
 
 -if(?HARDWARE_REVISION =:= proto_20241023).
 -spec test_servo(la_machine_configuration:config(), la_machine_servo:state()) ->
