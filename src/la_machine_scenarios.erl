@@ -60,4 +60,38 @@ get_test_() ->
     [
         ?_assert(is_list(get(excited, 1)))
     ].
+
+%% All known scenario types. Update this list when adding a new type.
+-define(ALL_TYPES, [
+    calling,
+    excited,
+    game_long,
+    game_medium,
+    game_short,
+    hits,
+    joy,
+    meuh,
+    poke,
+    test,
+    tired,
+    upset
+]).
+
+-ifdef(CHOREOGRAPHIES_FILE).
+-define(JSON_PATH, "src_scenarios/" ?CHOREOGRAPHIES_FILE).
+-else.
+-define(JSON_PATH, "src_scenarios/choreographies.json").
+-endif.
+
+no_entry_filtered_by_build_assets_test() ->
+    case erlang:system_info(machine) of
+        "ATOM" ->
+            ok;
+        "BEAM" ->
+            {ok, JsonBin} = file:read_file(?JSON_PATH),
+            Choreographies = json:decode(JsonBin),
+            JsonCount = map_size(Choreographies),
+            GeneratedCount = lists:sum([count(T) || T <- ?ALL_TYPES]),
+            ?assertEqual(JsonCount, GeneratedCount)
+    end.
 -endif.

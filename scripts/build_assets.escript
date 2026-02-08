@@ -174,14 +174,11 @@ parse_choreographies(Map) ->
 handle_special(Name, Commands) ->
     case string:find(Commands, " ], [ ") of
         nomatch ->
-            case format_commands(Commands) of
-                "" -> [];
-                Formatted -> [{Name, Formatted}]
-            end;
+            [{Name, format_commands(Commands)}];
         _ ->
             Parts = string:split(Commands, " ], [ ", all),
             Total = length(Parts),
-            lists:filtermap(
+            lists:map(
                 fun({Ix, Part}) ->
                     Cleaned = clean_part(Part, Ix, Total),
                     BlockName =
@@ -189,10 +186,7 @@ handle_special(Name, Commands) ->
                             1 -> Name;
                             _ -> Name ++ "_part_" ++ integer_to_list(Ix)
                         end,
-                    case format_commands(Cleaned) of
-                        "" -> false;
-                        Formatted -> {true, {BlockName, Formatted}}
-                    end
+                    {BlockName, format_commands(Cleaned)}
                 end,
                 lists:zip(lists:seq(1, Total), Parts)
             )
@@ -230,8 +224,18 @@ group_by_type(Names) ->
     ).
 
 find_type(Name, AllNames) ->
-    Prefixes = underscore_prefixes(Name),
-    find_shared_prefix(lists:reverse(Prefixes), Name, AllNames).
+    %% The Java editor generates scenario names ending with _\d+ (e.g.
+    %% game_short_00642), so stripping that suffix gives us the type.
+    %% Hand-authored silent scenarios (e.g. calling_silent, excited_silent1)
+    %% don't follow this pattern, so we fall back to a longest-shared-prefix
+    %% heuristic for those.
+    case re:run(Name, "^(.+)_[0-9]+$", [{capture, [1], list}]) of
+        {match, [Type]} ->
+            Type;
+        nomatch ->
+            Prefixes = underscore_prefixes(Name),
+            find_shared_prefix(lists:reverse(Prefixes), Name, AllNames)
+    end.
 
 underscore_prefixes(Name) ->
     Parts = string:split(Name, "_", all),
@@ -263,10 +267,9 @@ find_shared_prefix([Prefix | Rest], Name, AllNames) ->
 
 generate_hrl(Blocks, Prefix, SourceFile) ->
     Sorted = lists:sort(Blocks),
-    NonEmpty = [{N, C} || {N, C} <- Sorted, C =/= ""],
-    Names = [N || {N, _} <- NonEmpty],
+    Names = [N || {N, _} <- Sorted],
     TypeMap = group_by_type(Names),
-    Functions = generate_functions(NonEmpty, Prefix),
+    Functions = generate_functions(Sorted, Prefix),
     CountClauses = generate_count(TypeMap),
     GetClauses = generate_get(TypeMap, Prefix),
     iolist_to_binary([
