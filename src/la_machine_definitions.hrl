@@ -146,16 +146,19 @@
 % MAX number of callings
 -define(MAX_CALLING_SOUNDS, 3).
 
-
 % MIN number of gestures in mood joy
 -define(JOY_MIN_GESTURES, 1).
 % Chances to change mood : joy => calm
--define(JOY_CALM_CHANCE, 2). % one chance out of 2
+
+% one chance out of 2
+-define(JOY_CALM_CHANCE, 2).
 % MIN number of gestures in a mood (calm, imitation, dialectic, tired, excited, upset)
 -define(MOOD_MIN_GESTURES, 3).
 % Chances to change mood : upset/tired/excited/imitation/dialectic => calm (otherwise stay in same)
--define(MOODY_CALM_CHANCE, 2). % one chance out of 2
-  
+
+% one chance out of 2
+-define(MOODY_CALM_CHANCE, 2).
+
 % Probabilities after calm
 % all probabilities are added
 % here 10 possibilities : 5 to stay calm, 1 to go to imitation, 1 to go to dialectic, 1 to go to upset, 1 to go to tired, 1 to go to excited
