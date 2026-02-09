@@ -370,7 +370,7 @@ change_moodp(waiting, player, _GestureCount, _Total_Gesture_Count, _SecondsElaps
 % joy : mood change ?
 change_moodp(joy, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
     Mood = joy,
-    % if more than MOOD_MIN_GESTURES gestures, one chance out of ?JOY_CALM_CHANCE to go to imitation
+    % if more than MOOD_MIN_GESTURES gestures, one chance out of ?JOY_CALM_CHANCE to go to calm
     if
         GestureCount > ?MOOD_MIN_GESTURES ->
             <<RandChange:56>> = crypto:strong_rand_bytes(7),
@@ -389,44 +389,57 @@ change_moodp(joy, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, L
 change_moodp(calm, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
     Mood = calm,
     if
-        GestureCount =< ?MOOD_MIN_GESTURES -> {Mood, GestureCount, LastPlaySeq};
+        GestureCount =< ?MOOD_MIN_GESTURES ->
+            {Mood, GestureCount, LastPlaySeq};
         true ->
             PossibleMoods =
-                add_moods_to_list(excited, ?CALM_EXCITED_PROBA,
-                    add_moods_to_list(tired, ?CALM_TIRED_PROBA,
-                        add_moods_to_list(upset, ?CALM_UPSET_PROBA,
-                            add_moods_to_list(dialectic, ?CALM_DIAL_PROBA,
-                                add_moods_to_list(imitation, ?CALM_IMIT_PROBA,
-                                    add_moods_to_list(Mood, ?CALM_CALM_PROBA, [])))))),
+                add_moods_to_list(
+                    excited,
+                    ?CALM_EXCITED_PROBA,
+                    add_moods_to_list(
+                        tired,
+                        ?CALM_TIRED_PROBA,
+                        add_moods_to_list(
+                            upset,
+                            ?CALM_UPSET_PROBA,
+                            add_moods_to_list(
+                                dialectic,
+                                ?CALM_DIAL_PROBA,
+                                add_moods_to_list(
+                                    imitation,
+                                    ?CALM_IMIT_PROBA,
+                                    add_moods_to_list(Mood, ?CALM_CALM_PROBA, [])
+                                )
+                            )
+                        )
+                    )
+                ),
             <<RandChange:56>> = crypto:strong_rand_bytes(7),
             NewMood = lists:nth(1 + RandChange rem length(PossibleMoods), PossibleMoods),
             if
-                NewMood =:= Mood -> {Mood, GestureCount, LastPlaySeq};
+                NewMood =:= Mood ->
+                    {Mood, GestureCount, LastPlaySeq};
                 true ->
                     io:format("Change mood ~s => ~s\n", [Mood, NewMood]),
                     {NewMood, 0, undefined}
             end
     end;
 % all other moods (than calling, wait, joy, calm)
-change_moodp(Mood, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq)
-  ->
-      if
-          GestureCount > ?MOOD_MIN_GESTURES ->
-              <<RandChange:56>> = crypto:strong_rand_bytes(7),
-              if
+change_moodp(Mood, player, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
+    if
+        GestureCount > ?MOOD_MIN_GESTURES ->
+            <<RandChange:56>> = crypto:strong_rand_bytes(7),
+            if
                 (RandChange rem ?MOODY_CALM_CHANCE) == 0 ->
-                      NewMood = calm,
-                      io:format("Change mood ~s => ~s\n", [Mood, NewMood]),
-                      {NewMood, 0, undefined};
+                    NewMood = calm,
+                    io:format("Change mood ~s => ~s\n", [Mood, NewMood]),
+                    {NewMood, 0, undefined};
                 true ->
                     {Mood, GestureCount, LastPlaySeq}
             end;
         true ->
             {Mood, GestureCount, LastPlaySeq}
-    end;
-% catch all : no change
-change_moodp(Mood, _Reason, GestureCount, _Total_Gesture_Count, _SecondsElapsed, LastPlaySeq) ->
-    {Mood, GestureCount, LastPlaySeq}.
+    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% play
@@ -468,7 +481,7 @@ play_mood(calling, _ElapsedSeconds, LastPlaySeq, Config) ->
     io:format("playing mood : ~s\n", [Mood]),
     MoodScenar = Mood,
     play_random_scenario(MoodScenar, LastPlaySeq, Config);
-% all others : joy, tired, upset, excited
+% all others : joy, calm, tired, upset, excited
 play_mood(Mood, _ElapsedSeconds, LastPlaySeq, Config) ->
     io:format("playing mood : ~s\n", [Mood]),
     MoodScenar = Mood,
