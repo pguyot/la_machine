@@ -57,6 +57,7 @@
 % Duty units are on 14 bits (16384)
 -define(DUTY_CALIBRATION_STEP, 16).
 
+-spec report(la_machine_configuration:config()) -> ok.
 report(Config0) ->
     {SelfTestResult, SelfTestBattery, SelfTestTime} =
         la_machine_configuration:self_test_result(Config0),
@@ -91,8 +92,7 @@ report(Config0) ->
             InterruptDuty,
             SelfTestBattery
         ]
-    ),
-    ?SELF_TEST_EXIT_WAKEUP_TIMER.
+    ).
 
 report_countdown(_Cause, 0, _Total) ->
     ok;
@@ -194,11 +194,10 @@ run(Config0, Other, _ButtonState) ->
     ?SELF_TEST_EXIT_WAKEUP_TIMER.
 
 test_lis3dh() ->
-    try la_machine_lis3dh:setup() of
-        ok -> ok;
+    try la_machine_lis3dh:setup(false) of
+        resting -> ok;
         not_resting -> {error, <<"Accelerometer: not in resting position">>};
-        {play, meuh} -> {error, <<"Accelerometer: unexpected meuh detection">>};
-        replaced -> {error, <<"Accelerometer: unexpected replaced detection">>}
+        upside_down -> {error, <<"Accelerometer: unexpected upside_down detection">>}
     catch
         Class:Reason ->
             ReasonBin = atom_to_binary(Class),

@@ -39,6 +39,7 @@
 
 % Accessor to state
 -export([
+    get_wakeup_state/1,
     get_poke_index/1,
     get_last_play_time/1,
     get_last_play_seq/1,
@@ -50,24 +51,25 @@
     get_battery_low/1,
     get_ms_since_last_on/1,
     get_click_count/1,
-    get_is_paused/1,
     get_play_info/1,
     get_seconds_since_boot/1
 ]).
 
 % Modifiers
 -export([
+    set_wakeup_state/2,
     set_poke_index/2,
     append_play/4,
     set_mood_waiting/1,
     set_battery_low/2,
     set_last_on_now/1,
-    set_click_count/2,
-    set_is_paused/2
+    set_click_count/2
 ]).
 
 -export_type([
-    state/0
+    state/0,
+    wakeup_state/0,
+    mood/0
 ]).
 
 % Constructor for tests
@@ -77,9 +79,25 @@
 ]).
 -endif.
 
+-type wakeup_state() ::
+    provisioning
+    | normal.
+
+-type mood() ::
+    waiting
+    | imitation
+    | dialectic
+    | upset
+    | calling
+    | joy
+    | tired
+    | excited
+    | calm.
+
 -record(state, {
     % 64 bit erlang:system_time(second)
     boot_time = 0 :: non_neg_integer(),
+    wakeup_state = provisioning :: wakeup_state(),
     % idem, used for sequence plays
     last_play_time = 0 :: non_neg_integer(),
     % index of last played scenario (32 bits), used to:
@@ -87,14 +105,13 @@
     % - avoid playing one twice in a row
     % - or play scenarios sequentially (demo mode)
     last_play_seq = 0 :: non_neg_integer(),
-    mood = 0 :: non_neg_integer(),
+    mood = waiting :: mood(),
     gesture_count = 0 :: non_neg_integer(),
     % number of gestures since last waiting
     total_gesture_count = 0 :: non_neg_integer(),
     battery_low = 0 :: non_neg_integer(),
     last_on = 0 :: non_neg_integer(),
     click_count = 0 :: non_neg_integer(),
-    is_paused = 0 :: non_neg_integer(),
     play_poke_index = 0 :: non_neg_integer(),
     % buffer with hours, appended to, and then rotated
 
@@ -129,13 +146,18 @@ get_state() ->
 -spec deserialize_state(non_neg_integer(), binary() | undefined) -> state().
 deserialize_state(
     Now,
-    <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8, TotalGestureCount:16,
-        BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8, PlayPokeIndex:8, PlayHours/binary>>
+    <<WakeupStateInt:2, MoodInt:4, 0:2, BootTime:64, LastPlayTime:64, LastPlaySeq:32,
+        GestureCount:8, TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8,
+        PlayPokeIndex:8, PlayHours/binary>>
 ) when
-    BootTime =< Now andalso byte_size(PlayHours) =< ?MAX_PLAY_HOURS
+    WakeupStateInt =< 1 andalso MoodInt =< 8 andalso
+        BootTime =< Now andalso byte_size(PlayHours) =< ?MAX_PLAY_HOURS
 ->
     %io:format("deserialize_state  : BootTime=~p Now=~p playhours_size=~p => Retrieving State\n", [BootTime, Now, byte_size(PlayHours)]),
+    WakeupState = deserialize_wakeup_state(WakeupStateInt),
+    Mood = deserialize_mood(MoodInt),
     #state{
+        wakeup_state = WakeupState,
         boot_time = BootTime,
         last_play_time = LastPlayTime,
         last_play_seq = LastPlaySeq,
@@ -145,30 +167,28 @@ deserialize_state(
         battery_low = BatteryLow,
         last_on = LastOn,
         click_count = ClickCount,
-        is_paused = IsPaused,
         play_poke_index = PlayPokeIndex,
         play_hours = PlayHours
     };
 deserialize_state(Now, _) ->
-    %io:format("deserialize_state : Now=~p=> Reinit State\n", [Now]),
-    WaitingMoodInt = moodint_for_mood(waiting),
     #state{
+        wakeup_state = provisioning,
         boot_time = Now,
         last_play_time = 0,
         last_play_seq = 0,
-        mood = WaitingMoodInt,
+        mood = waiting,
         gesture_count = 0,
         total_gesture_count = 0,
         battery_low = 0,
         last_on = 0,
         click_count = 0,
-        is_paused = 0,
         play_poke_index = 0,
         play_hours = <<>>
     }.
 
 -spec serialize_state(state()) -> binary().
 serialize_state(#state{
+    wakeup_state = WakeupState,
     boot_time = BootTime,
     last_play_time = LastPlayTime,
     last_play_seq = LastPlaySeq,
@@ -178,42 +198,44 @@ serialize_state(#state{
     battery_low = BatteryLow,
     last_on = LastOn,
     click_count = ClickCount,
-    is_paused = IsPaused,
     play_poke_index = PlayPokeIndex,
     play_hours = PlayHours
 }) ->
-    <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8, TotalGestureCount:16,
-        BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8, PlayPokeIndex:8, PlayHours/binary>>.
+    WakeupStateInt = serialize_wakeup_state(WakeupState),
+    MoodInt = serialize_mood(Mood),
+    <<WakeupStateInt:2, MoodInt:4, 0:2, BootTime:64, LastPlayTime:64, LastPlaySeq:32,
+        GestureCount:8, TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8,
+        PlayPokeIndex:8, PlayHours/binary>>.
 
-%%%%%%%%%%%% moods
+-spec serialize_wakeup_state(wakeup_state()) -> 0..1.
+serialize_wakeup_state(provisioning) -> 0;
+serialize_wakeup_state(normal) -> 1.
 
-mood_for_moodint(MoodInt) ->
-    case MoodInt of
-        0 -> waiting;
-        1 -> imitation;
-        2 -> dialectic;
-        3 -> upset;
-        4 -> calling;
-        5 -> joy;
-        6 -> tired;
-        7 -> excited;
-        8 -> calm;
-        _ -> waiting
-    end.
+-spec deserialize_wakeup_state(0..1) -> wakeup_state().
+deserialize_wakeup_state(0) -> provisioning;
+deserialize_wakeup_state(1) -> normal.
 
-moodint_for_mood(Mood) ->
-    case Mood of
-        waiting -> 0;
-        imitation -> 1;
-        dialectic -> 2;
-        upset -> 3;
-        calling -> 4;
-        joy -> 5;
-        tired -> 6;
-        excited -> 7;
-        calm -> 8;
-        _ -> 0
-    end.
+-spec serialize_mood(mood()) -> 0..8.
+serialize_mood(waiting) -> 0;
+serialize_mood(imitation) -> 1;
+serialize_mood(dialectic) -> 2;
+serialize_mood(upset) -> 3;
+serialize_mood(calling) -> 4;
+serialize_mood(joy) -> 5;
+serialize_mood(tired) -> 6;
+serialize_mood(excited) -> 7;
+serialize_mood(calm) -> 8.
+
+-spec deserialize_mood(0..8) -> mood().
+deserialize_mood(0) -> waiting;
+deserialize_mood(1) -> imitation;
+deserialize_mood(2) -> dialectic;
+deserialize_mood(3) -> upset;
+deserialize_mood(4) -> calling;
+deserialize_mood(5) -> joy;
+deserialize_mood(6) -> tired;
+deserialize_mood(7) -> excited;
+deserialize_mood(8) -> calm.
 
 % we just played
 append_play(
@@ -227,25 +249,22 @@ append_play(
     Now = erlang:system_time(second),
     NowHour = ((Now - BootTime) div 3600) rem 24,
     PlayHours1 = append_hour(NowHour, PlayHours0),
-    MoodInt = moodint_for_mood(Mood),
     State#state{
         last_play_time = Now,
         last_play_seq = PlaySeqIndex,
         play_hours = PlayHours1,
         gesture_count = GestureCount,
         total_gesture_count = TotalGestureCount + 1,
-        mood = MoodInt
+        mood = Mood
     }.
 
--spec get_mood(state()) -> atom().
-get_mood(#state{mood = MoodInt}) ->
-    mood_for_moodint(MoodInt).
+-spec get_mood(state()) -> mood().
+get_mood(#state{mood = Mood}) -> Mood.
 
 %% To set the mood to waiting. Reset total_gesture_count and play_poke_index
 set_mood_waiting(State) ->
-    WaitingMoodInt = moodint_for_mood(waiting),
     State#state{
-        mood = WaitingMoodInt,
+        mood = waiting,
         total_gesture_count = 0,
         play_poke_index = 0
     }.
@@ -256,18 +275,27 @@ append_hour(Hour, Buffer) ->
     SubBuffer = binary:part(Buffer, 0, ?MAX_PLAY_HOURS - 1),
     <<Hour, SubBuffer/binary>>.
 
+-spec get_wakeup_state(state()) -> wakeup_state().
+get_wakeup_state(#state{wakeup_state = WakeupState}) -> WakeupState.
+
+-spec set_wakeup_state(wakeup_state(), state()) -> state().
+set_wakeup_state(WakeupState, State) -> State#state{wakeup_state = WakeupState}.
+
 -spec get_play_info(state()) ->
     {
-        Mood :: atom(),
+        Mood :: mood(),
         LastPlaySeq :: non_neg_integer() | undefined,
         GestureCount :: non_neg_integer(),
         LastPlayTime :: non_neg_integer()
     }.
 get_play_info(
-    #state{last_play_time = LastPlayTime, gesture_count = GestureCount, last_play_seq = LastPlaySeq} =
-        State
+    #state{
+        mood = Mood,
+        last_play_time = LastPlayTime,
+        gesture_count = GestureCount,
+        last_play_seq = LastPlaySeq
+    }
 ) ->
-    Mood = get_mood(State),
     {Mood, LastPlaySeq, GestureCount, LastPlayTime}.
 
 -spec get_last_play_time(state()) -> non_neg_integer().
@@ -312,16 +340,6 @@ get_click_count(#state{click_count = ClickCount}) -> ClickCount.
 
 set_click_count(ClickCount, State) -> State#state{click_count = ClickCount}.
 
--spec get_is_paused(state()) -> non_neg_integer().
--if(?TRAVELMODE == 1).
-% mode where it is in TRAVELMODE => always paused
-get_is_paused(_State) -> 1.
--else.
-get_is_paused(#state{is_paused = IsPaused}) -> IsPaused.
--endif.
-
-set_is_paused(IsPaused, State) -> State#state{is_paused = IsPaused}.
-
 -spec get_play_hours_count(state()) -> non_neg_integer().
 get_play_hours_count(#state{play_hours = PlayHours}) -> byte_size(PlayHours).
 
@@ -335,97 +353,164 @@ new() -> #state{boot_time = erlang:system_time(second)}.
 deserialize_state_test_() ->
     [
         ?_assertEqual(
-            #state{boot_time = 42, last_play_time = 0, play_poke_index = 0, play_hours = <<>>},
+            #state{
+                wakeup_state = provisioning,
+                boot_time = 42,
+                last_play_time = 0,
+                play_poke_index = 0,
+                play_hours = <<>>
+            },
             deserialize_state(42, undefined)
         ),
         ?_assertEqual(
-            #state{boot_time = 42, last_play_time = 0, play_poke_index = 0, play_hours = <<>>},
+            #state{
+                wakeup_state = provisioning,
+                boot_time = 42,
+                last_play_time = 0,
+                play_poke_index = 0,
+                play_hours = <<>>
+            },
             deserialize_state(42, <<>>)
         ),
         ?_assertEqual(
-            #state{boot_time = 42, last_play_time = 0, play_poke_index = 0, play_hours = <<>>},
+            #state{
+                wakeup_state = provisioning,
+                boot_time = 42,
+                last_play_time = 0,
+                play_poke_index = 0,
+                play_hours = <<>>
+            },
             deserialize_state(42, <<0:(2048 * 8)>>)
         ),
-        % New format: <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8,
-        %              TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8,
-        %              PlayPokeIndex:8, PlayHours/binary>>
         ?_assertEqual(
             #state{
+                wakeup_state = normal,
                 boot_time = 1,
                 last_play_time = 2,
                 last_play_seq = 3,
-                mood = 4,
+                mood = calling,
                 gesture_count = 5,
                 total_gesture_count = 6,
                 battery_low = 7,
                 last_on = 8,
                 click_count = 9,
-                is_paused = 10,
                 play_poke_index = 11,
                 play_hours = <<>>
             },
-            deserialize_state(42, <<1:64, 2:64, 3:32, 4:8, 5:8, 6:16, 7:8, 8:64, 9:8, 10:8, 11:8>>)
+            deserialize_state(
+                42, <<1:2, 4:4, 0:2, 1:64, 2:64, 3:32, 5:8, 6:16, 7:8, 8:64, 9:8, 11:8>>
+            )
         ),
         ?_assertEqual(
             #state{
+                wakeup_state = normal,
                 boot_time = 1,
                 last_play_time = 2,
                 last_play_seq = 3,
-                mood = 0,
+                mood = waiting,
                 gesture_count = 0,
                 total_gesture_count = 0,
                 battery_low = 0,
                 last_on = 0,
                 click_count = 0,
-                is_paused = 0,
                 play_poke_index = 4,
                 play_hours = <<5>>
             },
-            deserialize_state(42, <<1:64, 2:64, 3:32, 0:8, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8, 4:8, 5>>)
+            deserialize_state(42, <<1:2, 0:6, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8, 5>>)
         ),
         ?_assertEqual(
             #state{
+                wakeup_state = normal,
                 boot_time = 1,
                 last_play_time = 2,
                 last_play_seq = 3,
-                mood = 0,
+                mood = waiting,
                 gesture_count = 0,
                 total_gesture_count = 0,
                 battery_low = 0,
                 last_on = 0,
                 click_count = 0,
-                is_paused = 0,
                 play_poke_index = 4,
                 play_hours = <<5, 6>>
             },
             deserialize_state(
-                42, <<1:64, 2:64, 3:32, 0:8, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8, 4:8, 5, 6>>
+                42, <<1:2, 0:6, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8, 5, 6>>
+            )
+        ),
+        ?_assertEqual(
+            #state{
+                wakeup_state = normal,
+                boot_time = 1,
+                last_play_time = 2,
+                last_play_seq = 3,
+                mood = waiting,
+                gesture_count = 0,
+                total_gesture_count = 0,
+                battery_low = 0,
+                last_on = 0,
+                click_count = 0,
+                play_poke_index = 4,
+                play_hours = <<5, 6>>
+            },
+            deserialize_state(
+                42, <<1:2, 0:6, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8, 5, 6>>
             )
         ),
         % BootTime > Now should fall back to default
         ?_assertEqual(
-            #state{boot_time = 42, last_play_time = 0, play_poke_index = 0, play_hours = <<>>},
+            #state{
+                wakeup_state = provisioning,
+                boot_time = 42,
+                last_play_time = 0,
+                play_poke_index = 0,
+                play_hours = <<>>
+            },
             deserialize_state(
-                42, <<142:64, 2:64, 3:32, 0:8, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8, 4:8, 5>>
+                42, <<1:2, 0:6, 142:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8, 5>>
+            )
+        ),
+        % Out-of-range MoodInt (9) should fall back to default
+        ?_assertEqual(
+            #state{
+                wakeup_state = provisioning,
+                boot_time = 42,
+                last_play_time = 0,
+                play_poke_index = 0,
+                play_hours = <<>>
+            },
+            deserialize_state(
+                42, <<1:2, 9:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8>>
+            )
+        ),
+        % Out-of-range WakeupStateInt (2) should fall back to default
+        ?_assertEqual(
+            #state{
+                wakeup_state = provisioning,
+                boot_time = 42,
+                last_play_time = 0,
+                play_poke_index = 0,
+                play_hours = <<>>
+            },
+            deserialize_state(
+                42, <<2:2, 0:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8>>
             )
         )
     ].
 
 serialize_state_test_() ->
     [
-        % New format: <<BootTime:64, LastPlayTime:64, LastPlaySeq:32, Mood:8, GestureCount:8,
-        %              TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8, IsPaused:8,
-        %              PlayPokeIndex:8, PlayHours/binary>>
         ?_assertMatch(
-            <<_:64, 0:64, 0:32, 0:8, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8, 0:8>>,
+            <<0, _:64, 0:64, 0:32, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8>>,
             serialize_state(
                 new()
             )
         ),
         ?_assertEqual(
-            <<1:64, 2:64, 3:32, 0:8, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8, 4:8>>,
+            <<0, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8>>,
             serialize_state(
                 #state{
+                    wakeup_state = provisioning,
+                    mood = waiting,
                     boot_time = 1,
                     last_play_time = 2,
                     last_play_seq = 3,
@@ -435,9 +520,25 @@ serialize_state_test_() ->
             )
         ),
         ?_assertEqual(
-            <<1:64, 2:64, 3:32, 0:8, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8, 4:8, 5>>,
+            <<1:2, 4:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8>>,
             serialize_state(
                 #state{
+                    wakeup_state = normal,
+                    mood = calling,
+                    boot_time = 1,
+                    last_play_time = 2,
+                    last_play_seq = 3,
+                    play_poke_index = 4,
+                    play_hours = <<>>
+                }
+            )
+        ),
+        ?_assertEqual(
+            <<1:2, 5:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8, 5>>,
+            serialize_state(
+                #state{
+                    wakeup_state = normal,
+                    mood = joy,
                     boot_time = 1,
                     last_play_time = 2,
                     last_play_seq = 3,
@@ -447,9 +548,25 @@ serialize_state_test_() ->
             )
         ),
         ?_assertEqual(
-            <<1:64, 2:64, 3:32, 0:8, 0:8, 0:16, 0:8, 0:64, 0:8, 0:8, 4:8, 5, 6>>,
+            <<1:2, 8:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8, 5>>,
             serialize_state(
                 #state{
+                    wakeup_state = normal,
+                    mood = calm,
+                    boot_time = 1,
+                    last_play_time = 2,
+                    last_play_seq = 3,
+                    play_poke_index = 4,
+                    play_hours = <<5>>
+                }
+            )
+        ),
+        ?_assertEqual(
+            <<1:2, 6:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8, 5, 6>>,
+            serialize_state(
+                #state{
+                    wakeup_state = normal,
+                    mood = tired,
                     boot_time = 1,
                     last_play_time = 2,
                     last_play_seq = 3,
@@ -459,4 +576,27 @@ serialize_state_test_() ->
             )
         )
     ].
+
+serialize_mood_test() ->
+    lists:foreach(
+        fun(N) ->
+            Mood = deserialize_mood(N),
+            true = is_atom(Mood),
+            Serialized = serialize_mood(Mood),
+            ?assertEqual(Serialized, N)
+        end,
+        lists:seq(0, 8)
+    ).
+
+serialize_wakeup_state_test() ->
+    lists:foreach(
+        fun(N) ->
+            WakeupState = deserialize_wakeup_state(N),
+            true = is_atom(WakeupState),
+            Serialized = serialize_wakeup_state(WakeupState),
+            ?assertEqual(Serialized, N)
+        end,
+        lists:seq(0, 1)
+    ).
+
 -endif.

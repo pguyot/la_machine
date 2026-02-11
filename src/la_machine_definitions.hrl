@@ -73,30 +73,6 @@
 %% SDA0 is connected to GND
 -define(LIS3DH_ADDR, 2#0011000).
 
--if(?HARDWARE_REVISION =:= proto_20241023 orelse ?HARDWARE_REVISION =:= proto_20260106).
-% La Boîte Inutile 1.2-1.4 and 1.6
-%
-% _____
-% |   | U5
-% |o__|
-%
-% X : low, Y : high Z : low
--define(LIS3DH_RESTING(XH, YH, ZH),
-    XH =< (300 div 16) andalso XH >= -(300 div 16) andalso
-        YH >= (700 div 16) andalso
-        ZH =< (300 div 16) andalso ZH >= -(300 div 16)
-).
--define(LIS3DH_MEUH_ZONE(_XH, YH, _ZH),
-    if
-        YH =< -(700 div 16) -> neg;
-        YH >= 700 div 16 -> pos;
-        true -> low
-    end
-).
--else.
--error({unsupported_hardware_revision, ?HARDWARE_REVISION}).
--endif.
-
 %% SERVO
 
 -define(LEDC_FADE_NO_WAIT, 0).
@@ -133,9 +109,6 @@
 -define(WATCHDOG_TIMEOUT_MS, 60000).
 
 %% Moods
-
-% Travel Mode = always paused, no action
--define(TRAVELMODE, 0).
 
 % Delay to start calling after interaction
 -define(CALLING_START_DELAY_S, 15).
