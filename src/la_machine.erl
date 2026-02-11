@@ -42,7 +42,6 @@
     reset
     | play_poke
     | play_meuh
-    | play_wait_5000
     | {
         play_scenario,
         Mood :: atom(),
@@ -83,22 +82,26 @@ unconfigure_watchdog(WatchdogUser) ->
     _ = esp:task_wdt_delete_user(WatchdogUser),
     ok.
 
-%% @doc Configure GPIOs and deep sleep wakeup sources.
-%% `button' configures only the button GPIO (used during self-test).
+%% @doc Configure GPIOs
+%% @end
+-spec configure_gpios() -> ok.
+configure_gpios() ->
+    configure_gpio(?BUTTON_GPIO, ?BUTTON_GPIO_PULL),
+    configure_gpio(?ACC_IRQ_GPIO, ?ACC_IRQ_GPIO_PULL).
+
+%% @doc Enable GPIOs as deep sleep wakeup sources.
+%% `button' configures only the button GPIO (self test, provisioning)
 %% `both' configures button and accelerometer GPIOs (used after calibration).
 %% @end
--spec configure_gpios(button | both) -> ok.
-configure_gpios(button) ->
-    configure_gpio(?BUTTON_GPIO, ?BUTTON_GPIO_PULL),
-    ok = esp:deep_sleep_enable_gpio_wakeup(
-        (1 bsl ?BUTTON_GPIO), ?BUTTON_GPIO_WAKEUP_LEVEL
-    );
-configure_gpios(both) ->
-    configure_gpio(?BUTTON_GPIO, ?BUTTON_GPIO_PULL),
-    configure_gpio(?ACC_IRQ_GPIO, ?ACC_IRQ_GPIO_PULL),
-    ok = esp:deep_sleep_enable_gpio_wakeup(
-        (1 bsl ?BUTTON_GPIO) bor (1 bsl ?ACC_IRQ_GPIO), ?BUTTON_GPIO_WAKEUP_LEVEL
-    ).
+-spec enable_gpio_wakeup(button | both) -> ok.
+enable_gpio_wakeup(Pins) ->
+    PinMask =
+        case Pins of
+            button -> (1 bsl ?BUTTON_GPIO);
+            both -> (1 bsl ?BUTTON_GPIO) bor (1 bsl ?ACC_IRQ_GPIO)
+        end,
+    ok = esp:deep_sleep_enable_gpio_wakeup(PinMask, ?BUTTON_GPIO_WAKEUP_LEVEL),
+    gpio:deep_sleep_hold_en().
 
 configure_gpio(GPIO, Pull) ->
     ok = gpio:init(GPIO),
@@ -114,6 +117,7 @@ read_button() ->
 -spec run() -> no_return().
 run() ->
     WatchdogUser = configure_watchdog(),
+    ok = configure_gpios(),
 
     la_machine_battery:init(),
     WakeupCause = esp:sleep_get_wakeup_cause(),
@@ -127,26 +131,30 @@ run() ->
     Config = la_machine_configuration:load(),
     SelfTestState = la_machine_configuration:self_test_state(Config),
 
-    SleepTimer =
+    {SleepTimer, WakeupGPIO} =
         case SelfTestState of
             uncalibrated ->
-                configure_gpios(button),
                 ButtonState = read_button(),
-                la_machine_selftest:run(Config, WakeupCause, ButtonState);
+                Timer = la_machine_selftest:run(Config, WakeupCause, ButtonState),
+                {Timer, button};
             unreported ->
-                configure_gpios(both),
-                Timer = la_machine_selftest:report(Config),
+                la_machine_selftest:report(Config),
                 Config1 = la_machine_configuration:set_self_test_reported(Config),
                 la_machine_configuration:save(Config1),
-                Timer;
+                {infinity, button};
             calibrated ->
-                configure_gpios(both),
                 ButtonState = read_button(),
-                run_configured(Config, WakeupCause, ButtonState)
+                Timer = run_configured(Config, WakeupCause, ButtonState),
+                {Timer, both}
         end,
-    SleepMS = setup_sleep(SleepTimer),
+    enable_gpio_wakeup(WakeupGPIO),
     unconfigure_watchdog(WatchdogUser),
-    esp:deep_sleep(SleepMS).
+    case SleepTimer of
+        infinity ->
+            esp:deep_sleep();
+        SleepSecs when is_integer(SleepSecs) ->
+            esp:deep_sleep(SleepSecs * 1000)
+    end.
 
 -ifndef(TEST).
 %% @doc Entry point
@@ -167,7 +175,6 @@ prune_workaround() ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec compute_action(
-    non_neg_integer(),
     esp:esp_wakeup_cause() | undefined,
     on | off,
     ok | {play, meuh} | not_resting | replaced,
@@ -176,13 +183,13 @@ prune_workaround() ->
 
 -if(?DEBUG_PLAY_ONLY_ONE_MOOD == 1).
 % DEBUG
-compute_action(0, _WakeupCause, on, ok, _State) ->
+compute_action(_WakeupCause, on, ok, _State) ->
     io:format("play one mood : ~p, Index =~p\n", [
         ?DEBUG_PLAY_ONLY_ONE_MOOD_MOOD, ?DEBUG_PLAY_ONLY_ONE_MOOD_INDEX
     ]),
     {play_scenario, ?DEBUG_PLAY_ONLY_ONE_MOOD_MOOD, ?DEBUG_PLAY_ONLY_ONE_MOOD_INDEX};
-compute_action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, State) ->
-    action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, State).
+compute_action(WakeupCause, ButtonState, AccelerometerState, State) ->
+    action(WakeupCause, ButtonState, AccelerometerState, State).
 
 %% erlfmt:ignore-begin
 -if(?DEBUG_PLAY_ONLY_ONE_MOOD_INDEX < 0).
@@ -202,8 +209,8 @@ compute_action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, State)
 
 -else.
 
-compute_action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, State) ->
-    action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, State).
+compute_action(WakeupCause, ButtonState, AccelerometerState, State) ->
+    action(WakeupCause, ButtonState, AccelerometerState, State).
 
 %% erlfmt:ignore-begin
 -define(DEBUG_PLAY_SCENARIO_CASE(Config, State),).
@@ -216,15 +223,27 @@ compute_action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, State)
     esp:esp_wakeup_cause() | undefined,
     on | off
 ) ->
-    non_neg_integer().
+    non_neg_integer() | infinity.
 run_configured(Config, WakeupCause, ButtonState) ->
     State0 = la_machine_state:load_state(),
-    AccelerometerState = la_machine_lis3dh:setup(),
+    WakeupState = la_machine_state:get_wakeup_state(State0),
+    case {WakeupState, WakeupCause, ButtonState} of
+        {normal, _, _} ->
+            run_normal(Config, WakeupCause, ButtonState, State0);
+        {provisioning, sleep_wakeup_gpio, off} ->
+            infinity;
+        {provisioning, sleep_wakeup_gpio, on} ->
+            run_provisioning(Config, State0);
+        Other ->
+            io:format("Unexpected state = ~p\n", [Other]),
+            infinity
+    end.
 
-    IsPausedNow = la_machine_state:get_is_paused(State0),
+run_normal(Config, WakeupCause, ButtonState, State0) ->
+    AccelerometerState = la_machine_lis3dh:setup(true),
 
     State1 =
-        case compute_action(IsPausedNow, WakeupCause, ButtonState, AccelerometerState, State0) of
+        case compute_action(WakeupCause, ButtonState, AccelerometerState, State0) of
             ?DEBUG_PLAY_SCENARIO_CASE(Config, State0)
             play_meuh ->
                 play_meuh(Config),
@@ -262,48 +281,43 @@ run_configured(Config, WakeupCause, ButtonState) ->
                 io:format("resetting\n"),
                 la_machine_audio:reset(),
                 la_machine_servo:reset(Config),
-                State0;
-            play_wait_5000 ->
-                play_wait_5000(Config),
-                la_machine_audio:reset(),
-                la_machine_servo:reset(Config),
                 State0
         end,
     la_machine_state:save_state(State1),
     do_compute_sleep_timer(State1).
 
+run_provisioning(Config, State0) ->
+    % First run. For now, let's just transition to normal state.
+    State1 = la_machine_state:set_wakeup_state(normal, State0),
+    run_normal(Config, sleep_wakeup_gpio, on, State1).
+
 % action
 -spec action(
-    non_neg_integer(),
     esp:esp_wakeup_cause() | undefined,
     on | off,
     ok | {play, meuh} | not_resting | replaced,
     la_machine_state:state()
 ) -> action().
 
-% paused
-action(1, _WakeupCause, _ButtonState, _AccelerometerState, _State) ->
-    io:format("We are paused\n"),
-    play_wait_5000;
 % meuh
-action(_IsPausedNow, _WakeupCause, _ButtonState, {play, meuh}, _State) ->
+action(_WakeupCause, _ButtonState, {play, meuh}, _State) ->
     play_meuh;
 % not resting
-action(_IsPausedNow, _WakeupCause, _ButtonState, not_resting, _State) ->
+action(_WakeupCause, _ButtonState, not_resting, _State) ->
     reset;
 % replaced => play_poke
-action(_IsPausedNow, _WakeupCause, _ButtonState, replaced, _State) ->
+action(_WakeupCause, _ButtonState, replaced, _State) ->
     play_poke;
 % button on
-action(_IsPausedNow, _WakeupCause, on, ok, State) ->
+action(_WakeupCause, on, ok, State) ->
     {Mood, LastPlaySeq, GestureCount, LastPlayTime} = la_machine_state:get_play_info(State),
     SecondsElapsed = erlang:system_time(second) - LastPlayTime,
     {play, player, Mood, SecondsElapsed, LastPlaySeq, GestureCount};
 % button off
-action(_IsPausedNow, sleep_wakeup_gpio, off, ok, _State) ->
+action(sleep_wakeup_gpio, off, ok, _State) ->
     reset;
 % timer
-action(_IsPausedNow, sleep_wakeup_timer, _ButtonState, ok, State) ->
+action(sleep_wakeup_timer, _ButtonState, ok, State) ->
     {Mood, LastPlaySeq, GestureCount, LastPlayTime} = la_machine_state:get_play_info(State),
     if
         Mood == waiting ->
@@ -313,7 +327,7 @@ action(_IsPausedNow, sleep_wakeup_timer, _ButtonState, ok, State) ->
             {play, timer, Mood, SecondsElapsed, LastPlaySeq, GestureCount}
     end;
 % catch all
-action(_IsPausedNow, undefined, _ButtonState, _AccelerometerState, _State) ->
+action(undefined, _ButtonState, _AccelerometerState, _State) ->
     reset.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -488,18 +502,6 @@ play_mood(Mood, _ElapsedSeconds, LastPlaySeq, Config) ->
     play_random_scenario_with_hit(MoodScenar, LastPlaySeq, Config).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% play_wait_5000
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec play_wait_5000(la_machine_configuration:config()) -> ok.
-play_wait_5000(Config) ->
-    io:format("play_wait_5000\n"),
-    ScenarioPart = [{wait, 5000}],
-    {ok, Pid} = la_machine_player:start_link(Config),
-    ok = la_machine_player:play(Pid, ScenarioPart),
-    ok = la_machine_player:stop(Pid),
-    ok.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% play_meuh
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec play_meuh(la_machine_configuration:config()) -> pos_integer().
@@ -604,15 +606,6 @@ play_scenario_with_hit(MoodScenar, ScenarioIx, Config) ->
     ScenarioIx.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% setup_sleep
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
--spec setup_sleep(non_neg_integer()) -> non_neg_integer().
-setup_sleep(SleepSecs) ->
-    gpio:deep_sleep_hold_en(),
-    SleepMs = SleepSecs * 1000,
-    SleepMs.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% compute_sleep_timer
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -707,19 +700,19 @@ add_moods_to_list(Mood, N, AList) -> add_moods_to_list(Mood, N - 1, [Mood | ALis
 -ifdef(TEST).
 action_test_() ->
     [
-        ?_assertEqual(play_poke, action(0, sleep_wakeup_timer, off, ok, la_machine_state:new())),
-        ?_assertEqual(reset, action(0, undefined, off, ok, la_machine_state:new())),
+        ?_assertEqual(play_poke, action(sleep_wakeup_timer, off, ok, la_machine_state:new())),
+        ?_assertEqual(reset, action(undefined, off, ok, la_machine_state:new())),
         ?_assertMatch(
             {play, player, waiting, _ElapsedSecs, 0, 0},
-            action(0, sleep_wakeup_timer, on, ok, la_machine_state:new())
+            action(sleep_wakeup_timer, on, ok, la_machine_state:new())
         ),
         ?_assertMatch(
             {play, player, waiting, _ElapsedSecs, 0, 0},
-            action(0, sleep_wakeup_gpio, on, ok, la_machine_state:new())
+            action(sleep_wakeup_gpio, on, ok, la_machine_state:new())
         ),
         ?_assertMatch(
             {play, player, waiting, _ElapsedSecs, 0, 0},
-            action(0, undefined, on, ok, la_machine_state:new())
+            action(undefined, on, ok, la_machine_state:new())
         )
     ].
 
