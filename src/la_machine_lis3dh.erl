@@ -33,7 +33,7 @@
 -define(CTRL_REG4, 16#23).
 -define(CTRL_REG5, 16#24).
 -define(CTRL_REG6, 16#25).
--define(REFEFENCE_REG, 16#26).
+-define(REFERENCE_REG, 16#26).
 -define(STATUS_REG, 16#27).
 -define(OUT_X_L, 16#28).
 -define(OUT_X_H, 16#29).
