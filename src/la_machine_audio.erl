@@ -168,9 +168,9 @@ sample_rate(2#01, _) -> error(reserved_mpeg_version).
 get_mp3_sample_rate_test() ->
     try atomvm:platform() of
         esp32 ->
-            {ok, Hit00082} = la_machine_sounds:get_sound("hits/00082.mp3"),
+            {ok, Hit00082} = la_machine_sounds:get_sound(<<"hits/00082.mp3">>),
             44100 = get_mp3_sample_rate(Hit00082),
-            {ok, Hit00117} = la_machine_sounds:get_sound("hits/00117.mp3"),
+            {ok, Hit00117} = la_machine_sounds:get_sound(<<"hits/00117.mp3">>),
             48000 = get_mp3_sample_rate(Hit00117),
             ok;
         generic_unix ->

@@ -86,7 +86,7 @@ verify_partition() ->
 get_sound_test() ->
     try atomvm:platform() of
         esp32 ->
-            {ok, Calling00099} = get_sound("calling/00099.mp3"),
+            {ok, Calling00099} = get_sound(<<"calling/00099.mp3">>),
             true = is_binary(Calling00099),
             {error, {file_not_found, _}} = get_sound("calling/not-found"),
             ok;
