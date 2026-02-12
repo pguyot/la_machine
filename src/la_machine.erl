@@ -144,8 +144,12 @@ run() ->
                 {infinity, button};
             calibrated ->
                 ButtonState = read_button(),
-                Timer = run_configured(Config, WakeupCause, ButtonState),
-                {Timer, both}
+                BatteryCharging = la_machine_battery:is_charging(),
+                RTCState = la_machine_state:load_state(),
+                WakeupState = la_machine_state:get_wakeup_state(RTCState),
+                run_configured(
+                    Config, WakeupCause, ButtonState, RTCState, WakeupState, BatteryCharging
+                )
         end,
     enable_gpio_wakeup(WakeupGPIO),
     unconfigure_watchdog(WatchdogUser),
@@ -221,26 +225,62 @@ compute_action(WakeupCause, ButtonState, AccelerometerState, State) ->
 -spec run_configured(
     la_machine_configuration:config(),
     esp:esp_wakeup_cause() | undefined,
-    on | off
+    on | off,
+    la_machine_state:state(),
+    la_machine_state:wakeup_state(),
+    boolean()
 ) ->
-    non_neg_integer() | infinity.
-run_configured(Config, WakeupCause, ButtonState) ->
-    State0 = la_machine_state:load_state(),
-    WakeupState = la_machine_state:get_wakeup_state(State0),
-    case {WakeupState, WakeupCause, ButtonState} of
-        {normal, _, _} ->
-            run_normal(Config, WakeupCause, ButtonState, State0);
-        {provisioning, sleep_wakeup_gpio, off} ->
-            infinity;
-        {provisioning, sleep_wakeup_gpio, on} ->
-            run_provisioning(Config, State0);
-        Other ->
-            io:format("Unexpected state = ~p\n", [Other]),
-            infinity
-    end.
-
-run_normal(Config, WakeupCause, ButtonState, State0) ->
+    {non_neg_integer() | infinity, button | both}.
+% provisioning state: wait for the button, even if La Machine is being charged
+run_configured(_Config, _WakeupCause, off, _State0, provisioning, false) ->
+    {infinity, button};
+run_configured(_Config, _WakeupCause, off, _State0, provisioning, true) ->
+    wait_while_charging(40000),
+    {?SERVO_CHARGING_TIMEOUT, button};
+run_configured(Config, sleep_wakeup_gpio, on, State0, provisioning, Charging) ->
+    % First run. For now, let's just transition to normal state.
+    State1 = la_machine_state:set_wakeup_state(normal, State0),
+    run_configured(Config, sleep_wakeup_gpio, on, State1, normal, Charging);
+% charging : open the lid while charging and closing it once it's done
+run_configured(Config, _WakeupCause, off, State0, WakeupState, true) ->
+    case WakeupState of
+        charging -> ok;
+        _ ->
+            ServoState0 = la_machine_servo:power_on(Config),
+            {TargetMS, _ServoState1} = la_machine_servo:set_target(?SERVO_CHARGING_POSITION, ServoState0),
+            timer:sleep(TargetMS),
+            la_machine_servo:power_off(),
+            State1 = la_machine_state:set_wakeup_state(charging, State0),
+            la_machine_state:save_state(State1)
+    end,
+    wait_while_charging(40000),
+    {?SERVO_CHARGING_TIMEOUT, button};
+run_configured(Config, _WakeupCause, on, State0, charging, true) ->
+    % Close La Machine and then transition to normal to play
+    ServoState0 = la_machine_servo:power_on(Config, ?SERVO_CHARGING_POSITION),
+    {TargetMS, _ServoState1} = la_machine_servo:set_target(0, ServoState0),
+    timer:sleep(TargetMS),
+    la_machine_servo:power_off(),
+    State1 = la_machine_state:set_wakeup_state(normal, State0),
+    la_machine_state:save_state(State1),
+    {0, both};
+run_configured(Config, _WakeupCause, ButtonState, State0, charging, false) ->
+    ServoState0 = la_machine_servo:power_on(Config, ?SERVO_CHARGING_POSITION),
+    {TargetMS, _ServoState1} = la_machine_servo:set_target(0, ServoState0),
+    timer:sleep(TargetMS),
+    la_machine_servo:power_off(),
+    State1 = la_machine_state:set_wakeup_state(normal, State0),
+    la_machine_state:save_state(State1),
+    Timer = case ButtonState of
+        off ->
+            do_compute_sleep_timer(State1);
+        on ->
+            0
+    end,
+    {Timer, both};
+run_configured(Config, WakeupCause, ButtonState, State0, normal, Charging) ->
     AccelerometerState = la_machine_lis3dh:setup(true),
+    {ok, _BatteryLevel} = la_machine_battery:get_level(),
 
     State1 =
         case compute_action(WakeupCause, ButtonState, AccelerometerState, State0) of
@@ -284,12 +324,43 @@ run_normal(Config, WakeupCause, ButtonState, State0) ->
                 State0
         end,
     la_machine_state:save_state(State1),
-    do_compute_sleep_timer(State1).
+    Timer = case Charging of
+        false ->
+            do_compute_sleep_timer(State1);
+        true ->
+            0
+    end,
+    {Timer, both};
+run_configured(_Config, WakeupCause, ButtonState, _State0, WakeupState, false) ->
+    io:format("Unexpected state WakeupCause = ~p, ButtonState = ~p, WakeupState = ~p\n", [WakeupCause, ButtonState, WakeupState]),
+    {infinity, both}.
 
-run_provisioning(Config, State0) ->
-    % First run. For now, let's just transition to normal state.
-    State1 = la_machine_state:set_wakeup_state(normal, State0),
-    run_normal(Config, sleep_wakeup_gpio, on, State1).
+% Busy loop to wait for button or for the end of charging or for 40 secs
+% This simplifies firmware loading as the serial port remains open
+-spec wait_while_charging(non_neg_integer()) -> ok.
+wait_while_charging(TimeoutMS) ->
+    Deadline = erlang:system_time(millisecond) + TimeoutMS,
+    wait_while_charging_loop(Deadline).
+
+-spec wait_while_charging_loop(integer()) -> ok.
+wait_while_charging_loop(Deadline) ->
+    case la_machine_battery:is_charging() of
+        false ->
+            ok;
+        true ->
+            case read_button() of
+                on ->
+                    ok;
+                off ->
+                    case erlang:system_time(millisecond) < Deadline of
+                        true ->
+                            timer:sleep(100),
+                            wait_while_charging_loop(Deadline);
+                        false ->
+                            ok
+                    end
+            end
+    end.
 
 % action
 -spec action(
@@ -327,7 +398,7 @@ action(sleep_wakeup_timer, _ButtonState, ok, State) ->
             {play, timer, Mood, SecondsElapsed, LastPlaySeq, GestureCount}
     end;
 % catch all
-action(undefined, _ButtonState, _AccelerometerState, _State) ->
+action(_WakeupCause, _ButtonState, _AccelerometerState, _State) ->
     reset.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

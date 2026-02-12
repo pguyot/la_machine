@@ -33,6 +33,7 @@
 
 -export([
     power_on/1,
+    power_on/2,
     power_off/0,
     reset/1,
     set_duty/2,
@@ -60,6 +61,11 @@
 
 -spec power_on(la_machine_configuration:config()) -> state().
 power_on(Config) ->
+    power_on(Config, 0).
+
+-spec power_on(la_machine_configuration:config(), 0..100) -> state().
+power_on(Config, InitialTarget) ->
+    Duty = target_to_duty(InitialTarget, Config),
     LEDCTimer = [
         {duty_resolution, ?LEDC_DUTY_RESOLUTION},
         {freq_hz, ?SERVO_FREQ_HZ},
@@ -69,7 +75,7 @@ power_on(Config) ->
     ok = ledc:timer_config(LEDCTimer),
     LEDCChannel = [
         {channel, ?LEDC_CHANNEL},
-        {duty, 0},
+        {duty, Duty},
         {gpio_num, ?LEDC_CH_GPIO},
         {speed_mode, ?LEDC_MODE},
         {hpoint, 0},
@@ -81,18 +87,9 @@ power_on(Config) ->
 
     ok = ledc:fade_func_install(0),
 
-    Duty0 = target_to_duty(0, Config),
-    %Duty100 = target_to_duty(100, Config),
-
-    % force to Duty0 and wait a little
-    ok = ledc:set_duty(?LEDC_MODE, ?LEDC_CHANNEL, Duty0),
-    ok = ledc:update_duty(?LEDC_MODE, ?LEDC_CHANNEL),
-    timer:sleep(200),
-
-    % suppose we are at 0
     #state{
-        pre_min = Duty0,
-        pre_max = Duty0,
+        pre_min = Duty,
+        pre_max = Duty,
         config = Config
     }.
 
