@@ -108,6 +108,10 @@
 % La machine panics and state stored in RTC Slow memory is ignored on next boot.
 -define(WATCHDOG_TIMEOUT_MS, 60000).
 
+-define(SERVO_CHARGING_POSITION, 70).
+% When charging, wakeup constantly
+-define(SERVO_CHARGING_TIMEOUT, 0).
+
 %% Moods
 
 % Delay to start calling after interaction

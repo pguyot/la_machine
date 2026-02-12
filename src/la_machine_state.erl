@@ -81,7 +81,8 @@
 
 -type wakeup_state() ::
     provisioning
-    | normal.
+    | normal
+    | charging.
 
 -type mood() ::
     waiting
@@ -150,7 +151,7 @@ deserialize_state(
         GestureCount:8, TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8,
         PlayPokeIndex:8, PlayHours/binary>>
 ) when
-    WakeupStateInt =< 1 andalso MoodInt =< 8 andalso
+    WakeupStateInt =< 2 andalso MoodInt =< 8 andalso
         BootTime =< Now andalso byte_size(PlayHours) =< ?MAX_PLAY_HOURS
 ->
     %io:format("deserialize_state  : BootTime=~p Now=~p playhours_size=~p => Retrieving State\n", [BootTime, Now, byte_size(PlayHours)]),
@@ -207,13 +208,15 @@ serialize_state(#state{
         GestureCount:8, TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8,
         PlayPokeIndex:8, PlayHours/binary>>.
 
--spec serialize_wakeup_state(wakeup_state()) -> 0..1.
+-spec serialize_wakeup_state(wakeup_state()) -> 0..2.
 serialize_wakeup_state(provisioning) -> 0;
-serialize_wakeup_state(normal) -> 1.
+serialize_wakeup_state(normal) -> 1;
+serialize_wakeup_state(charging) -> 2.
 
--spec deserialize_wakeup_state(0..1) -> wakeup_state().
+-spec deserialize_wakeup_state(0..2) -> wakeup_state().
 deserialize_wakeup_state(0) -> provisioning;
-deserialize_wakeup_state(1) -> normal.
+deserialize_wakeup_state(1) -> normal;
+deserialize_wakeup_state(2) -> charging.
 
 -spec serialize_mood(mood()) -> 0..8.
 serialize_mood(waiting) -> 0;
@@ -482,7 +485,7 @@ deserialize_state_test_() ->
                 42, <<1:2, 9:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8>>
             )
         ),
-        % Out-of-range WakeupStateInt (2) should fall back to default
+        % Out-of-range WakeupStateInt (3) should fall back to default
         ?_assertEqual(
             #state{
                 wakeup_state = provisioning,
@@ -492,7 +495,7 @@ deserialize_state_test_() ->
                 play_hours = <<>>
             },
             deserialize_state(
-                42, <<2:2, 0:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8>>
+                42, <<3:2, 0:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8>>
             )
         )
     ].
@@ -596,7 +599,7 @@ serialize_wakeup_state_test() ->
             Serialized = serialize_wakeup_state(WakeupState),
             ?assertEqual(Serialized, N)
         end,
-        lists:seq(0, 1)
+        lists:seq(0, 2)
     ).
 
 -endif.

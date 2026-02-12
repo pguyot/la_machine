@@ -109,20 +109,20 @@ run(Config0, sleep_wakeup_timer, _ButtonState) ->
     ?SELF_TEST_EXIT_WAKEUP_TIMER;
 run(Config0, undefined, _ButtonState) ->
     % First part of test is to make sure the battery is charging or 100%
-    % (cable should be plugged). We test for charging first as it may stop
-    % charging just after reading the level.
-    Charging = la_machine_battery:is_charging(),
+    % (cable should be plugged).
     BatteryTest =
-        case la_machine_battery:get_level() of
-            {ok, 100} ->
+        case la_machine_battery:is_charging() of
+            true ->
                 ok;
-            {ok, _} ->
-                case Charging of
-                    true -> ok;
-                    false -> {error, <<"Battery not charging (unplugged ?)">>}
-                end;
-            {error, _} ->
-                {error, <<"Failed to read battery voltage">>}
+            false ->
+                case la_machine_battery:get_level() of
+                    {ok, 100} ->
+                        ok;
+                    {ok, _} ->
+                        {error, <<"Battery not charging (unplugged ?)">>};
+                    {error, _} ->
+                        {error, <<"Failed to read battery voltage">>}
+                end
         end,
     case BatteryTest of
         ok ->
