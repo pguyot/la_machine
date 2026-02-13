@@ -51,7 +51,7 @@
 -define(DUTY_COURSE, 865).
 % Expected range for the 85% target duty (where the arm just touches the
 % button but doesn't push it off).
--define(MIN_85_DUTY, 700).
+-define(MIN_85_DUTY, 660).
 -define(MAX_85_DUTY, 864).
 
 % Duty units are on 14 bits (16384)
