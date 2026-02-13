@@ -239,6 +239,16 @@ play_next(
     State1 = State0#state{sequence = Tail, servo_state = ServoState1, servo_end = Now + TargetMS},
     play_next(State1);
 play_next(
+    #state{
+        servo_module = ServoModule,
+        servo_state = ServoState0,
+        sequence = [FirstElement | _Tail]
+    } = State
+) when tuple_size(FirstElement) =:= 2 andalso element(1, FirstElement) =:= servo ->
+    % Stop current fade movement if any
+    ServoState1 = ServoModule:stop_fade(ServoState0),
+    play_next(State#state{servo_state = ServoState1, servo_end = undefined});
+play_next(
     #state{sequence = [], from = From, audio_monitor = undefined, servo_end = undefined} = State0
 ) ->
     gen_server:reply(From, ok),
@@ -253,6 +263,7 @@ play_next(
         Now < ServoEnd ->
             {noreply, State, ServoEnd - Now};
         true ->
+            % Consider the movement is done and update the position accordingly
             ServoState1 = ServoModule:timeout(ServoState0),
             play_next(State#state{servo_state = ServoState1, servo_end = undefined})
     end.
@@ -336,6 +347,10 @@ play_two_sounds_test_() ->
                     Self ! {Ref, {timeout, erlang:system_time(millisecond)}},
                     State
                 end),
+                la_machine_servo_mock:expect(ServoMock, stop_fade, fun(State) ->
+                    Self ! {Ref, {stop_fade, erlang:system_time(millisecond)}},
+                    State
+                end),
                 Before = erlang:system_time(millisecond),
                 play(Pid, [
                     {mp3, <<"filename_1.mp3">>},
@@ -361,11 +376,11 @@ play_two_sounds_test_() ->
                 ServoMessages = [Message || Message <- Messages, element(1, Message) =/= play],
                 [
                     {set_target, 20, SetTarget1Timestamp},
-                    {timeout, Timeout1Timestamp},
+                    {stop_fade, StopFade1Timestamp},
                     {set_target, 30, SetTarget2Timestamp},
                     {timeout, Timeout2Timestamp},
                     {set_target, 100, SetTarget3Timestamp},
-                    {timeout, Timeout3Timestamp},
+                    {stop_fade, StopFade3Timestamp},
                     {set_target, 0, SetTarget4Timestamp},
                     {timeout, Timeout4Timestamp}
                 ] = ServoMessages,
@@ -373,12 +388,12 @@ play_two_sounds_test_() ->
                 ?assert(Filename2Timestamp - Filename1Timestamp >= 500),
                 ?assert(After - Filename2Timestamp >= 500),
                 % Ensure proper time between servo messages
-                ?assert(Timeout1Timestamp - SetTarget1Timestamp >= 100),
-                ?assert(SetTarget2Timestamp - SetTarget1Timestamp >= 200),
+                ?assert(StopFade1Timestamp - SetTarget1Timestamp >= 200),
+                ?assert(SetTarget2Timestamp - StopFade1Timestamp >= 0),
                 ?assert(Timeout2Timestamp - SetTarget2Timestamp >= 100),
                 ?assert(SetTarget3Timestamp - Filename2Timestamp >= 100),
-                ?assert(Timeout3Timestamp - SetTarget3Timestamp >= 100),
-                ?assert(SetTarget4Timestamp - SetTarget3Timestamp >= 100),
+                ?assert(StopFade3Timestamp - SetTarget3Timestamp >= 0),
+                ?assert(SetTarget4Timestamp - StopFade3Timestamp >= 0),
                 ?assert(Timeout4Timestamp - SetTarget4Timestamp >= 100)
             end)
         end

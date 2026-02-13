@@ -40,6 +40,7 @@
     set_target/2,
     set_target/3,
     timeout/1,
+    stop_fade/1,
     power_off/0
 ]).
 
@@ -56,6 +57,9 @@ set_target(Target, TimeMS, State) ->
 
 timeout(State) ->
     mock:call(?MOCK_SERVER_NAME, timeout, [State]).
+
+stop_fade(State) ->
+    mock:call(?MOCK_SERVER_NAME, stop_fade, [State]).
 
 power_off() ->
     mock:call(?MOCK_SERVER_NAME, power_off, []).

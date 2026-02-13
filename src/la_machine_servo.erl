@@ -38,17 +38,20 @@
     set_duty/2,
     set_target/2,
     set_target/3,
-    timeout/1
+    timeout/1,
+    stop_fade/1
 ]).
 
 -export_type([
     state/0
 ]).
 
+-type duty() :: non_neg_integer().
+
 -record(state, {
-    pre_min :: number(),
-    pre_max :: number(),
-    target = undefined :: undefined | number(),
+    pre_min :: duty(),
+    pre_max :: duty(),
+    target = undefined :: undefined | duty(),
     config :: la_machine_configuration:config(),
     current_fade = undefined :: undefined | hardware | pid()
 }).
@@ -95,6 +98,7 @@ power_on(Config) ->
 
 -spec power_off() -> ok.
 power_off() ->
+    ok = ledc:stop(?LEDC_MODE, ?LEDC_CHANNEL, 0),
     ok = ledc:fade_func_uninstall(),
     % Turn down servo
     power_off_boost(),
@@ -160,13 +164,20 @@ set_target(Target, #state{config = Config, current_fade = undefined} = State) ->
 -spec set_target(Target :: number(), TimeMS :: pos_integer(), State :: state()) ->
     {non_neg_integer(), state()}.
 set_target(
-    Target,
+    NewTarget,
     TimeMS,
-    #state{config = Config, pre_min = PreMin, pre_max = PreMax, current_fade = undefined} = State
+    #state{config = Config, pre_min = PreMin, current_fade = undefined, target = OldTarget} = State
 ) ->
-    Duty = target_to_duty(Target, Config),
-    {FadePid, ActualTimeMS} = start_fade(PreMin, PreMax, Duty, TimeMS),
-    target_duty_timeout(Duty, ActualTimeMS, State#state{current_fade = FadePid}).
+    % If previous movement was canceled, compute the fade from the original target even if
+    % we didn't reach it.
+    CurrentDuty =
+        case OldTarget of
+            undefined -> PreMin;
+            _ -> OldTarget
+        end,
+    Duty = target_to_duty(NewTarget, Config),
+    {FadePid, ActualTimeMS} = start_fade(CurrentDuty, Duty, TimeMS),
+    target_duty_timeout(Duty, ActualTimeMS, State#state{current_fade = FadePid, target = Duty}).
 
 -spec target_duty_timeout(non_neg_integer(), non_neg_integer(), state()) ->
     {non_neg_integer(), state()}.
@@ -224,9 +235,9 @@ compute_fade_params(DutyDelta, TotalCycles) ->
         false -> {hardware, 1, BestCycle}
     end.
 
--spec start_fade(non_neg_integer(), non_neg_integer(), non_neg_integer(), pos_integer()) ->
+-spec start_fade(duty(), duty(), pos_integer()) ->
     {hardware | pid(), non_neg_integer()}.
-start_fade(CurrentDuty, CurrentDuty, TargetDuty, TimeMS) ->
+start_fade(CurrentDuty, TargetDuty, TimeMS) ->
     DutyDelta = abs(TargetDuty - CurrentDuty),
     TotalCycles = TimeMS * ?SERVO_FREQ_HZ div 1000,
     case compute_fade_params(DutyDelta, TotalCycles) of
@@ -250,12 +261,7 @@ start_fade(CurrentDuty, CurrentDuty, TargetDuty, TimeMS) ->
                 end
             ),
             {Pid, TotalCycles * PeriodMS}
-    end;
-start_fade(_PreMin, _PreMax, TargetDuty, TimeMS) ->
-    ok = ledc:set_fade_time_and_start(
-        ?LEDC_MODE, ?LEDC_CHANNEL, TargetDuty, TimeMS, ?LEDC_FADE_NO_WAIT
-    ),
-    {hardware, TimeMS}.
+    end.
 
 -spec software_fade_loop(
     pos_integer(), pos_integer(), non_neg_integer(), non_neg_integer(), -1 | 1, pos_integer()
@@ -271,21 +277,24 @@ software_fade_loop(Step, TotalCycles, CurrentDuty, DutyDelta, Direction, PeriodM
     software_fade_loop(Step + 1, TotalCycles, CurrentDuty, DutyDelta, Direction, PeriodMS).
 
 -spec timeout(State :: state()) -> state().
-timeout(#state{current_fade = FadePid} = State) ->
-    case FadePid of
-        undefined ->
-            ok;
-        hardware ->
-            ledc:fade_stop(?LEDC_MODE, ?LEDC_CHANNEL);
-        Pid when is_pid(Pid) ->
-            MonRef = erlang:monitor(process, Pid),
-            receive
-                {'DOWN', MonRef, process, Pid, _} -> ok
-            end
+timeout(State0) ->
+    State1 = stop_fade(State0),
+    reset_target(State1).
+
+-spec stop_fade(State :: state()) -> state().
+stop_fade(#state{current_fade = undefined} = State) ->
+    State;
+stop_fade(#state{current_fade = hardware} = State) ->
+    ok = ledc:fade_stop(?LEDC_MODE, ?LEDC_CHANNEL),
+    State#state{current_fade = undefined};
+stop_fade(#state{current_fade = Pid} = State) when is_pid(Pid) ->
+    MonRef = erlang:monitor(process, Pid),
+    unlink(Pid),
+    exit(Pid, kill),
+    receive
+        {'DOWN', MonRef, process, Pid, _} -> ok
     end,
-    ledc:stop(?LEDC_MODE, ?LEDC_CHANNEL, 0),
-    State1 = reset_target(State),
-    State1#state{current_fade = undefined}.
+    State#state{current_fade = undefined}.
 
 -spec reset_target(state()) -> state().
 reset_target(#state{target = Target} = State) ->
