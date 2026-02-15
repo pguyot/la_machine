@@ -52,7 +52,7 @@ class ScenarElem {
         arg = arg.substring(index+1, index2-1);
         
         // intArg contains the duration
-        String mp3Path = sketchPath(SOUNDS_FOLDER)+arg;
+        String mp3Path = soundsPath()+arg;
         if (!fileExists(mp3Path)) {
           // fatal error
           intArg = 0;
@@ -155,7 +155,7 @@ void ScenariosInit(String jsonfile) {
 }
 
 void ScenariosLoadFile(String jsonfile) {
-  String lines[] = loadStrings(jsonfile);
+  String lines[] = loadStrings(choreoPath(jsonfile));
   gJsonFile = jsonfile;
   
   gScenarios = new ArrayList();
@@ -193,7 +193,7 @@ void ScenariosSaveToFile(String file) {
     strinList[i+1] = lin;
   }
   strinList[gScenarios.size()+1] = "}";
-  saveStrings(file, strinList);
+  saveStrings(choreoPath(file), strinList);
 }
 
 

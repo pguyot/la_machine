@@ -31,8 +31,8 @@ main(_Args) ->
             %% Build choreographies
             JsonFile =
                 case Is4mb of
-                    true -> filename:join(RootDir, "src_scenarios/choreographies-4mb.json");
-                    false -> filename:join(RootDir, "src_scenarios/choreographies.json")
+                    true -> filename:join(RootDir, "choreographies-4mb.json");
+                    false -> filename:join(RootDir, "choreographies.json")
                 end,
             HrlFile = filename:join(BuildDir, "la_machine_scenarios.hrl"),
             ok = build_choreographies(JsonFile, HrlFile, RootDir, Is4mb),
