@@ -1,6 +1,0 @@
-{
-  "meuh_meuh_V2": "{servo, 60, 2500}, {wait, 1000}, {aac, <<\"meuh/meuh_V2.aac\">>}, {wait, 4754}, {servo, 0, 800}",
-  "test_1": "{wait, 451}, {servo, 17}, {wait, 2540}, {servo, 85, 1592}, {wait, 2414}, {servo, 100, 590}, {wait, 1666}, {servo, 0, 1000}",
-  "upset_silent": "{servo, 100, 302}, {wait, 593}, {servo, 50}, {wait, 1391}, {servo, 0, 2026}",
-  "upset_silent2": "{wait, 10}, {servo, 0}, {wait, 26}, {servo, 100}, {wait, 641}, {servo, 40}, {wait, 411}, {servo, 99}, {wait, 422}, {servo, 39}, {wait, 490}, {servo, 100}, {wait, 458}, {servo, 0}"
-}

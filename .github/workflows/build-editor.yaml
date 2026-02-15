@@ -1,0 +1,178 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Build Editor
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - 'editor/**'
+      - '.github/workflows/build-editor.yaml'
+  pull_request:
+    paths:
+      - 'editor/**'
+      - '.github/workflows/build-editor.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref != 'refs/heads/main' && github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build_editor:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            arch: x64
+            artifact_name: LaMachineEditor-macos-x64
+            processing_asset: processing-1313-4.5.2/processing-4.5.2-macos-x64.dmg
+          - runner: macos-latest
+            arch: aarch64
+            artifact_name: LaMachineEditor-macos-aarch64
+            processing_asset: processing-1313-4.5.2/processing-4.5.2-macos-aarch64.dmg
+          - runner: ubuntu-latest
+            arch: x64
+            artifact_name: LaMachineEditor-linux-x64
+            processing_asset: processing-1313-4.5.2/processing-4.5.2-linux-x64-portable.zip
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+            artifact_name: LaMachineEditor-linux-aarch64
+            processing_asset: processing-1313-4.5.2/processing-4.5.2-linux-aarch64-portable.zip
+          - runner: windows-latest
+            arch: x64
+            artifact_name: LaMachineEditor-windows-x64
+            processing_asset: processing-1313-4.5.2/processing-4.5.2-windows-x64-portable.zip
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Install Processing (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          curl -L -o processing.dmg \
+            "https://github.com/processing/processing4/releases/download/${{ matrix.processing_asset }}"
+          hdiutil attach processing.dmg -nobrowse
+          VOLUME="$(find /Volumes -maxdepth 1 -name 'Processing*' | head -1)"
+          APP="$(find "$VOLUME" -maxdepth 1 -name '*.app' | head -1)"
+          cp -R "$APP" /Applications/
+          hdiutil detach "$VOLUME"
+          APP_NAME="$(basename "$APP")"
+          echo "PROCESSING=/Applications/$APP_NAME/Contents/MacOS/Processing" >> "$GITHUB_ENV"
+
+      - name: Install Processing (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          curl -L -o processing.zip \
+            "https://github.com/processing/processing4/releases/download/${{ matrix.processing_asset }}"
+          unzip -q processing.zip -d "$HOME"
+          echo "PROCESSING=$HOME/Processing/bin/Processing" >> "$GITHUB_ENV"
+
+      - name: Install Processing (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          curl -L -o processing.zip \
+            "https://github.com/processing/processing4/releases/download/${{ matrix.processing_asset }}"
+          unzip -q processing.zip -d "$HOME"
+          echo "PROCESSING=$HOME/Processing/Processing.exe" >> "$GITHUB_ENV"
+
+      - name: Install Minim library
+        uses: actions/checkout@v4
+        with:
+          repository: ddf/Minim
+          ref: v2.2.2
+          path: minim-repo
+
+      - name: Copy Minim to sketchbook (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          LIBDIR="$HOME/Documents/Processing/libraries/minim"
+          mkdir -p "$LIBDIR"
+          cp -R minim-repo/* "$LIBDIR/"
+
+      - name: Copy Minim to sketchbook (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          LIBDIR="$HOME/sketchbook/libraries/minim"
+          mkdir -p "$LIBDIR"
+          cp -R minim-repo/* "$LIBDIR/"
+
+      - name: Copy Minim to sketchbook (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          LIBDIR="$HOME/Documents/Processing/libraries/minim"
+          mkdir -p "$LIBDIR"
+          cp -R minim-repo/* "$LIBDIR/"
+
+      - name: Export application (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          java --version
+          "$PROCESSING" --version
+          "$PROCESSING" cli \
+            --sketch="$(pwd)/editor" \
+            --output="$(pwd)/build" \
+            --force \
+            --no-java \
+            --export
+
+      - name: Export application (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          java --version
+          "$PROCESSING" --version
+          xvfb-run "$PROCESSING" cli \
+            --sketch="$(pwd)/editor" \
+            --output="$(pwd)/build" \
+            --force \
+            --no-java \
+            --export
+
+      - name: Export application (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          java --version
+          "$PROCESSING" --version
+          "$PROCESSING" cli \
+            --sketch="$(pwd)/editor" \
+            --output="$(pwd)/build" \
+            --force \
+            --no-java \
+            --export
+
+      - name: Patch macOS Info.plist
+        if: runner.os == 'macOS'
+        run: |
+          APP_PATH="$(find build -name '*.app' -maxdepth 1 | head -1)"
+          PLIST="$APP_PATH/Contents/Info.plist"
+          # Add --enable-native-access=ALL-UNNAMED to JVM options
+          /usr/libexec/PlistBuddy -c "Add :JVMOptions: string '--enable-native-access=ALL-UNNAMED'" "$PLIST"
+
+      - name: Sign macOS app
+        if: runner.os == 'macOS'
+        run: |
+          APP_PATH="$(find build -name '*.app' -maxdepth 1 | head -1)"
+          if [ -n "$APP_PATH" ]; then
+            codesign --force --deep --sign - "$APP_PATH"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: build/
+          if-no-files-found: error
+          retention-days: 30

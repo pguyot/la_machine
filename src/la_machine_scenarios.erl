@@ -79,9 +79,9 @@ get_test_() ->
 ]).
 
 -ifdef(CHOREOGRAPHIES_FILE).
--define(JSON_PATH, "src_scenarios/" ?CHOREOGRAPHIES_FILE).
+-define(JSON_PATH, ?CHOREOGRAPHIES_FILE).
 -else.
--define(JSON_PATH, "src_scenarios/choreographies.json").
+-define(JSON_PATH, "choreographies.json").
 -endif.
 
 no_entry_filtered_by_build_assets_test() ->

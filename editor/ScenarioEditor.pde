@@ -78,7 +78,7 @@ class AudioEditor extends ScenarElemEditor {
     type = "audio";
     audioPath = aaudioPath;
     dur_ms = adur_ms;
-    audioPlayer = new MyAudioPlayer(SOUNDS_FOLDER+audioPath);
+    audioPlayer = new MyAudioPlayer(soundsPath()+audioPath);
     println("AudioEditor audioPath="+audioPath+" dur_ms="+dur_ms);
   }
   
@@ -774,7 +774,6 @@ void ScenariosUIInit(float x, float y, float w, float h) {
   gScen_y0 = y;
   gScen_w0 = w;
   gScen_h0 = h;
-  ScenariosChangeAllGameNames();
 }
 
 void ScenariosChangeAllGameNames() {
@@ -894,7 +893,7 @@ void ScenariosDisplay() {
 
 int ScenariosParseSoundFolder() {
   int total = 0;
-  File soundsFolder = new File(sketchPath(SOUNDS_FOLDER));
+  File soundsFolder = new File(soundsPath());
   File [] soundsFiles = soundsFolder.listFiles();
   if (soundsFiles != null) {
     for (int i = 0; i < soundsFiles.length; i++) {
@@ -973,7 +972,7 @@ void ScenariosSaveAll() {
   // save current edited scenario in json + save json
   ScenariosSaveCurrent();
   
-  FileCopy("choreographies.json", "choreographiesSAVE.json");
+  FileCopy(choreoPath("choreographies.json"), choreoPath("choreographiesSAVE.json"));
   ScenariosSaveToFile("choreographies.json");
 }
 
