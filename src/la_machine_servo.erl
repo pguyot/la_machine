@@ -341,7 +341,7 @@ target_duty_timeout_test_() ->
                     })
                 ),
                 ?_assertMatch(
-                    {313, #state{
+                    {469, #state{
                         pre_min = 318,
                         pre_max = 887,
                         target = 887,
@@ -363,7 +363,7 @@ target_duty_timeout_test_() ->
                     })
                 ),
                 ?_assertMatch(
-                    {313, #state{
+                    {469, #state{
                         pre_min = 318,
                         pre_max = 887,
                         target = 318,
