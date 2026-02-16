@@ -168,6 +168,9 @@
 % Max duration of medium gestures in games mood
 -define(GAME_MEDIUM_DUR_S, 4).
 
+-define(BATTERY_LOW_SYSTEM_SCENARIO, 1).
+-define(WELCOME_SYSTEM_SCENARIO, 2).
+
 %% DEBUG
 % play only one mood (to debug)
 -define(DEBUG_PLAY_ONLY_ONE_MOOD, 0).

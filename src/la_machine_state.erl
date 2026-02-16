@@ -80,8 +80,8 @@
 -endif.
 
 -type wakeup_state() ::
-    provisioning
-    | normal
+    normal
+    | provisioning
     | charging.
 
 -type mood() ::
@@ -98,7 +98,7 @@
 -record(state, {
     % 64 bit erlang:system_time(second)
     boot_time = 0 :: non_neg_integer(),
-    wakeup_state = provisioning :: wakeup_state(),
+    wakeup_state = normal :: wakeup_state(),
     % idem, used for sequence plays
     last_play_time = 0 :: non_neg_integer(),
     % index of last played scenario (32 bits), used to:
@@ -173,7 +173,7 @@ deserialize_state(
     };
 deserialize_state(Now, _) ->
     #state{
-        wakeup_state = provisioning,
+        wakeup_state = normal,
         boot_time = Now,
         last_play_time = 0,
         last_play_seq = 0,
@@ -209,13 +209,13 @@ serialize_state(#state{
         PlayPokeIndex:8, PlayHours/binary>>.
 
 -spec serialize_wakeup_state(wakeup_state()) -> 0..2.
-serialize_wakeup_state(provisioning) -> 0;
-serialize_wakeup_state(normal) -> 1;
+serialize_wakeup_state(normal) -> 0;
+serialize_wakeup_state(provisioning) -> 1;
 serialize_wakeup_state(charging) -> 2.
 
 -spec deserialize_wakeup_state(0..2) -> wakeup_state().
-deserialize_wakeup_state(0) -> provisioning;
-deserialize_wakeup_state(1) -> normal;
+deserialize_wakeup_state(0) -> normal;
+deserialize_wakeup_state(1) -> provisioning;
 deserialize_wakeup_state(2) -> charging.
 
 -spec serialize_mood(mood()) -> 0..8.
@@ -357,7 +357,7 @@ deserialize_state_test_() ->
     [
         ?_assertEqual(
             #state{
-                wakeup_state = provisioning,
+                wakeup_state = normal,
                 boot_time = 42,
                 last_play_time = 0,
                 play_poke_index = 0,
@@ -367,7 +367,7 @@ deserialize_state_test_() ->
         ),
         ?_assertEqual(
             #state{
-                wakeup_state = provisioning,
+                wakeup_state = normal,
                 boot_time = 42,
                 last_play_time = 0,
                 play_poke_index = 0,
@@ -377,7 +377,7 @@ deserialize_state_test_() ->
         ),
         ?_assertEqual(
             #state{
-                wakeup_state = provisioning,
+                wakeup_state = normal,
                 boot_time = 42,
                 last_play_time = 0,
                 play_poke_index = 0,
@@ -387,7 +387,7 @@ deserialize_state_test_() ->
         ),
         ?_assertEqual(
             #state{
-                wakeup_state = normal,
+                wakeup_state = provisioning,
                 boot_time = 1,
                 last_play_time = 2,
                 last_play_seq = 3,
@@ -406,7 +406,7 @@ deserialize_state_test_() ->
         ),
         ?_assertEqual(
             #state{
-                wakeup_state = normal,
+                wakeup_state = provisioning,
                 boot_time = 1,
                 last_play_time = 2,
                 last_play_seq = 3,
@@ -423,7 +423,7 @@ deserialize_state_test_() ->
         ),
         ?_assertEqual(
             #state{
-                wakeup_state = normal,
+                wakeup_state = provisioning,
                 boot_time = 1,
                 last_play_time = 2,
                 last_play_seq = 3,
@@ -442,7 +442,7 @@ deserialize_state_test_() ->
         ),
         ?_assertEqual(
             #state{
-                wakeup_state = normal,
+                wakeup_state = provisioning,
                 boot_time = 1,
                 last_play_time = 2,
                 last_play_seq = 3,
@@ -462,7 +462,7 @@ deserialize_state_test_() ->
         % BootTime > Now should fall back to default
         ?_assertEqual(
             #state{
-                wakeup_state = provisioning,
+                wakeup_state = normal,
                 boot_time = 42,
                 last_play_time = 0,
                 play_poke_index = 0,
@@ -475,7 +475,7 @@ deserialize_state_test_() ->
         % Out-of-range MoodInt (9) should fall back to default
         ?_assertEqual(
             #state{
-                wakeup_state = provisioning,
+                wakeup_state = normal,
                 boot_time = 42,
                 last_play_time = 0,
                 play_poke_index = 0,
@@ -488,7 +488,7 @@ deserialize_state_test_() ->
         % Out-of-range WakeupStateInt (3) should fall back to default
         ?_assertEqual(
             #state{
-                wakeup_state = provisioning,
+                wakeup_state = normal,
                 boot_time = 42,
                 last_play_time = 0,
                 play_poke_index = 0,
@@ -512,7 +512,7 @@ serialize_state_test_() ->
             <<0, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8>>,
             serialize_state(
                 #state{
-                    wakeup_state = provisioning,
+                    wakeup_state = normal,
                     mood = waiting,
                     boot_time = 1,
                     last_play_time = 2,
@@ -526,7 +526,7 @@ serialize_state_test_() ->
             <<1:2, 4:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8>>,
             serialize_state(
                 #state{
-                    wakeup_state = normal,
+                    wakeup_state = provisioning,
                     mood = calling,
                     boot_time = 1,
                     last_play_time = 2,
@@ -540,7 +540,7 @@ serialize_state_test_() ->
             <<1:2, 5:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8, 5>>,
             serialize_state(
                 #state{
-                    wakeup_state = normal,
+                    wakeup_state = provisioning,
                     mood = joy,
                     boot_time = 1,
                     last_play_time = 2,
@@ -554,7 +554,7 @@ serialize_state_test_() ->
             <<1:2, 8:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8, 5>>,
             serialize_state(
                 #state{
-                    wakeup_state = normal,
+                    wakeup_state = provisioning,
                     mood = calm,
                     boot_time = 1,
                     last_play_time = 2,
@@ -568,7 +568,7 @@ serialize_state_test_() ->
             <<1:2, 6:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8, 5, 6>>,
             serialize_state(
                 #state{
-                    wakeup_state = normal,
+                    wakeup_state = provisioning,
                     mood = tired,
                     boot_time = 1,
                     last_play_time = 2,

@@ -142,6 +142,9 @@ run() ->
                 la_machine_selftest:report(Config),
                 Config1 = la_machine_configuration:set_self_test_reported(Config),
                 la_machine_configuration:save(Config1),
+                RTCState0 = la_machine_state:load_state(),
+                RTCState1 = la_machine_state:set_wakeup_state(provisioning, RTCState0),
+                la_machine_state:save_state(RTCState1),
                 {infinity, button};
             calibrated ->
                 ButtonState = read_button(),
@@ -239,10 +242,13 @@ run_configured(_Config, _WakeupCause, off, _State0, provisioning, false) ->
 run_configured(_Config, _WakeupCause, off, _State0, provisioning, true) ->
     wait_while_charging(40000),
     {?SERVO_CHARGING_TIMEOUT, button};
-run_configured(Config, sleep_wakeup_gpio, on, State0, provisioning, Charging) ->
-    % First run. For now, let's just transition to normal state.
+run_configured(Config, sleep_wakeup_gpio, on, State0, provisioning, _Charging) ->
+    % First run.
+    play_welcome(Config),
     State1 = la_machine_state:set_wakeup_state(normal, State0),
-    run_configured(Config, sleep_wakeup_gpio, on, State1, normal, Charging);
+    la_machine_state:save_state(State1),
+    Timer = do_compute_sleep_timer(State1),
+    {Timer, both};
 % charging : open the lid while charging and closing it once it's done
 run_configured(Config, _WakeupCause, off, State0, WakeupState, true) ->
     case WakeupState of
@@ -397,7 +403,7 @@ action(sleep_wakeup_gpio, off, ok, _BatteryLevel, _State) ->
 % timer
 action(sleep_wakeup_timer, _ButtonState, ok, BatteryLevel, _State) when BatteryLevel =< 20 ->
     reset;
-action(sleep_wakeup_timer, _ButtonState, ok, BatteryLevel, State) ->
+action(sleep_wakeup_timer, _ButtonState, ok, _BatteryLevel, State) ->
     {Mood, LastPlaySeq, GestureCount, LastPlayTime} = la_machine_state:get_play_info(State),
     if
         Mood == waiting ->
@@ -600,14 +606,14 @@ play_poke(Config) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -spec play_battery_low(la_machine_configuration:config()) -> pos_integer().
 play_battery_low(Config) ->
-    play_scenario_with_hit(system, 1, Config).
+    play_scenario_with_hit(system, ?BATTERY_LOW_SYSTEM_SCENARIO, Config).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% play_welcome
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% -spec play_welcome(la_machine_configuration:config()) -> pos_integer().
-% play_welcome(Config) ->
-%     play_scenario_with_hit(system, 2, Config).
+-spec play_welcome(la_machine_configuration:config()) -> pos_integer().
+play_welcome(Config) ->
+    play_scenario_with_hit(system, ?WELCOME_SYSTEM_SCENARIO, Config).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% play_random_hit
