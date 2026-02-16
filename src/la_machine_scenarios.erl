@@ -75,7 +75,8 @@ get_test_() ->
     poke,
     test,
     tired,
-    upset
+    upset,
+    system
 ]).
 
 -ifdef(CHOREOGRAPHIES_FILE).

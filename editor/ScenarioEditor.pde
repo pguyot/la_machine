@@ -352,14 +352,15 @@ class ScenarEditor {
         ServoEditor sEditor = (ServoEditor)editor;
         float dur_ms = sEditor.dur_ms;
         float min_dur = sEditor.min_dur_ms();
-        res = res + "{servo, "+floor(sEditor.percent)+(dur_ms <= min_dur ? "" : ", "+floor(dur_ms))+"}";
+        int servoVal = floor(sEditor.percent);
+        res = res + "{servo, "+servoVal+(dur_ms <= min_dur ? "" : ", "+floor(dur_ms))+"}";
       }
       
-      if (i < editors.size()-1) {
+      if (i < editors.size() - 1) {
         res = res + ", ";
       }
     }
-    
+        
     return res;
   }
   
