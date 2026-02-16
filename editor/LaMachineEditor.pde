@@ -5,11 +5,11 @@ Minim minim;
 MyAudioPlayer curPlayer = null;
 int fontHeight;
 
-// Servo is 0.3s/60°. 360 = 1800ms
 float gSERVO_ANGLE_0 = 125;
 float gSERVO_ANGLE_100 = 30;
 float gSERVO_FULL_ANGLE_RANGE = abs(gSERVO_ANGLE_0 - gSERVO_ANGLE_100);
-float gSERVO_0_100_DUR_MS = 1800*gSERVO_FULL_ANGLE_RANGE/360.0;
+float gSERVO_FULL_RANGE_TIME_MS = 1350; // for 180°
+float gSERVO_0_100_DUR_MS = gSERVO_FULL_RANGE_TIME_MS*gSERVO_FULL_ANGLE_RANGE/180.0;
 float gSERVO_DOOR_PERCENT = 15.0;
 float gSERVO_BUTTON_CONTACT_PERCENT = 85.0;
 float GAME_SHORT_DUR_S = 2;
