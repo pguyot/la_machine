@@ -183,18 +183,19 @@ prune_workaround() ->
     esp:esp_wakeup_cause() | undefined,
     on | off,
     ok | {play, meuh} | not_resting | replaced,
+    0..100,
     la_machine_state:state()
 ) -> action().
 
 -if(?DEBUG_PLAY_ONLY_ONE_MOOD == 1).
 % DEBUG
-compute_action(_WakeupCause, on, ok, _State) ->
+compute_action(_WakeupCause, on, ok, _BatteryLevel, _State) ->
     io:format("play one mood : ~p, Index =~p\n", [
         ?DEBUG_PLAY_ONLY_ONE_MOOD_MOOD, ?DEBUG_PLAY_ONLY_ONE_MOOD_INDEX
     ]),
     {play_scenario, ?DEBUG_PLAY_ONLY_ONE_MOOD_MOOD, ?DEBUG_PLAY_ONLY_ONE_MOOD_INDEX};
-compute_action(WakeupCause, ButtonState, AccelerometerState, State) ->
-    action(WakeupCause, ButtonState, AccelerometerState, State).
+compute_action(WakeupCause, ButtonState, AccelerometerState, BatteryLevel, State) ->
+    action(WakeupCause, ButtonState, AccelerometerState, BatteryLevel, State).
 
 %% erlfmt:ignore-begin
 -if(?DEBUG_PLAY_ONLY_ONE_MOOD_INDEX < 0).
@@ -214,8 +215,8 @@ compute_action(WakeupCause, ButtonState, AccelerometerState, State) ->
 
 -else.
 
-compute_action(WakeupCause, ButtonState, AccelerometerState, State) ->
-    action(WakeupCause, ButtonState, AccelerometerState, State).
+compute_action(WakeupCause, ButtonState, AccelerometerState, BatteryLevel, State) ->
+    action(WakeupCause, ButtonState, AccelerometerState, BatteryLevel, State).
 
 %% erlfmt:ignore-begin
 -define(DEBUG_PLAY_SCENARIO_CASE(Config, State),).
@@ -281,10 +282,10 @@ run_configured(Config, _WakeupCause, ButtonState, State0, charging, false) ->
     {Timer, both};
 run_configured(Config, WakeupCause, ButtonState, State0, normal, Charging) ->
     AccelerometerState = la_machine_lis3dh:setup(true),
-    {ok, _BatteryLevel} = la_machine_battery:get_level(),
+    {ok, BatteryLevel} = la_machine_battery:get_level(),
 
     State1 =
-        case compute_action(WakeupCause, ButtonState, AccelerometerState, State0) of
+        case compute_action(WakeupCause, ButtonState, AccelerometerState, BatteryLevel, State0) of
             ?DEBUG_PLAY_SCENARIO_CASE(Config, State0)
             play_meuh ->
                 play_meuh(Config),
@@ -322,7 +323,6 @@ run_configured(Config, WakeupCause, ButtonState, State0, normal, Charging) ->
                         la_machine_state:append_play(Mood1, GestureCount1 + 1, PlayedSeq, State0)
                 end;
             reset ->
-                io:format("resetting\n"),
                 la_machine_audio:reset(),
                 la_machine_servo:reset(Config),
                 State0
@@ -371,42 +371,33 @@ wait_while_charging_loop(Deadline) ->
     esp:esp_wakeup_cause() | undefined,
     on | off,
     ok | {play, meuh} | not_resting | replaced,
+    0..100,
     la_machine_state:state()
 ) -> action().
 
 % meuh
-action(_WakeupCause, _ButtonState, {play, meuh}, _State) ->
+action(_WakeupCause, _ButtonState, {play, meuh}, _BatteryLevel, _State) ->
     play_meuh;
 % not resting
-action(_WakeupCause, _ButtonState, not_resting, _State) ->
+action(_WakeupCause, _ButtonState, not_resting, _BatteryLevel, _State) ->
     reset;
 % replaced => play_poke
-action(_WakeupCause, _ButtonState, replaced, _State) ->
+action(_WakeupCause, _ButtonState, replaced, _BatteryLevel, _State) ->
     play_poke;
 % button on
-action(_WakeupCause, on, ok, State) ->
-    %% if battery low, force play_battery_low
-    {Battery_status, Battery_level} = la_machine_battery:get_level(),
-    BatteryLow = case Battery_status of
-        ok -> 
-            if
-                Battery_level =< 20 -> true;
-                true -> false
-            end;
-        error -> true
-    end,
-    if
-        BatteryLow -> play_battery_low;
-        true ->
-            {Mood, LastPlaySeq, GestureCount, LastPlayTime} = la_machine_state:get_play_info(State),
-            SecondsElapsed = erlang:system_time(second) - LastPlayTime,
-            {play, player, Mood, SecondsElapsed, LastPlaySeq, GestureCount}
-    end;
+action(_WakeupCause, on, ok, BatteryLevel, _State) when BatteryLevel =< 20 ->
+    play_battery_low;
+action(_WakeupCause, on, ok, _BatteryLevel, State) ->
+    {Mood, LastPlaySeq, GestureCount, LastPlayTime} = la_machine_state:get_play_info(State),
+    SecondsElapsed = erlang:system_time(second) - LastPlayTime,
+    {play, player, Mood, SecondsElapsed, LastPlaySeq, GestureCount};
 % button off
-action(sleep_wakeup_gpio, off, ok, _State) ->
+action(sleep_wakeup_gpio, off, ok, _BatteryLevel, _State) ->
     reset;
 % timer
-action(sleep_wakeup_timer, _ButtonState, ok, State) ->
+action(sleep_wakeup_timer, _ButtonState, ok, BatteryLevel, _State) when BatteryLevel =< 20 ->
+    reset;
+action(sleep_wakeup_timer, _ButtonState, ok, BatteryLevel, State) ->
     {Mood, LastPlaySeq, GestureCount, LastPlayTime} = la_machine_state:get_play_info(State),
     if
         Mood == waiting ->
@@ -416,7 +407,7 @@ action(sleep_wakeup_timer, _ButtonState, ok, State) ->
             {play, timer, Mood, SecondsElapsed, LastPlaySeq, GestureCount}
     end;
 % catch all
-action(_WakeupCause, _ButtonState, _AccelerometerState, _State) ->
+action(_WakeupCause, _ButtonState, _AccelerometerState, _BatteryLevel, _State) ->
     reset.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -803,19 +794,24 @@ add_moods_to_list(Mood, N, AList) -> add_moods_to_list(Mood, N - 1, [Mood | ALis
 -ifdef(TEST).
 action_test_() ->
     [
-        ?_assertEqual(play_poke, action(sleep_wakeup_timer, off, ok, la_machine_state:new())),
-        ?_assertEqual(reset, action(undefined, off, ok, la_machine_state:new())),
+        ?_assertEqual(play_poke, action(sleep_wakeup_timer, off, ok, 100, la_machine_state:new())),
+        ?_assertEqual(reset, action(sleep_wakeup_timer, off, ok, 20, la_machine_state:new())),
+        ?_assertEqual(reset, action(undefined, off, ok, 100, la_machine_state:new())),
         ?_assertMatch(
             {play, player, waiting, _ElapsedSecs, 0, 0},
-            action(sleep_wakeup_timer, on, ok, la_machine_state:new())
+            action(sleep_wakeup_timer, on, ok, 100, la_machine_state:new())
+        ),
+        ?_assertMatch(
+            play_battery_low,
+            action(sleep_wakeup_timer, on, ok, 10, la_machine_state:new())
         ),
         ?_assertMatch(
             {play, player, waiting, _ElapsedSecs, 0, 0},
-            action(sleep_wakeup_gpio, on, ok, la_machine_state:new())
+            action(sleep_wakeup_gpio, on, ok, 100, la_machine_state:new())
         ),
         ?_assertMatch(
             {play, player, waiting, _ElapsedSecs, 0, 0},
-            action(undefined, on, ok, la_machine_state:new())
+            action(undefined, on, ok, 100, la_machine_state:new())
         )
     ].
 
