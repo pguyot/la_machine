@@ -21,3 +21,4 @@ rebar3.crashdump
 .DS_Store
 __pycache__
 _mp3cache
+choreographiesSAVE.json
