@@ -96,6 +96,17 @@
 -error({unsupported_hardware_revision, ?HARDWARE_REVISION}).
 -endif.
 
+% proto 20260106 currently has a 95 degrees course:
+% FullDutyRange (180°) = ?SERVO_MAX_DUTY * (?SERVO_MAX_WIDTH_US - ?SERVO_MIN_WIDTH_US) / ?SERVO_FREQ_PERIOD_US
+%                      = 16383 * (2500 - 500) / 20000
+%                      = 1638.3
+% ServoDutyRange = ?DEFAULT_SERVO_CLOSED_DUTY - ?DEFAULT_SERVO_INTERRUPT_DUTY
+%                = 1547 - 682
+%                = 865
+% ServoDegreeRange = ServoDutyRange / FullDutyRange * 180
+%                  = 865 / 1638.3 * 180
+%                  = 95.0 degrees
+
 -define(SERVO_MAX_WIDTH_US, 2500).
 -define(SERVO_MIN_WIDTH_US, 500).
 -define(SERVO_FREQ_HZ, 50).
