@@ -68,13 +68,13 @@ report(Config0) ->
         case SelfTestResult of
             <<"OK">> ->
                 [
-                    {aac, <<"_selftest/success_44kHz.mp3">>},
+                    {mp3, <<"_selftest/success_44kHz.mp3">>},
                     {wait, sound},
-                    {aac, <<"_selftest/success_48kHz.mp3">>},
+                    {mp3, <<"_selftest/success_48kHz.mp3">>},
                     {wait, sound}
                 ];
             _ ->
-                [{aac, <<"_selftest/failure.mp3">>}, {wait, sound}]
+                [{mp3, <<"_selftest/failure.mp3">>}, {wait, sound}]
         end,
     ok = la_machine_player:play(Player, Scenario),
     la_machine_player:stop(Player),
@@ -125,7 +125,7 @@ run(Config0, undefined, _ButtonState) ->
     case BatteryTest of
         ok ->
             {ok, Player} = la_machine_player:start_link(Config0),
-            ok = la_machine_player:play(Player, [{aac, <<"_selftest/start.mp3">>}, {wait, sound}]),
+            ok = la_machine_player:play(Player, [{mp3, <<"_selftest/start.mp3">>}, {wait, sound}]),
             la_machine_player:stop(Player),
             io:format(
                 "Unplug La Machine, put it in normal resting position and switch the interrupt for self test within the next 60 secs\n"
