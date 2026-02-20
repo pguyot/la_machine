@@ -82,7 +82,8 @@
 -type wakeup_state() ::
     normal
     | provisioning
-    | charging.
+    | charging
+    | travel.
 
 -type mood() ::
     waiting
@@ -151,7 +152,7 @@ deserialize_state(
         GestureCount:8, TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8,
         PlayPokeIndex:8, PlayHours/binary>>
 ) when
-    WakeupStateInt =< 2 andalso MoodInt =< 8 andalso
+    WakeupStateInt =< 3 andalso MoodInt =< 8 andalso
         BootTime =< Now andalso byte_size(PlayHours) =< ?MAX_PLAY_HOURS
 ->
     %io:format("deserialize_state  : BootTime=~p Now=~p playhours_size=~p => Retrieving State\n", [BootTime, Now, byte_size(PlayHours)]),
@@ -208,15 +209,17 @@ serialize_state(#state{
         GestureCount:8, TotalGestureCount:16, BatteryLow:8, LastOn:64, ClickCount:8,
         PlayPokeIndex:8, PlayHours/binary>>.
 
--spec serialize_wakeup_state(wakeup_state()) -> 0..2.
+-spec serialize_wakeup_state(wakeup_state()) -> 0..3.
 serialize_wakeup_state(normal) -> 0;
 serialize_wakeup_state(provisioning) -> 1;
-serialize_wakeup_state(charging) -> 2.
+serialize_wakeup_state(charging) -> 2;
+serialize_wakeup_state(travel) -> 3.
 
--spec deserialize_wakeup_state(0..2) -> wakeup_state().
+-spec deserialize_wakeup_state(0..3) -> wakeup_state().
 deserialize_wakeup_state(0) -> normal;
 deserialize_wakeup_state(1) -> provisioning;
-deserialize_wakeup_state(2) -> charging.
+deserialize_wakeup_state(2) -> charging;
+deserialize_wakeup_state(3) -> travel.
 
 -spec serialize_mood(mood()) -> 0..8.
 serialize_mood(waiting) -> 0;
@@ -485,13 +488,20 @@ deserialize_state_test_() ->
                 42, <<1:2, 9:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8>>
             )
         ),
-        % Out-of-range WakeupStateInt (3) should fall back to default
+        % travel wakeup state
         ?_assertEqual(
             #state{
-                wakeup_state = normal,
-                boot_time = 42,
-                last_play_time = 0,
-                play_poke_index = 0,
+                wakeup_state = travel,
+                boot_time = 1,
+                last_play_time = 2,
+                last_play_seq = 3,
+                mood = waiting,
+                gesture_count = 0,
+                total_gesture_count = 0,
+                battery_low = 0,
+                last_on = 0,
+                click_count = 0,
+                play_poke_index = 4,
                 play_hours = <<>>
             },
             deserialize_state(
@@ -577,6 +587,20 @@ serialize_state_test_() ->
                     play_hours = <<5, 6>>
                 }
             )
+        ),
+        ?_assertEqual(
+            <<3:2, 0:4, 0:2, 1:64, 2:64, 3:32, 0:8, 0:16, 0:8, 0:64, 0:8, 4:8>>,
+            serialize_state(
+                #state{
+                    wakeup_state = travel,
+                    mood = waiting,
+                    boot_time = 1,
+                    last_play_time = 2,
+                    last_play_seq = 3,
+                    play_poke_index = 4,
+                    play_hours = <<>>
+                }
+            )
         )
     ].
 
@@ -599,7 +623,7 @@ serialize_wakeup_state_test() ->
             Serialized = serialize_wakeup_state(WakeupState),
             ?assertEqual(Serialized, N)
         end,
-        lists:seq(0, 2)
+        lists:seq(0, 3)
     ).
 
 -endif.
