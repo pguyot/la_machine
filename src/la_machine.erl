@@ -791,17 +791,26 @@ play_scenario(MoodScenar, ScenarioIx, Config) ->
 play_scenario_with_hit(MoodScenar, ScenarioIx, Config) ->
     Scenario = la_machine_scenarios:get(MoodScenar, ScenarioIx),
     {ok, Pid} = la_machine_player:start_link(Config),
+    ScenarioStart = erlang:system_time(millisecond),
     ok = la_machine_player:play(Pid, Scenario),
+    ScenarioEnd = erlang:system_time(millisecond),
     % play hit if needed
     ButtonState = read_button(),
     io:format("   after play ButtonState=~s\n", [ButtonState]),
-    if
-        ButtonState == on ->
-            play_random_hit(Pid);
-        true ->
-            ok = la_machine_player:play(Pid, [{servo, 0}])
-    end,
+    HitIx =
+        if
+            ButtonState == on ->
+                play_random_hit(Pid);
+            true ->
+                ok = la_machine_player:play(Pid, [{servo, 0}]),
+                none
+        end,
+    HitEnd = erlang:system_time(millisecond),
     ok = la_machine_player:stop(Pid),
+    io:format("Played scenario=~p index=~p duration=~pms hit=~p hit_duration=~pms time=~p\n", [
+        MoodScenar, ScenarioIx, ScenarioEnd - ScenarioStart,
+        HitIx, HitEnd - ScenarioEnd, ScenarioEnd
+    ]),
     ScenarioIx.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
