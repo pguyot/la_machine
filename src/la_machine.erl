@@ -790,15 +790,17 @@ play_scenario(MoodScenar, ScenarioIx, Config) ->
 play_scenario_with_hit(MoodScenar, ScenarioIx, Config) ->
     Scenario = la_machine_scenarios:get(MoodScenar, ScenarioIx),
     % add random wait at beginning if game_*
-    InitialWait = 
+    InitialWait =
         if
-            MoodScenar =:= game_short orelse MoodScenar =:= game_medium orelse MoodScenar =:= game_long ->
+            MoodScenar =:= game_short orelse MoodScenar =:= game_medium orelse
+                MoodScenar =:= game_long ->
                 MinWait = 0,
                 MaxWait = 1200,
                 <<RandS:56>> = crypto:strong_rand_bytes(7),
                 WaitDelay = (MinWait + (RandS rem (MaxWait - MinWait))),
                 WaitDelay;
-            true -> 0
+            true ->
+                0
         end,
     ScenarioWithInitialWait =
         if
