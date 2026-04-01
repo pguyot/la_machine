@@ -29,6 +29,9 @@
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
+-define(BATTERY_MODULE, la_machine_battery_mock).
+-else.
+-define(BATTERY_MODULE, la_machine_battery).
 -endif.
 
 % We use eunit:start/0 entry point for tests.
@@ -95,8 +98,11 @@ configure_gpios() ->
 %% `accelerometer` configures only the accelerometer GPIO
 %% `button' configures only the button GPIO (self test, provisioning)
 %% `both' configures button and accelerometer GPIO (used after calibration).
+%% `none` configures no GPIO
 %% @end
--spec enable_gpio_wakeup(accelerometer | button | both) -> ok.
+-spec enable_gpio_wakeup(accelerometer | button | both | none) -> ok.
+enable_gpio_wakeup(none) ->
+    ok;
 enable_gpio_wakeup(Pins) ->
     PinMask =
         case Pins of
@@ -135,7 +141,7 @@ run() ->
     Config = la_machine_configuration:load(),
     SelfTestState = la_machine_configuration:self_test_state(Config),
 
-    {SleepTimer, WakeupGPIO} =
+    {SleepSecs, WakeupGPIO} =
         case SelfTestState of
             uncalibrated ->
                 ButtonState = read_button(),
@@ -146,9 +152,9 @@ run() ->
                 Config1 = la_machine_configuration:set_self_test_reported(Config),
                 la_machine_configuration:save(Config1),
                 RTCState0 = la_machine_state:load_state(),
-                RTCState1 = la_machine_state:set_wakeup_state(provisioning, RTCState0),
+                RTCState1 = la_machine_state:set_wakeup_state(factory, RTCState0),
                 la_machine_state:save_state(RTCState1),
-                {infinity, button};
+                {?FACTORY_POLL_TIMEOUT_BUTTON_OFF, button};
             calibrated ->
                 ButtonState = read_button(),
                 BatteryCharging = la_machine_battery:is_charging(),
@@ -160,10 +166,10 @@ run() ->
         end,
     enable_gpio_wakeup(WakeupGPIO),
     unconfigure_watchdog(WatchdogUser),
-    case SleepTimer of
+    case SleepSecs of
         infinity ->
             esp:deep_sleep();
-        SleepSecs when is_integer(SleepSecs) ->
+        _ when is_integer(SleepSecs) ->
             esp:deep_sleep(SleepSecs * 1000)
     end.
 
@@ -238,14 +244,35 @@ compute_action(WakeupCause, ButtonState, AccelerometerState, BatteryLevel, State
     la_machine_state:wakeup_state(),
     boolean()
 ) ->
-    {non_neg_integer() | infinity, accelerometer | button | both}.
+    {non_neg_integer() | infinity, accelerometer | button | both | none}.
+% factory state: poll for charger or full battery to transition to provisioning
+run_configured(_Config, _WakeupCause, ButtonState, State0, factory, false) ->
+    case ?BATTERY_MODULE:get_level() of
+        {ok, Level} when Level >= 100 ->
+            State1 = la_machine_state:set_wakeup_state(provisioning, State0),
+            la_machine_state:save_state(State1),
+            {?SERVO_CHARGING_TIMEOUT, button};
+        _ ->
+            % Ensure factory state is saved for next boot
+            la_machine_state:save_state(State0),
+            case ButtonState of
+                off ->
+                    {?FACTORY_POLL_TIMEOUT_BUTTON_OFF, button};
+                on ->
+                    {?FACTORY_POLL_TIMEOUT_BUTTON_ON, none}
+            end
+    end;
+run_configured(_Config, _WakeupCause, _ButtonState, State0, factory, true) ->
+    State1 = la_machine_state:set_wakeup_state(provisioning, State0),
+    la_machine_state:save_state(State1),
+    {?SERVO_CHARGING_TIMEOUT, button};
 % provisioning state: wait for the button, even if La Machine is being charged
 run_configured(_Config, _WakeupCause, off, _State0, provisioning, false) ->
     {infinity, button};
 run_configured(_Config, _WakeupCause, off, _State0, provisioning, true) ->
     wait_while_charging(40000),
     {?SERVO_CHARGING_TIMEOUT, button};
-run_configured(Config, sleep_wakeup_gpio, on, State0, provisioning, _Charging) ->
+run_configured(Config, _WakeupCause, on, State0, provisioning, _Charging) ->
     % First run.
     play_welcome(Config),
     State1 = la_machine_state:set_wakeup_state(normal, State0),
@@ -319,12 +346,13 @@ run_configured(Config, _WakeupCause, ButtonState, State0, travel, false) ->
                         off ->
                             {infinity, both}
                     end
-            end                    
+            end
     end;
 run_configured(Config, WakeupCause, ButtonState, State0, normal, Charging) ->
     AccelerometerState = la_machine_lis3dh:setup(ButtonState =:= off),
-    {ok, BatteryLevel} = la_machine_battery:get_level(),
+    {ok, BatteryLevel} = ?BATTERY_MODULE:get_level(),
 
+    %% erlfmt:ignore-begin
     State1 =
         case compute_action(WakeupCause, ButtonState, AccelerometerState, BatteryLevel, State0) of
             ?DEBUG_PLAY_SCENARIO_CASE(Config, State0)
@@ -371,6 +399,7 @@ run_configured(Config, WakeupCause, ButtonState, State0, normal, Charging) ->
                 la_machine_servo:reset(Config),
                 State0
         end,
+    %% erlfmt:ignore-end
     la_machine_state:save_state(State1),
     Timer = case Charging of
         true ->
@@ -994,4 +1023,52 @@ compute_sleep_timer_test_() ->
             ]
         }
     ].
+
+run_configured_factory_test_() ->
+    {
+        setup,
+        fun() -> la_machine_battery_mock:new() end,
+        fun(BatteryMock) -> la_machine_battery_mock:delete(BatteryMock) end,
+        fun(BatteryMock) ->
+            State = la_machine_state:new(),
+            Config = undefined,
+            [
+                {"battery full transitions to provisioning",
+                    ?_test(begin
+                        la_machine_battery_mock:expect(BatteryMock, get_level, {ok, 100}),
+                        {Timeout, Wakeup} = run_configured(
+                            Config, undefined, off, State, factory, false
+                        ),
+                        ?assertEqual(?SERVO_CHARGING_TIMEOUT, Timeout),
+                        ?assertEqual(button, Wakeup)
+                    end)},
+                {"charging flag true transitions to provisioning",
+                    ?_test(begin
+                        {Timeout, Wakeup} = run_configured(
+                            Config, undefined, off, State, factory, true
+                        ),
+                        ?assertEqual(?SERVO_CHARGING_TIMEOUT, Timeout),
+                        ?assertEqual(button, Wakeup)
+                    end)},
+                {"button off, not charging returns factory poll timeout button off",
+                    ?_test(begin
+                        la_machine_battery_mock:expect(BatteryMock, get_level, {error, no_adc}),
+                        {Timeout, Wakeup} = run_configured(
+                            Config, undefined, off, State, factory, false
+                        ),
+                        ?assertEqual(?FACTORY_POLL_TIMEOUT_BUTTON_OFF, Timeout),
+                        ?assertEqual(button, Wakeup)
+                    end)},
+                {"button on, not charging returns factory poll timeout button on",
+                    ?_test(begin
+                        la_machine_battery_mock:expect(BatteryMock, get_level, {error, no_adc}),
+                        {Timeout, Wakeup} = run_configured(
+                            Config, undefined, on, State, factory, false
+                        ),
+                        ?assertEqual(?FACTORY_POLL_TIMEOUT_BUTTON_ON, Timeout),
+                        ?assertEqual(none, Wakeup)
+                    end)}
+            ]
+        end
+    }.
 -endif.

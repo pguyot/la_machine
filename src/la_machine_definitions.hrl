@@ -122,6 +122,10 @@
 -define(SERVO_CHARGING_POSITION, 70).
 % When charging, wakeup constantly
 -define(SERVO_CHARGING_TIMEOUT, 0).
+% In factory mode, poll every 60 seconds to detect charger insertion
+-define(FACTORY_POLL_TIMEOUT_BUTTON_OFF, 60).
+% If button is on, check every 5 seconds
+-define(FACTORY_POLL_TIMEOUT_BUTTON_ON, 5).
 
 %% Moods
 
