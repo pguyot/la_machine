@@ -43,6 +43,7 @@
 init() ->
     ok = gpio:init(?BATTERY_STAT2_GPIO),
     ok = gpio:set_pin_mode(?BATTERY_STAT2_GPIO, input),
+    ok = gpio:set_pin_pull(?BATTERY_STAT2_GPIO, up),
     ok.
 
 %% @doc Determine if the battery is currently charging.
