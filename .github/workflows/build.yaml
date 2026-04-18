@@ -334,14 +334,17 @@ jobs:
           partitions_suffix: ""
           sounds_suffix: ""
           vm_suffix: ""
+          config: mkimage.config
         - suffix: "-proto_20241023"
           partitions_suffix: ""
           sounds_suffix: ""
           vm_suffix: ""
+          config: mkimage.config
         - suffix: "-4mb"
           partitions_suffix: "-4mb"
           sounds_suffix: "-4mb"
           vm_suffix: "-4mb"
+          config: mkimage-4mb.config
 
     steps:
     - name: Checkout
@@ -375,7 +378,7 @@ jobs:
       shell: bash
       working-directory: image
       run: |
-        escript build/mkimage.erl --root_dir . --config mkimage.config --out la_machine.img
+        escript build/mkimage.erl --root_dir . --config ${{ matrix.config }} --out la_machine.img
 
     - name: Upload image
       uses: actions/upload-artifact@v4
