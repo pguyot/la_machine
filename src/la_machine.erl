@@ -131,6 +131,21 @@ run() ->
 
     la_machine_battery:init(),
     WakeupCause = esp:sleep_get_wakeup_cause(),
+    ButtonState = read_button(),
+    BatteryCharging = la_machine_battery:is_charging(),
+    RTCState = la_machine_state:load_state(),
+    WakeupState = la_machine_state:get_wakeup_state(RTCState),
+
+    case esp:reset_reason() of
+        esp_rst_deepsleep ->
+            ok;
+        _ ->
+            {ok, EarlyBatteryLevel} = la_machine_battery:get_level(),
+            la_machine_resets:log_reset(
+                WakeupCause, ButtonState, EarlyBatteryLevel, BatteryCharging, WakeupState
+            )
+    end,
+
     case WakeupCause of
         undefined ->
             ok = la_machine_sounds:verify_partition();
@@ -144,27 +159,30 @@ run() ->
     {SleepSecs, WakeupGPIO} =
         case SelfTestState of
             uncalibrated ->
-                ButtonState = read_button(),
                 Timer = la_machine_selftest:run(Config, WakeupCause, ButtonState),
                 {Timer, button};
             unreported ->
                 la_machine_selftest:report(Config),
                 Config1 = la_machine_configuration:set_self_test_reported(Config),
                 la_machine_configuration:save(Config1),
-                RTCState0 = la_machine_state:load_state(),
-                RTCState1 = la_machine_state:set_wakeup_state(factory, RTCState0),
+                RTCState1 = la_machine_state:set_wakeup_state(factory, RTCState),
                 la_machine_state:save_state(RTCState1),
                 {?FACTORY_POLL_TIMEOUT_BUTTON_OFF, button};
             calibrated ->
-                ButtonState = read_button(),
-                BatteryCharging = la_machine_battery:is_charging(),
-                RTCState = la_machine_state:load_state(),
-                WakeupState = la_machine_state:get_wakeup_state(RTCState),
                 run_configured(
                     Config, WakeupCause, ButtonState, RTCState, WakeupState, BatteryCharging
                 )
         end,
     enable_gpio_wakeup(WakeupGPIO),
+    case esp:reset_reason() of
+        esp_rst_deepsleep ->
+            {ok, BatteryLevel} = la_machine_battery:get_level(),
+            la_machine_resets:log_reset(
+                WakeupCause, ButtonState, BatteryLevel, BatteryCharging, WakeupState
+            );
+        _ ->
+            ok
+    end,
     unconfigure_watchdog(WatchdogUser),
     case SleepSecs of
         infinity ->
