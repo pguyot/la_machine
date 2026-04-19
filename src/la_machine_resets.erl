@@ -29,7 +29,7 @@
 %%   bytes 0-3  Unix timestamp (uint32 big-endian, seconds)
 %%   byte  4    [button | battery_7bits]
 %%                bit  7    button state (0=off, 1=on)
-%%                bits 6-0  battery level 0-100, or 127 when charging
+%%                bits 6-0  battery level 0-100, 126 when unknown, 127 when charging
 %%   byte  5    [reset_reason | wakeup_cause | wakeup_state]
 %%                bits 7-4  reset reason  (see reset_reason_to_int/1)
 %%                bit  3    wakeup cause  (0=not-gpio, 1=gpio)
@@ -45,6 +45,8 @@
 -define(HEADER_SIZE, 4).
 -define(RECORD_SIZE, 6).
 -define(MAX_RECORDS, ((?PARTITION_SIZE - ?HEADER_SIZE) div ?RECORD_SIZE)).
+-define(BATTERY_LEVEL_UNKNOWN, 126).
+-define(BATTERY_LEVEL_CHARGING, 127).
 
 %%-----------------------------------------------------------------------------
 %% @doc Log the current reset into the resets partition.
@@ -100,12 +102,14 @@ find_first_empty(Lo, Hi) ->
         error -> Hi
     end.
 
--spec encode_battery(BatteryLevel :: 0..100, IsCharging :: boolean(), ButtonState :: on | off) ->
-    0..255.
+-spec encode_battery(
+    BatteryLevel :: 0..100 | undefined, IsCharging :: boolean(), ButtonState :: on | off
+) -> 0..255.
 encode_battery(BatteryLevel, IsCharging, ButtonState) ->
     BatteryBits =
         case IsCharging of
-            true -> 127;
+            true -> ?BATTERY_LEVEL_CHARGING;
+            false when BatteryLevel =:= undefined -> ?BATTERY_LEVEL_UNKNOWN;
             false -> BatteryLevel
         end,
     ButtonBit =

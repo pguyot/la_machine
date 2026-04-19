@@ -124,6 +124,12 @@ read_button() ->
         ?BUTTON_GPIO_ON -> on
     end.
 
+safe_get_battery_level() ->
+    case la_machine_battery:get_level() of
+        {ok, Level} -> Level;
+        {error, _} -> undefined
+    end.
+
 -spec run() -> no_return().
 run() ->
     WatchdogUser = configure_watchdog(),
@@ -140,9 +146,8 @@ run() ->
         esp_rst_deepsleep ->
             ok;
         _ ->
-            {ok, EarlyBatteryLevel} = la_machine_battery:get_level(),
             la_machine_resets:log_reset(
-                WakeupCause, ButtonState, EarlyBatteryLevel, BatteryCharging, WakeupState
+                WakeupCause, ButtonState, safe_get_battery_level(), BatteryCharging, WakeupState
             )
     end,
 
@@ -176,9 +181,8 @@ run() ->
     enable_gpio_wakeup(WakeupGPIO),
     case esp:reset_reason() of
         esp_rst_deepsleep ->
-            {ok, BatteryLevel} = la_machine_battery:get_level(),
             la_machine_resets:log_reset(
-                WakeupCause, ButtonState, BatteryLevel, BatteryCharging, WakeupState
+                WakeupCause, ButtonState, safe_get_battery_level(), BatteryCharging, WakeupState
             );
         _ ->
             ok
