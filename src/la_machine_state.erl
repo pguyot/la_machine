@@ -130,30 +130,59 @@ load_state() ->
     Now = erlang:system_time(second),
     deserialize_state(Now, get_state()).
 
+-define(NVS_NAMESPACE, la_machine).
+-define(NVS_TRAVEL_KEY, travel_mode).
+-define(NVS_TRAVEL_ENABLED, <<1>>).
+-define(NVS_TRAVEL_DISABLED, <<0>>).
+
 -ifdef(TEST).
 save_state(_State) -> ok.
 -else.
 save_state(State) ->
     Bin = serialize_state(State),
-    ok = esp:rtc_slow_set_binary(Bin).
+    ok = esp:rtc_slow_set_binary(Bin),
+    TravelByte =
+        case State#state.wakeup_state of
+            travel -> ?NVS_TRAVEL_ENABLED;
+            _ -> ?NVS_TRAVEL_DISABLED
+        end,
+    case esp:nvs_get_binary(?NVS_NAMESPACE, ?NVS_TRAVEL_KEY) of
+        TravelByte -> ok;
+        _ -> esp:nvs_put_binary(?NVS_NAMESPACE, ?NVS_TRAVEL_KEY, TravelByte)
+    end.
 -endif.
 
--spec get_state() -> binary() | undefined | watchdog | error | other_reset.
+-spec get_state() -> binary() | undefined | watchdog | error | other_reset | travel_poweron.
 get_state() ->
     try
         case esp:reset_reason() of
-            esp_rst_deepsleep -> esp:rtc_slow_get_binary();
-            esp_rst_int_wdt -> watchdog;
-            esp_rst_task_wdt -> watchdog;
-            esp_rst_wdt -> watchdog;
-            _ -> other_reset
+            esp_rst_deepsleep ->
+                esp:rtc_slow_get_binary();
+            % USB resets and other unknown resets may leave RTC RAM valid
+            esp_rst_unknown ->
+                esp:rtc_slow_get_binary();
+            esp_rst_poweron ->
+                case esp:nvs_get_binary(?NVS_NAMESPACE, ?NVS_TRAVEL_KEY) of
+                    <<1>> -> travel_poweron;
+                    _ -> other_reset
+                end;
+            esp_rst_int_wdt ->
+                watchdog;
+            esp_rst_task_wdt ->
+                watchdog;
+            esp_rst_wdt ->
+                watchdog;
+            _ ->
+                other_reset
         end
     catch
         error:badarg ->
             error
     end.
 
--spec deserialize_state(non_neg_integer(), binary() | undefined | watchdog | error | other_reset) ->
+-spec deserialize_state(
+    non_neg_integer(), binary() | undefined | watchdog | error | other_reset | travel_poweron
+) ->
     state().
 deserialize_state(
     Now,
@@ -187,6 +216,7 @@ deserialize_state(Now, State) ->
             watchdog -> normal;
             error -> normal;
             other_reset -> factory;
+            travel_poweron -> travel;
             _ -> normal
         end,
     #state{

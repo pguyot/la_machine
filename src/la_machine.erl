@@ -336,6 +336,7 @@ run_configured(Config, _WakeupCause, ButtonState, State0, charging, false) ->
     end,
     {Timer, both};
 run_configured(Config, _WakeupCause, ButtonState, State0, travel, false) ->
+    la_machine_state:save_state(State0),
     AccelerometerState = la_machine_lis3dh:setup(false),
     case AccelerometerState of
         resting when ButtonState =:= on ->
