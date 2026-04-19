@@ -25,6 +25,8 @@
 -define(PARTITION_MAGIC, 16#50AA).
 -define(HEADER_SIZE, 4).
 -define(RECORD_SIZE, 6).
+-define(BATTERY_LEVEL_UNKNOWN, 126).
+-define(BATTERY_LEVEL_CHARGING, 127).
 
 main(Args) ->
     Port = parse_args(Args),
@@ -174,7 +176,8 @@ decode_record(Index, Timestamp, BatteryByte, StatusByte) ->
     BatteryBits = BatteryByte band 16#7F,
     Battery =
         case BatteryBits of
-            127 -> "charging";
+            ?BATTERY_LEVEL_CHARGING -> "charging";
+            ?BATTERY_LEVEL_UNKNOWN -> "unknown";
             N -> integer_to_list(N)
         end,
     ResetReasonInt = StatusByte bsr 4,
