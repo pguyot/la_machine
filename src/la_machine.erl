@@ -254,6 +254,34 @@ compute_action(WakeupCause, ButtonState, AccelerometerState, BatteryLevel, State
 
 -endif.
 
+%% Wakeup state transition table:
+%%
+%%  State        Charging  Button  Accelerometer  Next state
+%%  -----------  --------  ------  -------------  ----------
+%%  factory      true      any     any            provisioning
+%%  factory      false     any     any            provisioning  (if battery >= 100)
+%%  factory      false     off     any            factory       (poll)
+%%  factory      false     on      any            factory       (poll, no gpio wakeup)
+%%
+%%  provisioning true      off     any            provisioning  (wait while charging)
+%%  provisioning false     off     any            provisioning  (sleep until button)
+%%  provisioning any       on      any            normal        (play welcome)
+%%
+%%  charging     true      off     any            charging      (wait while charging)
+%%  charging     true      on      any            normal        (close lid)
+%%  charging     false     any     any            normal        (close lid)
+%%
+%%  travel       true      any     any            charging      (open lid, exit travel)
+%%  travel       false     any     upside_down    normal        (if double-click, play travel_leave)
+%%  travel       false     any     other          travel        (sleep until button or accelerometer)
+%%
+%%  normal       true      off     any            charging      (open lid)
+%%  normal       any       any     any            normal        (play; upside_down double-click enters travel)
+%%
+%%  Poweron reset (faulty battery connector, RTC RAM lost):
+%%  travel       any       any     any            travel        (NVS travel flag preserved)
+%%  any other    any       any     any            factory       (NVS travel flag absent)
+
 -spec run_configured(
     la_machine_configuration:config(),
     esp:esp_wakeup_cause() | undefined,
