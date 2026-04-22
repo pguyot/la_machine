@@ -40,6 +40,7 @@
 
 -export([log_reset/5]).
 
+-ifdef(RESET_LOGS).
 -define(PARTITION, <<"resets">>).
 -define(PARTITION_SIZE, 16#40000).
 -define(HEADER_SIZE, 4).
@@ -152,3 +153,16 @@ wakeup_state_to_int(provisioning) -> 1;
 wakeup_state_to_int(charging) -> 2;
 wakeup_state_to_int(travel) -> 3;
 wakeup_state_to_int(factory) -> 4.
+
+-else.
+
+-spec log_reset(
+    WakeupCause :: undefined | sleep_wakeup_gpio | sleep_wakeup_timer,
+    ButtonState :: on | off,
+    BatteryLevel :: 0..100,
+    IsCharging :: boolean(),
+    WakeupState :: la_machine_state:wakeup_state()
+) -> ok.
+log_reset(_WakeupCause, _ButtonState, _BatteryLevel, _IsCharging, _WakeupState) ->
+    ok.
+-endif.

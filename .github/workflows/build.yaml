@@ -126,7 +126,7 @@ jobs:
     container: erlang:28
     strategy:
       matrix:
-        variant: ["proto_20241023", "4mb"]
+        variant: ["proto_20241023", "4mb", "reset_logs"]
 
     steps:
     - name: Checkout AtomVM
@@ -203,6 +203,8 @@ jobs:
           suffix: "-4mb"
         - size: "16MB"
           suffix: ""
+        - size: "16MB"
+          suffix: "-reset_logs"
 
     steps:
     - name: Checkout La Machine
@@ -340,11 +342,16 @@ jobs:
           sounds_suffix: ""
           vm_suffix: ""
           config: mkimage.config
+        - suffix: "-reset_logs"
+          partitions_suffix: "-reset_logs"
+          sounds_suffix: ""
+          vm_suffix: ""
+          config: mkimage-reset_logs.config
         - suffix: "-4mb"
           partitions_suffix: "-4mb"
           sounds_suffix: "-4mb"
           vm_suffix: "-4mb"
-          config: mkimage-4mb.config
+          config: mkimage.config
 
     steps:
     - name: Checkout
