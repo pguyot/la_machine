@@ -50,17 +50,6 @@
 -include("la_machine_scenarios.hrl").
 
 -ifdef(TEST).
-count_test_() ->
-    [
-        ?_assert(count(excited) > 0),
-        ?_assertEqual(0, count(unknown))
-    ].
-
-get_test_() ->
-    [
-        ?_assert(is_list(get(excited, 1)))
-    ].
-
 %% All known scenario types. Update this list when adding a new type.
 -define(ALL_TYPES, [
     calling,
@@ -78,6 +67,24 @@ get_test_() ->
     upset,
     system
 ]).
+
+%% Pick a type that actually has scenarios in the current build. Boutique
+%% variants (e.g. 4mb) only ship a subset of types, so we can't hard-code one.
+first_existing_type() ->
+    hd([T || T <- ?ALL_TYPES, count(T) > 0]).
+
+count_test_() ->
+    ExistingType = first_existing_type(),
+    [
+        ?_assert(count(ExistingType) > 0),
+        ?_assertEqual(0, count(unknown))
+    ].
+
+get_test_() ->
+    ExistingType = first_existing_type(),
+    [
+        ?_assert(is_list(get(ExistingType, 1)))
+    ].
 
 -ifdef(CHOREOGRAPHIES_FILE).
 -define(JSON_PATH, ?CHOREOGRAPHIES_FILE).

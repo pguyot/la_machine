@@ -1,14 +1,36 @@
 {
-  "calling_00099": "{mp3, <<\"calling/00099.mp3\">>}",
-  "excited_00188": "{servo, 30}, {wait, 173}, {servo, 0}, {wait, 133}, {mp3, <<\"excited/00188.mp3\">>}, {wait, 41}, {servo, 30}",
-  "game_long_03765": "{mp3, <<\"game/03765.mp3\">>}",
-  "game_medium_02388": "{mp3, <<\"game/02388.mp3\">>}",
-  "game_short_00642": "{mp3, <<\"game/00642.mp3\">>}",
+ 
+  "calm_0": "{servo, 100, 1000}, {wait, 1024}, {servo, 0, 1000}, {servo, 0}",
+
+ 
+  
+  
+  "calm_1": "{wait, 57}, {servo, 26}, {wait, 35}, {mp3, <<\"joy/03367.mp3\">>}, {wait, 376}, {servo, 36}, {wait, 353}, {servo, 44}, {wait, 278}, {servo, 55}, {wait, 324}, {servo, 64}, {wait, 266}, {servo, 76}, {wait, 342}, {servo, 84}, {wait, 75}, {servo, 61}, {wait, 64}, {servo, 54}, {wait, 115}, {servo, 47}, {wait, 99}, {servo, 42}, {wait, 104}, {servo, 38}, {wait, 110}, {servo, 34}, {wait, 98}, {servo, 30}, {wait, 93}, {servo, 26}, {wait, 104}, {servo, 21}, {wait, 93}, {servo, 18}, {wait, 98}, {servo, 13}, {wait, 98}, {servo, 10}, {wait, 110}, {servo, 7}, {wait, 93}, {servo, 4}, {wait, 121}, {servo, 2}",
+  "calm_2": "{wait, 23}, {servo, 18}, {wait, 179}, {mp3, <<\"joy/01824.mp3\">>}, {wait, 116}, {servo, 26}, {wait, 202}, {servo, 37}, {wait, 203}, {servo, 46}, {wait, 185}, {servo, 54}, {wait, 197}, {servo, 63}, {wait, 197}, {servo, 71}, {wait, 138}, {servo, 75}, {wait, 99}, {servo, 78}, {wait, 104}, {servo, 81}, {wait, 110}, {servo, 82}, {wait, 81}, {servo, 84}, {wait, 185}, {servo, 0}",
+  
+  "calm_3": "{mp3, <<\"game/03765.mp3\">>}, {servo, 53, 2200}, {wait, 2309}, {servo, 65}, {wait, 81}, {servo, 59}, {wait, 86}, {servo, 46}, {wait, 99}, {servo, 55}, {wait, 87}, {servo, 44}, {wait, 225}, {servo, 32}, {wait, 87}, {servo, 46}, {wait, 220}, {servo, 36}, {wait, 127}, {servo, 30}, {wait, 110}, {servo, 23}, {wait, 64}, {servo, 15}, {wait, 220}, {servo, 6}, {wait, 497}, {servo, 6}",
+  "calm_4": "{servo, 50, 954}, {wait, 884}, {mp3, <<\"game/04086.mp3\">>}, {wait, 88}, {servo, 36}, {wait, 168}, {servo, 59}, {wait, 156}, {servo, 36}, {wait, 445}, {servo, 59}, {wait, 324}, {servo, 36}, {wait, 128}, {servo, 59}, {wait, 150}, {servo, 36}, {wait, 162}, {servo, 59}, {wait, 266}, {servo, 36}, {wait, 296}, {servo, 59}, {wait, 376}, {servo, 36}, {wait, 330}, {servo, 59}, {wait, 370}, {servo, 36}, {wait, 110}, {servo, 59}, {wait, 145}, {servo, 36}, {wait, 272}, {servo, 59}, {wait, 231}, {servo, 36}",
+  "calm_5": "{wait, 75}, {mp3, <<\"game/04843.mp3\">>}, {wait, 6}, {servo, 19}, {wait, 289}, {servo, 26}, {wait, 255}, {servo, 32}, {wait, 231}, {servo, 36}, {wait, 208}, {servo, 39}, {wait, 162}, {servo, 42}, {wait, 203}, {servo, 44}, {wait, 197}, {servo, 50}, {wait, 173}, {servo, 54}, {wait, 157}, {servo, 56}, {wait, 138}, {servo, 58}, {wait, 162}, {servo, 61}, {wait, 151}, {servo, 64}, {wait, 145}, {servo, 67}, {wait, 127}, {servo, 71}, {wait, 104}, {servo, 73}, {wait, 139}, {servo, 76}, {wait, 110}, {servo, 79}, {wait, 81}, {servo, 81}, {wait, 81}, {servo, 85, 1719}",
+  "calm_6": "{servo, 50}, {wait, 173}, {mp3, <<\"game/05030.mp3\">>}, {wait, 110}, {servo, 45}, {wait, 116}, {servo, 51}, {wait, 254}, {servo, 44}, {wait, 128}, {servo, 53}, {wait, 115}, {servo, 47}, {wait, 76}, {servo, 52}, {wait, 87}, {servo, 46}, {wait, 69}, {servo, 52}, {wait, 87}, {servo, 48}, {wait, 168}, {servo, 55}, {wait, 121}, {servo, 48}, {wait, 116}, {servo, 53}, {wait, 121}, {servo, 47}, {wait, 41}, {servo, 51}, {wait, 104}, {servo, 48}, {wait, 203}, {servo, 55}, {wait, 52}, {servo, 49}, {wait, 98}, {servo, 46}, {wait, 29}, {servo, 54}, {wait, 139}, {servo, 46}, {wait, 52}, {servo, 54}, {wait, 150}, {servo, 46}, {wait, 110}, {servo, 57}, {wait, 81}, {servo, 46}, {wait, 99}, {servo, 53}, {wait, 150}, {servo, 52}, {wait, 47}, {servo, 46}, {wait, 63}, {servo, 52}, {wait, 81}, {servo, 47}, {wait, 81}, {servo, 53}, {wait, 180}, {servo, 46}, {wait, 58}, {servo, 56}, {wait, 133}, {servo, 47}, {wait, 75}, {servo, 57}, {wait, 75}, {servo, 44}, {wait, 122}, {servo, 55}, {wait, 86}, {servo, 46}, {wait, 87}, {servo, 54}, {wait, 99}, {servo, 47}, {wait, 150}, {servo, 58}, {wait, 70}, {servo, 43}, {wait, 69}, {servo, 53}, {wait, 98}, {servo, 46}, {wait, 76}, {servo, 55}, {wait, 81}, {servo, 46}, {wait, 69}, {servo, 56}, {wait, 104}, {servo, 46}, {wait, 52}, {servo, 54}, {wait, 139}, {servo, 46}, {wait, 81}, {servo, 57}",
+  
+  "calm_7": "{mp3, <<\"game/03223.mp3\">>}, {wait, 208}, {servo, 50}, {wait, 532}, {servo, 0}, {wait, 608}, {servo, 50}, {wait, 619}, {servo, 0, 359}, {wait, 556}, {servo, 50}, {wait, 567}, {servo, 0}",
+  "calm_8": "{mp3, <<\"excited/02397.mp3\">>}, {wait, 28}, {servo, 18}, {wait, 110}, {servo, 11}, {wait, 41}, {servo, 17}, {wait, 52}, {servo, 9}, {wait, 46}, {servo, 19}, {wait, 70}, {servo, 10}, {wait, 69}, {servo, 18}, {wait, 64}, {servo, 10}, {wait, 52}, {servo, 18}, {wait, 64}, {servo, 10}, {wait, 46}, {servo, 18}, {wait, 46}, {servo, 10}, {wait, 70}, {servo, 17}, {wait, 46}, {servo, 9}, {wait, 46}, {servo, 18}, {wait, 52}, {servo, 10}, {wait, 58}, {servo, 18}, {wait, 64}, {servo, 10}, {wait, 63}, {servo, 18}, {wait, 58}, {servo, 9}, {wait, 58}, {servo, 17}, {wait, 41}, {servo, 10}, {wait, 63}, {servo, 18}, {wait, 52}, {servo, 9}, {wait, 110}, {servo, 17}, {wait, 58}, {servo, 11}, {wait, 41}, {servo, 17}, {wait, 75}, {servo, 10}, {wait, 69}, {servo, 17}, {wait, 47}, {servo, 9}, {wait, 63}, {servo, 17}, {wait, 64}, {servo, 10}, {wait, 70}, {servo, 18}, {wait, 92}, {servo, 9}, {wait, 87}, {servo, 40}",
+  "calm_9": "{wait, 75}, {mp3, <<\"excited/02044.mp3\">>}, {wait, 23}, {servo, 75, 943}, {wait, 1024}, {servo, 83}, {wait, 87}, {servo, 74}, {wait, 46}, {servo, 83}, {wait, 64}, {servo, 74}, {wait, 69}, {servo, 83}, {wait, 76}, {servo, 73}, {wait, 75}, {servo, 83}, {wait, 81}, {servo, 74}, {wait, 75}, {servo, 82}, {wait, 70}, {servo, 74}, {wait, 63}, {servo, 83}, {wait, 70}, {servo, 73}, {wait, 58}, {servo, 83}, {wait, 127}, {servo, 41}",
+  "calm_10": "{servo, 77}, {wait, 219}, {mp3, <<\"upset/02249.mp3\">>}, {wait, 440}, {servo, 50}, {wait, 220}, {servo, 76, 347}, {wait, 596}, {servo, 50}, {wait, 145}, {servo, 75}, {wait, 168}, {servo, 71}, {wait, 52}, {servo, 75}, {wait, 52}, {servo, 70}, {wait, 29}, {servo, 76}, {wait, 58}, {servo, 69}, {wait, 81}, {servo, 85}, {wait, 272}, {servo, 41}",
+  
   "hits_00082": "{mp3, <<\"hits/00082.mp3\">>}",
-  "joy_00958": "{mp3, <<\"joy/00958.mp3\">>}",
-  "meuh_03676": "{servo, 60, 2500}, {wait, 1000}, {mp3, <<\"meuh/03676.mp3\">>}, {wait, 4754}, {servo, 0, 800}",
+  "hits_00117": "{mp3, <<\"hits/00117.mp3\">>}",
+  "hits_00155": "{mp3, <<\"hits/00155.mp3\">>}",
+  
+
+  "calling_00099": "{mp3, <<\"calling/00099.mp3\">>}",
   "poke_00186": "{mp3, <<\"poke/00186.mp3\">>}",
-  "test_1": "{wait, 451}, {servo, 17}, {wait, 2540}, {servo, 85, 1592}, {wait, 2414}, {servo, 100, 590}, {wait, 1666}, {servo, 0, 1000}",
-  "tired_01006": "{mp3, <<\"tired/01006.mp3\">>}",
-  "upset_00144": "{mp3, <<\"upset/00144.mp3\">>}"
+  "meuh_03676": "{servo, 60, 2500}, {wait, 1000}, {mp3, <<\"meuh/03676.mp3\">>}, {wait, 4754}, {servo, 0, 800}",
+  "poke_silent": "{servo, 19}, {wait, 109}, {servo, 0}",
+
+  "system_batterylow": "{mp3, <<\"_other/00043.mp3\">>}, {wait, 578}, {servo, 100, 4480}, {wait, 4400}, {mp3, <<\"_other/00043.mp3\">>}, {wait, 438}, {servo, 0, 3600}",
+  "system_welcome": "{servo, 50, 360}, {wait, 401}, {servo, 43}, {wait, 3}, {mp3, <<\"joy/02110.mp3\">>}, {wait, 142}, {servo, 52}, {wait, 146}, {servo, 42}, {wait, 276}, {servo, 67}, {wait, 422}, {servo, 81, 360}, {wait, 386}, {servo, 49, 320}, {wait, 359}, {servo, 52}, {wait, 31}, {servo, 46}, {wait, 42}, {servo, 52}, {wait, 42}, {servo, 45, 80}, {wait, 31}, {servo, 52}, {wait, 73}, {servo, 54}, {wait, 47}, {servo, 46}, {wait, 52}, {servo, 54}, {wait, 52}, {servo, 47}, {wait, 83}, {servo, 38, 520}, {wait, 547}, {servo, 76}, {wait, 66}, {mp3, <<\"joy/02220.mp3\">>}, {wait, 200}, {servo, 46, 620}, {wait, 656}, {servo, 77}, {wait, 479}, {servo, 79}, {wait, 42}, {servo, 73}, {wait, 36}, {servo, 78}, {wait, 37}, {servo, 73}, {wait, 41}, {servo, 79}, {wait, 63}, {servo, 72}, {wait, 62}, {servo, 79}, {wait, 52}, {servo, 73}, {wait, 58}, {servo, 80}, {wait, 57}, {servo, 73}, {wait, 36}, {servo, 78}, {wait, 47}, {servo, 71}, {wait, 52}, {servo, 78}, {wait, 360}, {servo, 32, 860}, {wait, 869}, {servo, 41, 80}, {wait, 52}, {mp3, <<\"joy/02275.mp3\">>}, {wait, 115}, {servo, 28}, {wait, 125}, {servo, 57}, {wait, 214}, {servo, 49}, {wait, 109}, {servo, 42}, {wait, 68}, {servo, 35}, {wait, 125}, {servo, 29}, {wait, 135}, {servo, 60}, {wait, 453}, {servo, 53}, {wait, 89}, {servo, 44}, {wait, 146}, {servo, 36}, {wait, 104}, {servo, 27}, {wait, 114}, {servo, 17}, {wait, 183}, {servo, 6}, {wait, 182}, {servo, 100}, {wait, 500}, {mp3, <<\"hits/00247.mp3\">>}, {wait, 203}, {servo, 0}"
+
+  
 }
+
